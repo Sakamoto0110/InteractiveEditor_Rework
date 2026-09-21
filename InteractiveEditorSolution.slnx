@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="DemoObjects/DemoObjects.csproj" />
+  <Project Path="InteractiveEditor/InteractiveEditor.csproj" />
+  <Project Path="WindowsHost/WindowsHost.csproj" />
+  <Project Path="WpfHost/WpfHost.csproj" />
+</Solution>

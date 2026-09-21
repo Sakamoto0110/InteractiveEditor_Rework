@@ -1,0 +1,14 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/DemoObjects/bin/Debug/net10.0
+/DemoObjects/obj
+/InteractiveEditor/bin/Debug/net10.0-windows
+/InteractiveEditor/obj
+/WindowsHost/bin/Debug/net10.0-windows
+/WindowsHost/obj
+*.user
+/WpfHost/bin/Debug/net10.0-windows
+/WpfHost/obj
