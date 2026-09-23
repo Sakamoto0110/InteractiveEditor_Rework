@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace InteractiveEditor.Presentation;
+namespace InteractiveEditor.Presentation.WF;
 
-internal class InspectorViewModel
+internal class FieldsetView
 {
 }

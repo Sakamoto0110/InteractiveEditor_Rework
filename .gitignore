@@ -12,3 +12,4 @@
 *.user
 /WpfHost/bin/Debug/net10.0-windows
 /WpfHost/obj
+/NoHost

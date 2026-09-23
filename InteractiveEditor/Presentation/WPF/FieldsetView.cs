@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace InteractiveEditor.Presentation;
+namespace InteractiveEditor.Presentation.WPF;
 
-internal class FieldsetViewModel
+internal class FieldsetView
 {
 }
