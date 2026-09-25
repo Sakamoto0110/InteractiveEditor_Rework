@@ -1,6 +1,6 @@
-﻿using InteractiveEditor.Binding;
+﻿using System.Collections;
+using InteractiveEditor.Binding;
 using InteractiveEditor.Model;
-using System.Collections;
 
 namespace InteractiveEditor;
 
@@ -15,6 +15,23 @@ public class Inspector : InspectorNode, IEnumerable<InspectorNode>
     protected Inspector() { }
 
     public override string Name => Descriptor?.Name ?? Target?.Name ?? " -- ";
+
+    public InspectorNode this[string name]
+    {
+        get
+        {
+            if (Parent == null && Name == name)
+                return this;
+
+            var child = Children.FirstOrDefault(c => c.Name == name);
+
+            if (child == null)
+                throw new KeyNotFoundException(
+                    $"Node '{name}' not found in inspector '{Name}'.");
+
+            return child;
+        }
+    }
 
     public static Inspector Create<T>()
     {
@@ -90,9 +107,32 @@ public class Inspector : InspectorNode, IEnumerable<InspectorNode>
         return inspector;
     }
 
-
-
     public override void bind<T>(T instance) => bind((object?)instance);
+
+    public override void SetValue(object? value)
+    {
+        throw new InvalidOperationException(
+            $"Inspector '{Name}' does not allow replacing its instance.");
+    }
+
+    public IEnumerator<InspectorNode> GetEnumerator()
+    {
+        foreach (var child in Children)
+        {
+            yield return child;
+
+            if (child is Inspector inspector)
+            {
+                 foreach (var node in inspector)
+                    yield return node;
+            }
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 
     private void bind(object? instance)
     {
@@ -116,47 +156,5 @@ public class Inspector : InspectorNode, IEnumerable<InspectorNode>
 
         if (Parent == null)
             IsTypeBound = true;
-    }
-
-    public override void SetValue(object? value)
-    {
-        throw new InvalidOperationException(
-            $"Inspector '{Name}' does not allow replacing its instance.");
-    }
-
-    public InspectorNode this[string name]
-    {
-        get
-        {
-            if (Parent == null && Name == name)
-                return this;
-
-            var child = Children.FirstOrDefault(c => c.Name == name);
-
-            if (child == null)
-                throw new KeyNotFoundException(
-                    $"Node '{name}' not found in inspector '{Name}'.");
-
-            return child;
-        }
-    }
-
-    public IEnumerator<InspectorNode> GetEnumerator()
-    {
-        foreach (var child in Children)
-        {
-            yield return child;
-
-            if (child is Inspector inspector)
-            {
-                 foreach (var node in inspector)
-                    yield return node;
-            }
-        }
-    }
-
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
     }
 }
