@@ -1,8 +1,9 @@
-﻿namespace NoHost;
+﻿using DemoObjects.ClassObjects;
 using InteractiveEditor;
-using InteractiveEditor.Model;
-using DemoObjects.ClassObjects;
 using InteractiveEditor.Binding;
+using InteractiveEditor.Model;
+
+namespace NoHost;
 
 internal class Program
 {

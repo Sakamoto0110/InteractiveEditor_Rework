@@ -4,10 +4,11 @@ namespace InteractiveEditor;
 
 public abstract class InspectorNode
 {
+    protected object? Instance;
+
     public virtual string Name => Descriptor?.Name ?? " -- ";
     public FieldDescriptor?  Descriptor { get; init; }
     public Inspector? Parent { get; internal set; }
-    protected object? Instance;
     
     public abstract void bind<T>(T  instance);
      
