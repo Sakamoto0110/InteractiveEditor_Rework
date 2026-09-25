@@ -1,28 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
+﻿using System.Reflection;
 
-namespace InteractiveEditor.Model
+namespace InteractiveEditor.Model;
+
+public class FieldDescriptor
 {
-    public class FieldDescriptor
+    public Type Type { get; init; }
+    public string Name { get; init; }
+    public string Path { get; init; }
+    public string FullPath { get; init; }
+    public MemberTypes MemberType { get; init; }
+
+    public FieldAccessors Accessors { get; init; }
+    public Func<object?, object?> OwnerGetter { get; init; }
+
+    public class FieldAccessors
     {
-        public Type Type { get; init; }
-        public string Name { get;init; }
-        public string Path { get; init;}
-        public string FullPath { get; init;}
-        public  FieldAccessors Accessors { get; set; }
-        public MemberTypes MemberType { get; init; }
-
-
-        public class FieldAccessors
-        {
-            
-            public Func<object? , object?>? Getter;
-            public Action<object?,object?>? Setter;
-        }
-
+        public Func<object?, object?>? Getter;
+        public Action<object?, object?>? Setter;
     }
-
 }
-

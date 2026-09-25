@@ -1,88 +1,162 @@
 ﻿using InteractiveEditor.Binding;
 using InteractiveEditor.Model;
-using InteractiveEditor.Presentation;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
 
 namespace InteractiveEditor;
 
-public class Inspector : IEnumerable<Fieldset>
+public class Inspector : InspectorNode, IEnumerable<InspectorNode>
 {
     protected object? Host;
     protected Type? Target;
 
-
-
-    
-    List<FieldDescriptor> Fields;
-
     private bool IsTypeBound = false;
+    private List<InspectorNode> Children = [];
 
-    protected Inspector() {}
-    private IReadOnlyList<Fieldset> Children;
-    public static Inspector Create<T>( )
+    protected Inspector() { }
+
+    public override string Name => Descriptor?.Name ?? Target?.Name ?? " -- ";
+
+    public static Inspector Create<T>()
     {
-        // Non hosted
-        var inspector = new Inspector();
+        var inspector = new Inspector
+        {
+            Target = typeof(T)
+        };
 
-        inspector.Children = ReflectionDiscovery.ResolveFor<T>().Select(f => new Fieldset() { Descriptor = f }).ToList();
+        var descriptors = ReflectionDiscovery.ResolveFor(typeof(T));
+        var inspectors = new Dictionary<string, Inspector>();
+
+        foreach (var descriptor in descriptors)
+        {
+            var hasChildren = descriptors.Any(f =>
+                f.FullPath.StartsWith(descriptor.FullPath + ".", StringComparison.Ordinal));
+
+            InspectorNode node;
+
+            if (hasChildren)
+            {
+                node = new Inspector
+                {
+                    Descriptor = descriptor
+                };
+            }
+            else
+            {
+                node = new Fieldset
+                {
+                    Descriptor = descriptor
+                };
+            }
+
+            var separator = descriptor.FullPath.LastIndexOf('.');
+
+            Inspector parent;
+
+            if (separator == -1)
+            {
+                parent = inspector;
+            }
+            else
+            {
+                var parentPath = descriptor.FullPath[..separator];
+                parent = inspectors[parentPath];
+            }
+
+            node.Parent = parent;
+            parent.Children.Add(node);
+
+            if (node is Inspector nestedInspector)
+                inspectors.Add(descriptor.FullPath, nestedInspector);
+        }
+
         return inspector;
     }
 
-    public void bind<T>(T instance)
-    {
-        if (IsTypeBound)
-            throw new InvalidOperationException("Inspector is already bound to a type.");
-        if (instance == null)
-            throw new ArgumentNullException(nameof(instance));
-        Target = typeof(T);
-        foreach (var child in Children)
-        {
-            child.Bind(instance);
-        }
-        IsTypeBound = true;
-    }
-
-    public Fieldset this[string fieldName]
-    {
-        get
-        {
-            if (Children == null)
-                throw new InvalidOperationException("Inspector is not initialized.");
-            if(!Children.Any(c => c.Descriptor.Name == fieldName))
-                throw new KeyNotFoundException($"Field '{fieldName}' not found in inspector.");
-            return Children.First(c => c.Descriptor.Name == fieldName);
-        }
-    }
-
-
-
     public static Inspector Create<T>(System.Windows.Forms.Control host)
     {
-        // WF
-        return new Presentation.WF.InspectorView(host) ;
+        var inspector = new Presentation.WF.InspectorView(host);
+
+         
+
+        return inspector;
     }
 
     public static Inspector Create<T>(System.Windows.Controls.Control host)
     {
-        // WPF
-        return new Presentation.WPF.InspectorView(host);
+        var inspector = new Presentation.WPF.InspectorView(host);
+
+         
+
+        return inspector;
     }
 
-    public IEnumerator<Fieldset> GetEnumerator()
+
+
+    public override void bind<T>(T instance) => bind((object?)instance);
+
+    private void bind(object? instance)
     {
-        return Children.GetEnumerator();
+        if (Parent == null)
+        {
+            if (IsTypeBound)
+                throw new InvalidOperationException("Inspector is already bound to a type.");
+
+            if (instance == null)
+                throw new ArgumentNullException(nameof(instance));
+        }
+
+        Instance = instance;
+
+        var target = Descriptor == null
+            ? instance
+            : Descriptor.Accessors.Getter?.Invoke(instance);
+
+        foreach (var child in Children)
+            child.bind(target);
+
+        if (Parent == null)
+            IsTypeBound = true;
+    }
+
+    public override void SetValue(object? value)
+    {
+        throw new InvalidOperationException(
+            $"Inspector '{Name}' does not allow replacing its instance.");
+    }
+
+    public InspectorNode this[string name]
+    {
+        get
+        {
+            if (Parent == null && Name == name)
+                return this;
+
+            var child = Children.FirstOrDefault(c => c.Name == name);
+
+            if (child == null)
+                throw new KeyNotFoundException(
+                    $"Node '{name}' not found in inspector '{Name}'.");
+
+            return child;
+        }
+    }
+
+    public IEnumerator<InspectorNode> GetEnumerator()
+    {
+        foreach (var child in Children)
+        {
+            yield return child;
+
+            if (child is Inspector inspector)
+            {
+                 foreach (var node in inspector)
+                    yield return node;
+            }
+        }
     }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
-        return ((IEnumerable)Children).GetEnumerator();
+        return GetEnumerator();
     }
 }
-
-
-
- 
