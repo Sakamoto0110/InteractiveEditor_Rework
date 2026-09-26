@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public struct SKSizeF : IEquatable<SKSizeF>
+public partial struct SKSizeF : IEquatable<SKSizeF>
 {
     public static readonly SKSizeF Empty = new SKSizeF(0f, 0f);
 
@@ -42,7 +42,6 @@ public struct SKSizeF : IEquatable<SKSizeF>
     public readonly bool IsEmpty => Width == 0f && Height == 0f;
 
     public static implicit operator System.Drawing.SizeF(SKSizeF size) => new System.Drawing.SizeF(size.Width, size.Height);
-    public static implicit operator System.Windows.Size(SKSizeF size) => new System.Windows.Size(size.Width, size.Height);
     public static explicit operator SKPointF(SKSizeF size) => new SKPointF(size.Width, size.Height);
 
     public static SKSizeF operator +(SKSizeF left, SKSizeF right) => Add(left, right);

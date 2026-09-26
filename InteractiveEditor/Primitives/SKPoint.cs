@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace InteractiveEditor.Primitives;
 
-public struct SKPoint : IEquatable<SKPoint>
+public partial struct SKPoint : IEquatable<SKPoint>
 {
     public static readonly SKPoint Empty = new SKPoint(0, 0);
 
@@ -32,7 +32,6 @@ public struct SKPoint : IEquatable<SKPoint>
     public readonly bool IsEmpty => X == 0 && Y == 0;
 
     public static implicit operator System.Drawing.Point(SKPoint p) => new System.Drawing.Point(p.X, p.Y);
-    public static implicit operator System.Windows.Point(SKPoint p) => new System.Windows.Point(p.X, p.Y);
     public static explicit operator SKSize(SKPoint p) => new SKSize(p.X, p.Y);
 
     public static SKPoint operator +(SKPoint left, SKPoint right) => new SKPoint(left.X + right.X, left.Y + right.Y);

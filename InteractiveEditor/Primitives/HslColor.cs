@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public struct HslColor : IEquatable<HslColor>
+public partial struct HslColor : IEquatable<HslColor>
 {
     private byte a;
     private float h;
@@ -148,9 +148,6 @@ public struct HslColor : IEquatable<HslColor>
 
     public static implicit operator System.Drawing.Color(HslColor color) => (ArgbColor)color;
     public static implicit operator HslColor(System.Drawing.Color color) => new HslColor(new ArgbColor(color.A, color.R, color.G, color.B));
-
-    public static implicit operator System.Windows.Media.Color(HslColor color) => (ArgbColor)color;
-    public static implicit operator HslColor(System.Windows.Media.Color color) => new HslColor(new ArgbColor(color.A, color.R, color.G, color.B));
 
     public static bool operator ==(HslColor left, HslColor right) => left.A == right.A && left.H == right.H && left.S == right.S && left.L == right.L;
     public static bool operator !=(HslColor left, HslColor right) => !(left == right);
