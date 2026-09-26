@@ -11,4 +11,8 @@
     <Folder Include="StructObjects\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\InteractiveEditor\InteractiveEditor.csproj" />
+  </ItemGroup>
+
 </Project>
