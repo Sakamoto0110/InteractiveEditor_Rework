@@ -30,6 +30,16 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   Aplicado no commit `483f2dd` (3.7).
 - **Primitivos com prefixo `SK` provisório**, até a nomenclatura final: `SKPoint`, `SKPointF`,
   `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `8bec89b` (3.4).
+- **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
+  `[InspectorExpandable]` para expandir objetos aninhados), por inspector e por campo. Primeiro corte
+  aplicado no commit `8756694` (seção 7).
+- **Descrições em dois atributos**: `[InspectorTooltip]` (curta) e `[InspectorHelp]` (longa).
+- **Chaves em string**: caminho relativo à raiz (`"Moo.MooX"`); seletor por expressão fica para
+  depois.
+- **Configurador sem intermediário**: edita as próprias opções por caminho
+  (`fields["x"].Label = ...`). Nada de `map`, `Modify` ou provider.
+- **Exceções explodem**: caminho desconhecido lança, e exceções do configurador ou das políticas sobem
+  sem ser engolidas.
 
 ---
 
@@ -186,13 +196,13 @@ definiu:
 
 1. **Descoberta por reflection**: membros, tipo, getter e setter, e o editor padrão pelo tipo.
 2. **Metadados por atributo**: atributos próprios do inspector, no tipo e nos membros.
-3. **Manual**: o que o configurador declarar (`map.AddField`, `map.Modify`...).
+3. **Manual**: o que o configurador fizer nas opções (`fields["x"].Label = ...`).
 
 Os filtros (blacklist/whitelist, opt-in de tipos, filtro por instância) entram como políticas na
 mesma pilha. Uma política nova é só mais uma camada.
 
-**Atributos do inspector** (nomes propostos; próprios, para não haver ambiguidade com
-`System.ComponentModel` ou DataAnnotations)
+**Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
+DataAnnotations; aplicados no commit `8756694`)
 
 | Atributo | Para quê |
 |---|---|
@@ -201,24 +211,24 @@ mesma pilha. Uma política nova é só mais uma camada.
 | `[InspectorTooltip("...")]` | Descrição curta, usada como tooltip |
 | `[InspectorHelp("...")]` | Descrição longa, para o `(?)` |
 | `[InspectorReadOnly]` | Somente leitura |
+| `[InspectorEditor(EditorKind...)]` | Tipo de editor |
 | `[InspectorRange(min, max, Step = ...)]` | Faixa (slider, limite) |
 | `[InspectorScrub(multiplicador)]` | Scrubbing no rótulo |
 | `[InspectorOrder(n)]` | Ordem de exibição |
-| `[InspectorExpandable]` | Opt-in de expansão de um tipo (sucessor do `TypeSafeLock`) |
-
-Alternativa para as descrições: um atributo só, `[InspectorDescription(Short = "...", Long = "...")]`.
+| `[InspectorExpandable]` | Opt-in de expansão, no membro ou no tipo (sucessor do `TypeSafeLock`) |
 
 **Configuração**
 
-- Manter a forma `map.Modify(...)`, que é a cara da ferramenta.
-- Chavear pelo caminho completo (`FullPath`), não pelo nome curto. No original o mapa é um
+- O configurador edita as próprias opções, por caminho (`fields["Moo.MooX"]`), sem `map`, `Modify`
+  ou provider (decidido; seção 7).
+- Chave pelo caminho completo, relativo à raiz, e não pelo nome curto. No original o mapa é um
   `Dictionary` chaveado por `finfo.Name` com `if (!map.ContainsKey(...))`: dois membros com o mesmo
   nome em níveis diferentes fazem o segundo sumir sem aviso.
-- Opcional: seletor por expressão, `map.For(f => f.Moo.MooX)`, que o compilador checa e que
+- Depois: seletor por expressão (por exemplo `fields[f => f.Moo.MooX]`), que o compilador checa e que
   acompanha renomeações.
-- Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (por exemplo `Text`,
-  `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Separator`, `Header`). Cada view decide
-  o controle.
+- Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (`EditorKind`: `Text`,
+  `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator`). Cada
+  view decide o controle.
 - O que a configuração guarda: rótulo, editor, flags (`ReadOnly`, `Disabled`, scrubbing),
   multiplicadores (scrubbing e slider), sanitizadores, visível, recolhido e ação pós-bind.
 - A ideia do `TypeSafeLock` (opt-in de quais tipos podem ser expandidos) continua, como atributo do
@@ -226,23 +236,28 @@ Alternativa para as descrições: um atributo só, `[InspectorDescription(Short 
 - O `TypeBinderMode` do original (`Automatic` / `Manual`, declarado e nunca usado lá) pode continuar
   existindo para quando se quer só os campos declarados; o padrão passa a ser `Automatic`.
 
-Esboço da camada manual, a partir do uso real (nomes provisórios, para discutir):
+Esboço do editor de componentes do OverlayApplication no configurador atual. As linhas marcadas
+são de cortes seguintes, com nomes provisórios:
 
 ```csharp
-var component = Inspector.Create<ComponentPreset>(options, map =>
+var component = Inspector.Create<ComponentPreset>(fields =>
 {
-    map.AddField("PosX", c => c.X).Scrub(1).Sanitize(Sanitize.Digits());
-    map.AddField("ScaleX", c => c.ScaleX).Scrub(0.01);
-    map.AddField("Opacity", c => c.Opacity).Slider(min: 0, max: 255, tick: 5);
-    map.AddField("CapValues", c => c.RoundRectCap);                 // enum vira escolha sozinho
-    map.AddField("Color1", c => c.FillColor).ColorPicker();
-    map.AddField("Text", c => c.Text).VisibleWhen(c => c.IsText);   // sucessor do VariablePool
-    map.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
-    map.AddDisplay("Layer", () => tree.SelectedIndex);
+    fields["X"].Label = "PosX";
+    fields["X"].ScrubMultiplier = 1;
+    fields["ScaleX"].ScrubMultiplier = 0.01;
+    fields["Opacity"].Editor = EditorKind.Slider;
+    fields["Opacity"].Range = new NumericRange(0, 255, 5);
+    fields["FillColor"].Label = "Color1";
+
+    // cortes seguintes:
+    // editor de cor automático (hoje System.Drawing.Color ainda vira um grupo com A, R, G, B...)
+    // fields["Text"].VisibleWhen = c => ((ComponentPreset)c).IsText;   // sucessor do VariablePool
+    // fields.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
+    // fields.AddDisplay("Layer", () => tree.SelectedIndex);
 });
 
-component.Bind(selected);    // rebind a cada seleção
-component.Bind(selection);   // multi-bind
+component.Bind(selected);    // cortes seguintes: rebind a cada seleção
+component.Bind(selection);   // cortes seguintes: multi-bind
 ```
 
 No modo automático (o padrão), os membros refletidos entram sozinhos, os atributos ajustam e o
@@ -382,7 +397,8 @@ de apresentação; o resto precisa compilar em `net10.0`.
   não é usada).
 - `ComboBox` de enum nunca recebe itens, e a leitura usa `SelectedValue` (nulo sem `DataSource`).
 - `TypeSafeLock._FilterType` é ignorado; vale o `FilterType` do `BindingFilter`.
-- Estado global estático (`GlobalOptions`, `Logger`) e exceções engolidas com `Console.WriteLine`.
+- Exceções engolidas com `Console.WriteLine`, e o `Logger` estático. (O `GlobalOptions` voltou, mas
+  de propósito: é a camada global das opções, seção 7.)
 - O receptor two-way só trata `int`, `float` e `double`, e assume `TextBox`.
 
 ---
@@ -390,7 +406,8 @@ de apresentação; o resto precisa compilar em `net10.0`.
 ## 5. Decisões em aberto
 
 Já resolvidas (seção 0): dois binários, prefixo dos primitivos, atributos próprios, paginação,
-modo principal e precedência, service locator.
+modo principal e precedência, service locator, camadas de opções, descrições, chaves, configurador
+e exceções.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`?
@@ -398,12 +415,11 @@ modo principal e precedência, service locator.
    recomendo manter: lá o nome faz sentido (é o conjunto rótulo + controle + `(?)` de uma linha).
    Pelo mesmo motivo, o namespace `Binding` poderia voltar a ser `Fields`, como no original, o que
    também resolve o CS0118.
-3. **Descrições**: dois atributos (`[InspectorTooltip]` e `[InspectorHelp]`) ou um só com as duas
-   (`[InspectorDescription(Short, Long)]`)?
-4. **Chaves**: string por caminho, seletor por expressão, ou os dois?
-5. **Cultura** para converter texto em número: invariante ou a atual?
-6. **API do modo manual**: manter os nomes do original (`AddField`, `BindToVariable`, `Modify`) ou
-   partir para um builder novo (esboço em 3.2)?
+3. **Cultura** para converter texto em número: invariante ou a atual?
+4. **Nós manuais** (botão, campo só de exibição, cabeçalho): nomes como `fields.AddButton(...)` e
+   `fields.AddDisplay(...)`, no mesmo configurador?
+5. **Permissão de expandir** com a flag global: vale só para o membro ou tipo marcado (como hoje e
+   como no `TypeSafeLock`) ou passa para os níveis de baixo?
 
 ---
 
@@ -424,15 +440,16 @@ Estrutura
 
 Núcleo (portar a essência)
 
-- [ ] **Próximo passo**: modelo de opções (`InspectorOptions`, `FieldOptions`) e a pilha de três
-      camadas, reflection < atributos < manual (seção 7).
-- [ ] Atributos do inspector, com descrição curta (tooltip) e longa (`(?)`).
-- [ ] API do modo manual (a camada de maior precedência): campo com rótulo próprio e seletor de
-      membro, botões e campos só de exibição.
-- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: faixa e passo de slider,
-      itens de escolha, seletores (cor, fonte) e ação de botão.
+- [x] Modelo de opções, primeiro corte: `GlobalOptions`, `FieldOptions` e a pilha
+      reflection < atributos < manual (seção 7; commit `8756694`).
+- [x] Atributos do inspector, com descrição curta (tooltip) e longa (`(?)`) (commit `8756694`).
+- [x] Configuração por campo com chave por caminho (`fields["Moo.MooX"]`) (commit `8756694`).
+- [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
+- [ ] Nós manuais: botão, campo só de exibição e cabeçalho, no configurador.
+- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
+      (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`).
-- [ ] Configuração por campo com chave por `FullPath` e `map.Modify(...)`.
+- [ ] Binding respeitar o `ReadOnly` das opções no `SetValue`.
 - [ ] Rebind, unbind e multi-bind.
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
 - [ ] Conversão de texto para valor com `TypeConverter` / `IParsable<T>` e cultura definida.
@@ -451,100 +468,80 @@ Apresentação
 
 Pendências da primeira revisão (já conhecidas)
 
-- [ ] Objeto intermediário null no `bind`; setter privado e campo `readonly` editáveis;
-      `FieldDescriptor.Type` com o tipo dono; membro escondido com `new`; namespace `Binding`
-      escondendo o tipo `Binding` do WinForms e do WPF.
+- [ ] Objeto intermediário null no `bind`; setter privado e campo `readonly` ainda gravados pelo
+      `SetValue` (as opções já marcam `ReadOnly`); `FieldDescriptor.Type` com o tipo dono (o tipo do
+      valor agora está em `FieldType`); membro escondido com `new`; namespace `Binding` escondendo o
+      tipo `Binding` do WinForms e do WPF.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `efd0809`).
 - [ ] Structs: ficam para depois, como combinado.
 
 ---
 
-## 7. Proposta: modelo de opções (próximo passo)
+## 7. Modelo de opções (primeiro corte, aplicado)
 
-As opções são o que o inspector bombeia para cada nó e, depois, para cada view. Proposta para o
-primeiro corte, para aprovar antes de virar código.
+Aplicado nos commits `8756694` (biblioteca) e `3f24952` (NoHost e objeto de teste).
 
-**Dois níveis**
+**Três camadas de opções**
 
-- `InspectorOptions`: comportamento e layout do inspector inteiro (modo, altura de campo,
-  espaçamento, recuo, recolher...). No primeiro corte, só o que a pilha usa; o resto chega com o
-  passo de layout.
-- `FieldOptions`: a configuração resolvida de cada nó. É o sucessor do `BindingArgs`.
+- `GlobalOptions` (estática): valem para o processo inteiro. Por enquanto só
+  `RequireExpandableAttribute`.
+- `InspectorOptions`: ainda não existe. Chega com o passo de layout (altura de campo, espaçamento,
+  recuo...) e poderá sobrescrever o global por inspector.
+- `FieldOptions`: a configuração resolvida de cada nó, em `InspectorNode.Options`: `Path`, `Member`,
+  `HasMembers`, `IsGroup`, `Label`, `Tooltip` (curta), `Help` (longa, para o `(?)`), `Order`,
+  `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range` (`NumericRange`),
+  `ScrubMultiplier`, `Expandable` e `Collapsed`.
 
-```csharp
-public enum EditorKind { Auto, Text, Number, Toggle, Choice, Slider, Color, Button, Display, Header, Separator }
+**A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
-public sealed class FieldOptions
-{
-    public string Path { get; }               // relativo à raiz: "Moo.MooX"
-    public FieldDescriptor? Member { get; }   // null em nós manuais (botão, exibição...)
+1. `ReflectionPolicy`: rótulo = nome do membro; editor pelo tipo (números → `Number`, `bool` →
+   `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
+   público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a flag
+   global exija o atributo.
+2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale no
+   membro ou no tipo.
+3. Configurador (manual).
 
-    public string Label { get; set; }
-    public string? Tooltip { get; set; }      // descrição curta
-    public string? Help { get; set; }         // descrição longa, para o (?)
-    public int Order { get; set; }
-    public bool Ignored { get; set; }         // sai da árvore
-    public bool Visible { get; set; } = true; // visibilidade inicial
-    public bool ReadOnly { get; set; }
-    public EditorKind Editor { get; set; }
-    public NumericRange? Range { get; set; }
-    public double? ScrubMultiplier { get; set; }  // null = sem scrubbing
-    public bool Expandable { get; set; }      // objeto aninhado vira grupo
-    public bool Collapsed { get; set; }       // estado inicial do grupo
-}
+Depois das camadas: um nó ignorado some com a subárvore; um objeto que não é expansível vira um campo
+`Display` e perde os filhos; irmãos são ordenados por `Order`, mantendo a ordem de declaração nos
+empates.
 
-public readonly record struct NumericRange(double Min, double Max, double Step = 0);
-```
-
-**A pilha**
+**Configurador**: recebe as próprias opções, já resolvidas pelas camadas de baixo, e edita direto,
+por caminho. Não há `map`, `Modify` nem provider.
 
 ```csharp
-public interface IFieldPolicy
+var inspector = Inspector.Create<Foo>(fields =>
 {
-    void Apply(FieldOptions field);
-}
-```
-
-Três camadas fixas, aplicadas nessa ordem; cada uma só mexe no que decide, e a seguinte sobrescreve:
-
-1. `ReflectionPolicy` (descoberta): rótulo = nome do membro; editor pelo tipo (`string` → `Text`,
-   números → `Number`, `bool` → `Toggle`, enum → `Choice`); `ReadOnly` quando não há setter público.
-2. `AttributePolicy` (metadados): os atributos `[Inspector*]` da seção 3.2.
-3. `ManualPolicy` (manual): o que o configurador registrou para cada caminho.
-
-Políticas extras (filtros, por exemplo) entram numa dessas camadas, na ordem em que forem
-registradas. A precedência manual > atributos > reflection sai da própria ordem. A resolução é de
-cima para baixo: um nó ignorado, ou um grupo que não é expansível, leva os filhos junto.
-
-**Configurador**
-
-```csharp
-var inspector = Inspector.Create<Foo>(options, map =>
-{
-    map.Modify("x", f => { f.Label = "Renamed X"; f.ScrubMultiplier = 1; });
-    map.Modify("Moo.MooX", f => f.Tooltip = "Posição X do Moo");
-    map.Ignore("Moo2");
+    fields["x"].Label = "Renamed X";
+    fields["x"].ScrubMultiplier = 1;
+    fields["Moo.MooX"].Tooltip = "Moo X position";
+    fields["Moo2"].Ignored = true;
 });
 ```
 
-- Caminho desconhecido em `map.Modify` falha na criação, com o caminho no erro. No original, um nome
-  errado só aparecia no console: "Failed to bind" no modo manual, e no `map.Modify` a exceção do
-  `MapHandler` era engolida pelo `try/catch` do `ApplyMapping`.
-- As opções ficam em `InspectorNode.Options`. O que muda em tempo de execução (visibilidade atual,
-  recolhido, valor) é estado do nó, não opção.
-- O NoHost passa a imprimir as opções resolvidas de cada nó (caminho, rótulo, editor, descrições),
-  que é justamente o "print dos mapeamentos".
+Como a coleção também pode ser percorrida, uma regra em massa funciona como uma política
+improvisada: `foreach (var f in fields) if (f.Editor == EditorKind.Number) f.ScrubMultiplier = 1;`.
 
-**Fica para os cortes seguintes**: itens de escolha, sanitizadores, `VisibleWhen`, gancho de
-conversão, `ValueApplied`, nós manuais (botão, exibição, cabeçalho) e as opções de layout.
+**Exceções**: um caminho desconhecido lança `KeyNotFoundException` com o tipo e o caminho. Exceções do
+configurador, das políticas e de atributos inválidos (por exemplo `[InspectorRange(10, 1)]`) sobem
+sem tratamento.
 
-**Para decidir antes do código**
+**Verificado**
 
-1. Descrições: dois atributos (`[InspectorTooltip]` e `[InspectorHelp]`, minha proposta) ou um só
-   (`[InspectorDescription(Short, Long)]`)?
-2. Chaves: caminho relativo à raiz (`"Moo.MooX"`) em string agora, e seletor por expressão depois?
-   Isso troca o formato interno atual do `FullPath` (`"Foo_Moo.MooX"`).
-3. Expansão de objetos aninhados: opt-in por `[InspectorExpandable]` (mais seguro; é a ideia do
-   `TypeSafeLock`) ou expandir tudo por padrão (comportamento atual)?
-4. Caminho desconhecido no configurador: exceção na criação (minha proposta) ou só um aviso?
+- 36 testes num probe fora do repositório: padrões da reflection, detecção de somente leitura,
+  cada atributo, precedência manual > atributos > reflection, ignorar com subárvore, ordem, flag
+  global, exceções e binding pela árvore resolvida.
+- Os testes pegam erro de verdade: com a precedência invertida de propósito numa cópia da
+  biblioteca, 9 deles falham.
+- O `Program.cs` antigo do NoHost, rodado contra a biblioteca nova, imprime exatamente o mesmo de
+  antes.
+- A solução compila sem erros e sem warnings.
+
+**Para confirmar**: com a flag global ligada, a permissão de expandir vale por membro ou por tipo e
+não passa para os níveis de baixo. No NoHost, `Boo.Details` expande pelo atributo, mas `Details.Doo`
+não, porque o tipo `Doo` não tem o atributo. É o comportamento do `TypeSafeLock` do original.
+
+**Próximos cortes**: itens de escolha, sanitizadores, visibilidade condicional, gancho de conversão,
+`ValueApplied`, nós manuais (botão, exibição, cabeçalho), `InspectorOptions` com o layout, e o
+binding respeitar o `ReadOnly` (a opção já marca, mas o `SetValue` ainda grava).
