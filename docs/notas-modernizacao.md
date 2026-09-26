@@ -424,7 +424,8 @@ Estrutura
 
 Núcleo (portar a essência)
 
-- [ ] Pilha de políticas: reflection < atributos < manual (3.2).
+- [ ] **Próximo passo**: modelo de opções (`InspectorOptions`, `FieldOptions`) e a pilha de três
+      camadas, reflection < atributos < manual (seção 7).
 - [ ] Atributos do inspector, com descrição curta (tooltip) e longa (`(?)`).
 - [ ] API do modo manual (a camada de maior precedência): campo com rótulo próprio e seletor de
       membro, botões e campos só de exibição.
@@ -452,5 +453,98 @@ Pendências da primeira revisão (já conhecidas)
 
 - [ ] Objeto intermediário null no `bind`; setter privado e campo `readonly` editáveis;
       `FieldDescriptor.Type` com o tipo dono; membro escondido com `new`; namespace `Binding`
-      escondendo o tipo `Binding` do WinForms e do WPF; `/NoHost` no `.gitignore`.
+      escondendo o tipo `Binding` do WinForms e do WPF.
+- [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
+      `efd0809`).
 - [ ] Structs: ficam para depois, como combinado.
+
+---
+
+## 7. Proposta: modelo de opções (próximo passo)
+
+As opções são o que o inspector bombeia para cada nó e, depois, para cada view. Proposta para o
+primeiro corte, para aprovar antes de virar código.
+
+**Dois níveis**
+
+- `InspectorOptions`: comportamento e layout do inspector inteiro (modo, altura de campo,
+  espaçamento, recuo, recolher...). No primeiro corte, só o que a pilha usa; o resto chega com o
+  passo de layout.
+- `FieldOptions`: a configuração resolvida de cada nó. É o sucessor do `BindingArgs`.
+
+```csharp
+public enum EditorKind { Auto, Text, Number, Toggle, Choice, Slider, Color, Button, Display, Header, Separator }
+
+public sealed class FieldOptions
+{
+    public string Path { get; }               // relativo à raiz: "Moo.MooX"
+    public FieldDescriptor? Member { get; }   // null em nós manuais (botão, exibição...)
+
+    public string Label { get; set; }
+    public string? Tooltip { get; set; }      // descrição curta
+    public string? Help { get; set; }         // descrição longa, para o (?)
+    public int Order { get; set; }
+    public bool Ignored { get; set; }         // sai da árvore
+    public bool Visible { get; set; } = true; // visibilidade inicial
+    public bool ReadOnly { get; set; }
+    public EditorKind Editor { get; set; }
+    public NumericRange? Range { get; set; }
+    public double? ScrubMultiplier { get; set; }  // null = sem scrubbing
+    public bool Expandable { get; set; }      // objeto aninhado vira grupo
+    public bool Collapsed { get; set; }       // estado inicial do grupo
+}
+
+public readonly record struct NumericRange(double Min, double Max, double Step = 0);
+```
+
+**A pilha**
+
+```csharp
+public interface IFieldPolicy
+{
+    void Apply(FieldOptions field);
+}
+```
+
+Três camadas fixas, aplicadas nessa ordem; cada uma só mexe no que decide, e a seguinte sobrescreve:
+
+1. `ReflectionPolicy` (descoberta): rótulo = nome do membro; editor pelo tipo (`string` → `Text`,
+   números → `Number`, `bool` → `Toggle`, enum → `Choice`); `ReadOnly` quando não há setter público.
+2. `AttributePolicy` (metadados): os atributos `[Inspector*]` da seção 3.2.
+3. `ManualPolicy` (manual): o que o configurador registrou para cada caminho.
+
+Políticas extras (filtros, por exemplo) entram numa dessas camadas, na ordem em que forem
+registradas. A precedência manual > atributos > reflection sai da própria ordem. A resolução é de
+cima para baixo: um nó ignorado, ou um grupo que não é expansível, leva os filhos junto.
+
+**Configurador**
+
+```csharp
+var inspector = Inspector.Create<Foo>(options, map =>
+{
+    map.Modify("x", f => { f.Label = "Renamed X"; f.ScrubMultiplier = 1; });
+    map.Modify("Moo.MooX", f => f.Tooltip = "Posição X do Moo");
+    map.Ignore("Moo2");
+});
+```
+
+- Caminho desconhecido em `map.Modify` falha na criação, com o caminho no erro. No original, um nome
+  errado só aparecia no console: "Failed to bind" no modo manual, e no `map.Modify` a exceção do
+  `MapHandler` era engolida pelo `try/catch` do `ApplyMapping`.
+- As opções ficam em `InspectorNode.Options`. O que muda em tempo de execução (visibilidade atual,
+  recolhido, valor) é estado do nó, não opção.
+- O NoHost passa a imprimir as opções resolvidas de cada nó (caminho, rótulo, editor, descrições),
+  que é justamente o "print dos mapeamentos".
+
+**Fica para os cortes seguintes**: itens de escolha, sanitizadores, `VisibleWhen`, gancho de
+conversão, `ValueApplied`, nós manuais (botão, exibição, cabeçalho) e as opções de layout.
+
+**Para decidir antes do código**
+
+1. Descrições: dois atributos (`[InspectorTooltip]` e `[InspectorHelp]`, minha proposta) ou um só
+   (`[InspectorDescription(Short, Long)]`)?
+2. Chaves: caminho relativo à raiz (`"Moo.MooX"`) em string agora, e seletor por expressão depois?
+   Isso troca o formato interno atual do `FullPath` (`"Foo_Moo.MooX"`).
+3. Expansão de objetos aninhados: opt-in por `[InspectorExpandable]` (mais seguro; é a ideia do
+   `TypeSafeLock`) ou expandir tudo por padrão (comportamento atual)?
+4. Caminho desconhecido no configurador: exceção na criação (minha proposta) ou só um aviso?
