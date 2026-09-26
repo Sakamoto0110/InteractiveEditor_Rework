@@ -2,7 +2,9 @@
 
 Base de leitura: `Sakamoto0110/InteractiveEditor`, branch `InspectorVariant0.7.1a`
 (commit `7833d65`, abril de 2021; .NET Framework 4.8 + WinForms; 3.445 linhas em 36 arquivos
-na biblioteca), comparado com o estado atual deste repositório.
+na biblioteca), comparado com o estado atual deste repositório. Como referência de uso real:
+`Sakamoto0110/OverlayApplication` (commit `83f4d8d`, fevereiro de 2021), o app para o qual o
+inspector foi feito.
 
 Nada aqui foi aplicado no código. São propostas para discutir.
 
@@ -12,6 +14,8 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 ---
 
 ## 1. A essência da ferramenta
+
+### 1.1 O que o 0.7.1a entrega
 
 O que o 0.7.1a entrega e que deveria continuar valendo, em qualquer plataforma:
 
@@ -55,6 +59,63 @@ Previstos no 0.7.1a, mas incompletos ou sem uso:
 - `TypeBinderMode` (atribuído, nunca lido);
 - `InspectorOptions.VerticalSpacing`, `FieldHeight`, `HeaderHeight`, `FooterHeight` e `ShowText`
   (declarados, nunca lidos).
+
+### 1.2 O que o uso real mostra (OverlayApplication)
+
+No OverlayApplication o inspector ainda estava embutido no app (`Core/MyAssemblies/InteractiveEditor.cs`,
+criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O uso está em
+`DefaultOverlayFactoryPreInit.cs`, `EffectFactoryWindow.cs`, `TreeViewHandler.cs`, `Properties.cs` e
+`OverlayObjectComponent.cs`.
+
+- **O modo manual é o modo principal.** Todos os editores do app são montados campo a campo:
+  `Modify.AddField<TextBox>("PosX", FieldFlags.UseHSliderControl)` +
+  `Binder.BindToVariable(null, "x", ONLY_NUMBERS)` + `Modify.SetHSliderMultiplier(0.01f)`.
+  - O rótulo quase nunca é o nome do membro (`PosX` → `x`, `UID` → `UIDp`, `Color1` → `FillColor`,
+    `TopLeftCurvature` → `TopLeftRad`).
+  - Também há campos sem membro: botões (`LayerUp` / `LayerDown`, com ação) e campos só de exibição
+    (`UID`, `Name`, e `Layer`, preenchido com `SetFieldValue`).
+- **`EditField()` é a válvula de escape mais usada**, sempre para suprir algo que a biblioteca não
+  oferecia:
+  - `TrackBar`: `Minimum`, `Maximum` e `TickFrequency`;
+  - `ComboBox`: `DataSource` com valores de enum, `true`/`false` e listas de strings, mais
+    `DropDownStyle`;
+  - seletores: o clique abre o seletor de cor ARGB ou o diálogo de fonte;
+  - botões: texto e ação de clique.
+- **Rebind por seleção.** Na árvore, selecionar um objeto escolhe o editor pelo tipo
+  (`Dictionary<Type, EditorType>`), mostra esse editor, chama `UnbindObject()` e depois
+  `BindToObject(obj, multiSelect)`. Com seleção múltipla, entra o multi-bind.
+- **Editor polimórfico com filtro por instância.** Um único editor "Component" atende retângulo,
+  elipse e texto; os componentes que não são texto preenchem
+  `VariablePool = { "blacklist", "Text", "FontName", "IsBold", ... }` para esconder os campos de texto.
+- **Visibilidade condicional.** O editor de efeitos mostra ou esconde campos conforme o tipo de efeito
+  (`Modify.ToggleFieldVisible(b, "Color order")`).
+- **Objeto → UI ao vivo.** Os setters de `x`, `y`, `w` e `h` dos componentes chamam
+  `_BindedTo?.EditFieldValueByVariableName("_x", _x)`: arrastar o objeto no overlay atualiza o
+  inspector.
+- **Campos em vez de propriedades.** O editor de componentes liga em `_x`, `_y`, `_w` e `_h` (campos
+  públicos), porque a biblioteca só enxergava campos; com isso, editar pela UI grava direto no campo
+  e pula o setter de `x`. O rework já descobre propriedades, o que elimina esse contorno.
+- **Gancho de conversão em uso**: `BindToObject(ActiveEffect, bruteForce: ...)` no editor de efeitos.
+- **Vários inspectors na mesma janela**, com posição absoluta e empilhados por código (o
+  `TreeViewHandler` reposiciona cada editor abaixo do de camadas), e com `FieldHeight = 23` e
+  `Horizontal_Spacing = 0` por editor. É o tipo de configuração de layout que faz sentido resolver
+  antes da view.
+- **Parâmetros de sanitizador compartilhados por posição.** `MAX_SIZE + CONTAINS` com
+  `{ "rgba", "4" }` funciona porque, nessa versão, o `MAX_SIZE` lê `args[1]` e o `CONTAINS` lê
+  `args[0]`. No 0.7.1a o `MAX_SIZE` passou a ler `args[0]`, e a mesma combinação quebraria
+  (`Convert.ToInt32("rgba")`).
+
+**O que isso muda nas prioridades**
+
+1. O modo manual precisa de uma API tão limpa quanto a automática, e os dois precisam conviver no
+   mesmo inspector: campos refletidos, campos declarados, botões e campos só de exibição.
+2. A configuração agnóstica precisa cobrir o que hoje sai por `EditField()`: faixa e passo de slider,
+   itens de escolha (enum, bool, lista), seletores (cor, fonte...) e ação de botão. O que sobrar vai
+   por uma válvula de escape por plataforma.
+3. Rebind, multi-bind, filtro por instância, visibilidade condicional e objeto → UI deixam de ser
+   desejáveis e passam a ser obrigatórios.
+4. Cada sanitizador precisa ter os próprios parâmetros, em vez de um array compartilhado lido por
+   posição.
 
 ---
 
@@ -113,6 +174,31 @@ cinco coisas ao mesmo tempo.
   `[Description]` (que alimentaria o `(?)`), `[Browsable(false)]`, `[ReadOnly]`, `[Range]`,
   `[MaxLength]` e `[Category]`. O configurador continua com a palavra final.
 - `TypeSafeLock` continua como opt-in de tipos. É uma trava de segurança sem equivalente padrão.
+- O `TypeBinderMode` do original (`Automatic` / `Manual`, declarado e nunca usado lá) é um bom nome
+  para decidir se o inspector gera todos os membros ou só os declarados.
+
+Esboço de como os dois modos poderiam conviver, a partir do uso real (nomes provisórios, para
+discutir):
+
+```csharp
+var component = Inspector.Create<ComponentPreset>(options, map =>
+{
+    map.AddField("PosX", c => c.X).Scrub(1).Sanitize(Sanitize.Digits());
+    map.AddField("ScaleX", c => c.ScaleX).Scrub(0.01);
+    map.AddField("Opacity", c => c.Opacity).Slider(min: 0, max: 255, tick: 5);
+    map.AddField("CapValues", c => c.RoundRectCap);                 // enum vira escolha sozinho
+    map.AddField("Color1", c => c.FillColor).ColorPicker();
+    map.AddField("Text", c => c.Text).VisibleWhen(c => c.IsText);   // sucessor do VariablePool
+    map.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
+    map.AddDisplay("Layer", () => tree.SelectedIndex);
+});
+
+component.Bind(selected);    // rebind a cada seleção
+component.Bind(selection);   // multi-bind
+```
+
+No modo automático, os membros refletidos entram sozinhos e o `map.Modify(...)` só ajusta o que
+precisar; no manual, entra só o que foi declarado.
 
 ### 3.3 Binding
 
@@ -185,6 +271,9 @@ Alternativa ao prefixo `Layout`: um prefixo curto da biblioteca, como faz o Skia
   (testado).
 - Scroll e empilhamento: usar o que a plataforma já tem (`AutoScroll`, `ScrollViewer`) em vez de
   mover painel por painel.
+- Válvula de escape por plataforma, o sucessor limpo do `EditField()`: por exemplo um callback
+  `ControlCreated(caminho, controle)` na view de cada plataforma, para o que a configuração agnóstica
+  não cobrir.
 
 ### 3.6 Serviços
 
@@ -215,6 +304,8 @@ WinForms e WPF recebem o `-windows` automaticamente; console, testes e CI recebe
 
 Detalhes:
 
+- o NoHost só sai do Windows junto com isso: sozinho em `net10.0`, ele não compila contra a
+  biblioteca atual (NU1201, testado);
 - no Linux, quem referencia o projeto precisa de `EnableWindowsTargeting=true` para o restore (no
   Windows não precisa);
 - em vez de `#if`, arquivos parciais (`ArgbColor.Windows.cs` etc.) excluídos do alvo `net10.0`
@@ -268,6 +359,8 @@ Detalhes:
 7. **Modo manual** (campos que não são membros: botões, separadores, cabeçalhos): manter no mesmo
    inspector que o automático?
 8. **Cultura** para converter texto em número: invariante ou a atual?
+9. **API do modo manual**: manter os nomes do original (`AddField`, `BindToVariable`, `Modify`) ou
+   partir para um builder novo (esboço em 3.2)?
 
 ---
 
@@ -277,6 +370,7 @@ Estrutura
 
 - [ ] Multi-target `net10.0;net10.0-windows` num projeto só, com o código de plataforma em arquivos
       parciais excluídos do alvo `net10.0` (3.7).
+- [ ] NoHost em `net10.0`, junto com o multi-target (sozinho não compila: NU1201).
 - [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5).
 - [ ] Primitivos: nomes (`Layout*`, `ArgbColor`, `HslColor`), conversões nos dois sentidos com as
@@ -284,6 +378,11 @@ Estrutura
 
 Núcleo (portar a essência)
 
+- [ ] API do modo manual: campo com rótulo próprio e seletor de membro, botões e campos só de
+      exibição, convivendo com o modo automático (`TypeBinderMode`).
+- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: faixa e passo de slider,
+      itens de escolha, seletores (cor, fonte) e ação de botão.
+- [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`).
 - [ ] Configuração por campo com chave por `FullPath` e `map.Modify(...)`.
 - [ ] Rebind, unbind e multi-bind.
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
@@ -292,13 +391,13 @@ Núcleo (portar a essência)
       ordenada.
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e um sucessor tipado do `IVarProvider`.
 - [ ] Eventos de ciclo de vida com payload de falha tipado.
-- [ ] Montagem manual (botão, separador, cabeçalho) além da automática.
 - [ ] Cache do modelo de tipo.
 
 Apresentação
 
 - [ ] Passo de layout agnóstico que gera os retângulos de cada linha.
 - [ ] Views WinForms e WPF: editores por tipo, scrubbing, grupos recolhíveis, cabeçalho e scroll.
+- [ ] Válvula de escape por plataforma para ajustar o controle criado.
 
 Pendências da primeira revisão (já conhecidas)
 
