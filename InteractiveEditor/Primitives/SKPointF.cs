@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public struct SKPointF : IEquatable<SKPointF>
+public partial struct SKPointF : IEquatable<SKPointF>
 {
     public static readonly SKPointF Empty = new SKPointF(0f, 0f);
 
@@ -30,7 +30,6 @@ public struct SKPointF : IEquatable<SKPointF>
     public readonly bool IsEmpty => X == 0f && Y == 0f;
 
     public static implicit operator System.Drawing.PointF(SKPointF p) => new System.Drawing.PointF(p.X, p.Y);
-    public static implicit operator System.Windows.Point(SKPointF p) => new System.Windows.Point(p.X, p.Y);
 
     public static SKPointF operator +(SKPointF pt, SKSize sz) => Add(pt, sz);
     public static SKPointF operator -(SKPointF pt, SKSize sz) => Subtract(pt, sz);

@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public struct ArgbColor : IEquatable<ArgbColor>
+public partial struct ArgbColor : IEquatable<ArgbColor>
 {
     public static readonly ArgbColor Empty = new ArgbColor(0, 0, 0, 0);
 
@@ -65,9 +65,6 @@ public struct ArgbColor : IEquatable<ArgbColor>
     public static implicit operator HslColor(ArgbColor color) => new HslColor(color);
     public static implicit operator System.Drawing.Color(ArgbColor color) => System.Drawing.Color.FromArgb(color.A, color.R, color.G, color.B);
     public static implicit operator ArgbColor(System.Drawing.Color color) => new ArgbColor(color.A, color.R, color.G, color.B);
-
-    public static implicit operator System.Windows.Media.Color(ArgbColor color) => System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B);
-    public static implicit operator ArgbColor(System.Windows.Media.Color color) => new ArgbColor(color.A, color.R, color.G, color.B);
 
     public static explicit operator int(ArgbColor color) => color.ToArgb();
     public static explicit operator ArgbColor(int argb) => new ArgbColor(argb);
