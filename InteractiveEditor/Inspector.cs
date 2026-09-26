@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using InteractiveEditor.Binding;
-using InteractiveEditor.Model;
+using InteractiveEditor.Options;
 
 namespace InteractiveEditor;
 
@@ -33,39 +33,37 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
         }
     }
 
-    public static Inspector Create<T>()
+    public static Inspector Create<T>(Action<FieldOptionsCollection>? configure = null)
     {
         var inspector = new Inspector
         {
             Target = typeof(T)
         };
 
-        var descriptors = ReflectionDiscovery.ResolveFor(typeof(T));
         var inspectors = new Dictionary<string, Inspector>();
 
-        foreach (var descriptor in descriptors)
+        foreach (var field in OptionsResolver.Resolve(typeof(T), configure))
         {
-            var hasChildren = descriptors.Any(f =>
-                f.FullPath.StartsWith(descriptor.FullPath + ".", StringComparison.Ordinal));
-
             InspectorNode node;
 
-            if (hasChildren)
+            if (field.IsGroup)
             {
                 node = new Inspector
                 {
-                    Descriptor = descriptor
+                    Descriptor = field.Member,
+                    Options = field
                 };
             }
             else
             {
                 node = new Fieldset
                 {
-                    Descriptor = descriptor
+                    Descriptor = field.Member,
+                    Options = field
                 };
             }
 
-            var separator = descriptor.FullPath.LastIndexOf('.');
+            var separator = field.Path.LastIndexOf('.');
 
             Inspector parent;
 
@@ -75,7 +73,7 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
             }
             else
             {
-                var parentPath = descriptor.FullPath[..separator];
+                var parentPath = field.Path[..separator];
                 parent = inspectors[parentPath];
             }
 
@@ -83,7 +81,7 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
             parent.Children.Add(node);
 
             if (node is Inspector nestedInspector)
-                inspectors.Add(descriptor.FullPath, nestedInspector);
+                inspectors.Add(field.Path, nestedInspector);
         }
 
         return inspector;

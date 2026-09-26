@@ -11,7 +11,6 @@ public static class ReflectionDiscovery
 
         ResolveType(
             type,
-            type,
             fields,
             null,
             ancestry);
@@ -20,7 +19,6 @@ public static class ReflectionDiscovery
     }
 
     private static void ResolveType(
-        Type rootType,
         Type type,
         List<FieldDescriptor> fields,
         string? parentFullPath,
@@ -45,7 +43,7 @@ public static class ReflectionDiscovery
             var memberType = GetMemberType(mi);
 
             var fullPath = parentFullPath == null
-                ? $"{rootType.Name}_{mi.Name}"
+                ? mi.Name
                 : $"{parentFullPath}.{mi.Name}";
 
             var descriptor = new FieldDescriptor
@@ -55,6 +53,8 @@ public static class ReflectionDiscovery
                 Path = $"{mi.DeclaringType?.Name ?? string.Empty}.{mi.Name}",
                 FullPath = fullPath,
                 MemberType = mi.MemberType,
+                MemberInfo = mi,
+                FieldType = memberType,
                 Accessors = accessors,
                 OwnerGetter = obj => obj
             };
@@ -64,7 +64,6 @@ public static class ReflectionDiscovery
             if (!IsTerminal(memberType) && accessors.Getter != null)
             {
                 ResolveType(
-                    rootType,
                     memberType,
                     fields,
                     fullPath,
@@ -105,7 +104,7 @@ public static class ReflectionDiscovery
         };
     }
 
-    private static bool IsTerminal(Type type)
+    internal static bool IsTerminal(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
 

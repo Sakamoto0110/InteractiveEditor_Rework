@@ -1,4 +1,5 @@
 ﻿using InteractiveEditor.Model;
+using InteractiveEditor.Options;
 
 namespace InteractiveEditor;
 
@@ -8,6 +9,7 @@ public abstract class InspectorNode
 
     public virtual string Name => Descriptor?.Name ?? " -- ";
     public FieldDescriptor?  Descriptor { get; init; }
+    public FieldOptions? Options { get; init; }
     public Inspector? Parent { get; internal set; }
     
     public abstract void bind<T>(T  instance);
