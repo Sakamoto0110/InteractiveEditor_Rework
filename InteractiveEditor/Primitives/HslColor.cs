@@ -2,14 +2,14 @@
 
 namespace InteractiveEditor.Primitives;
 
-public struct ColorHSL : IEquatable<ColorHSL>
+public struct HslColor : IEquatable<HslColor>
 {
     private byte a;
     private float h;
     private float s;
     private float l;
 
-    public ColorHSL(float h, float s, float l)
+    public HslColor(float h, float s, float l)
     {
         A = 255;
         H = h;
@@ -17,7 +17,7 @@ public struct ColorHSL : IEquatable<ColorHSL>
         L = l;
     }
 
-    public ColorHSL(byte a, float h, float s, float l)
+    public HslColor(byte a, float h, float s, float l)
     {
         A = a;
         H = h;
@@ -25,7 +25,7 @@ public struct ColorHSL : IEquatable<ColorHSL>
         L = l;
     }
 
-    public ColorHSL(Color color)
+    public HslColor(ArgbColor color)
     {
         A = color.A;
 
@@ -85,9 +85,9 @@ public struct ColorHSL : IEquatable<ColorHSL>
 
     public readonly bool IsEmpty => A == 0 && H == 0f && S == 0f && L == 0f;
 
-    public static implicit operator ColorHSL(Color color) => new ColorHSL(color);
+    public static implicit operator HslColor(ArgbColor color) => new HslColor(color);
 
-    public static implicit operator Color(ColorHSL color)
+    public static implicit operator ArgbColor(HslColor color)
     {
         float h = color.H % 360f;
 
@@ -139,24 +139,24 @@ public struct ColorHSL : IEquatable<ColorHSL>
             b = x;
         }
 
-        return new Color(
+        return new ArgbColor(
             color.A,
             (byte)Math.Round((r + m) * 255f),
             (byte)Math.Round((g + m) * 255f),
             (byte)Math.Round((b + m) * 255f));
     }
 
-    public static implicit operator System.Drawing.Color(ColorHSL color) => (Color)color;
-    public static implicit operator ColorHSL(System.Drawing.Color color) => new ColorHSL(new Color(color.A, color.R, color.G, color.B));
+    public static implicit operator System.Drawing.Color(HslColor color) => (ArgbColor)color;
+    public static implicit operator HslColor(System.Drawing.Color color) => new HslColor(new ArgbColor(color.A, color.R, color.G, color.B));
 
-    public static implicit operator System.Windows.Media.Color(ColorHSL color) => (Color)color;
-    public static implicit operator ColorHSL(System.Windows.Media.Color color) => new ColorHSL(new Color(color.A, color.R, color.G, color.B));
+    public static implicit operator System.Windows.Media.Color(HslColor color) => (ArgbColor)color;
+    public static implicit operator HslColor(System.Windows.Media.Color color) => new HslColor(new ArgbColor(color.A, color.R, color.G, color.B));
 
-    public static bool operator ==(ColorHSL left, ColorHSL right) => left.A == right.A && left.H == right.H && left.S == right.S && left.L == right.L;
-    public static bool operator !=(ColorHSL left, ColorHSL right) => !(left == right);
+    public static bool operator ==(HslColor left, HslColor right) => left.A == right.A && left.H == right.H && left.S == right.S && left.L == right.L;
+    public static bool operator !=(HslColor left, HslColor right) => !(left == right);
 
-    public readonly bool Equals(ColorHSL other) => this == other;
-    public override readonly bool Equals(object? obj) => obj is ColorHSL other && Equals(other);
+    public readonly bool Equals(HslColor other) => this == other;
+    public override readonly bool Equals(object? obj) => obj is HslColor other && Equals(other);
     public override readonly int GetHashCode() => HashCode.Combine(A, H, S, L);
     public override readonly string ToString() => $"({A},{H},{S},{L})";
 }
