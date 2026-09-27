@@ -145,9 +145,9 @@ ainda depende de resposta continua naquele arquivo.
 - **O objeto de um grupo não é trocado pelo inspector**: só os filhos editam. Vale para o grupo
   aberto (P3.1); uma class mostrada fechada, com editor próprio, é editada trocando o objeto. No
   main isso vinha do `Inspector.SetValue`, que lançava exceção; o commit `2a1cf94` tirou essa
-  proteção sem registrar (3.10).
+  proteção sem registrar (3.10), e o commit `a2d8ffe` a trouxe de volta.
 - **A raiz também** (P3.5): o objeto ligado só muda pelo bind. Com a composição, o `SetValue` da
-  raiz nem existe.
+  raiz nem existe; até lá, ele lança (commit `a2d8ffe`).
 - **Troca por fora compromete o ramo** (P3.3, P3.4): uma troca (`foo.Moo = new Moo()` depois do
   bind) não pode derrubar o inspector. Ela é detectada no `Refresh()`, o caminho natural, e também
   numa leitura. No ramo comprometido, `GetValue` e `SetValue` lançam, e religar restaura o objeto
@@ -438,7 +438,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   aninhamento de class e struct. Pai null: `GetValue` devolve null e `SetValue` lança
   `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
   cópia, e o host lê o resultado com `GetValue()`. Revisto: a troca do objeto de um grupo não deve
-  ser seguida em silêncio, e sim comprometer o ramo (seção 0; 3.10).
+  ser seguida em silêncio, e sim comprometer o ramo (seção 0; 3.10). Desde o commit `a2d8ffe`, a
+  gravação de volta passa por um caminho interno (`Write`), porque o `SetValue` público recusa o
+  grupo aberto e a raiz; o `ReadOnly` continua sendo conferido na subida.
 - **Ligar, desligar e religar** (aplicado, commit `4dec125`): o `bind(obj)` de novo trocando o
   objeto (commit `2a1cf94`, que tirou o `IsTypeBound` do main) foi desfeito. `Bind` lança
   `InvalidOperationException` se já houver objeto ligado, e a troca é explícita: `Rebind`, que é
@@ -641,10 +643,11 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 72 linhas: `Create<T>()`, `Bind`, `Unbind()` e `Rebind` (commit `4dec125`), o
-`GetValue`/`SetValue` da raiz e o `Name`; o `Target` serve para o nome e para conferir o tipo no
-bind. Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento
-para o desenho, com as decisões de 27/09 no fim.
+O `Inspector` tem 79 linhas: `Create<T>()`, `Bind`, `Unbind()` e `Rebind` (commit `4dec125`), o
+`GetValue` da raiz, um `SetValue` que só lança e o caminho interno da gravação de volta (commit
+`a2d8ffe`), e o `Name`; o `Target` serve para o nome e para conferir o tipo no bind. Deveria ser
+uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho, com
+as decisões de 27/09 no fim.
 
 **Buracos no que já existe** (testado)
 
@@ -652,13 +655,16 @@ para o desenho, com as decisões de 27/09 no fim.
   (`Inspector.Create<Foo>().bind(new Bar())` aceitava, a árvore continuava a de `Foo`, e o erro só
   aparecia depois, no `GetValue` de um nó, como `ArgumentException` do reflection). Agora o `Bind`
   lança na hora, sem mexer na árvore nem no que já está ligado (P2.2).
-- O `SetValue` da raiz aceita null e objeto de outro tipo sem reclamar; com null, o inspector fica
-  sem objeto, um unbind silencioso. Decidido (P3.5): lança, e com a composição nem existe.
-- O objeto de um grupo pode ser trocado: `inspector["Moo"].SetValue(new Moo())` troca o `Moo` do
-  objeto ligado. No main, o `Inspector.SetValue` (raiz e grupos aninhados) lançava exceção; o commit
-  `2a1cf94` trocou isso pela gravação pelo pai, para a struct voltar ao dono, e a proteção se
-  perdeu. Uma troca feita por fora (`foo.Moo = new Moo()`) também passa sem sinal: a branch só segue
-  o objeto novo. Com null, as leituras dão null e só a gravação lança.
+- Resolvido no commit `a2d8ffe`: o `SetValue` da raiz aceitava null e objeto de outro tipo sem
+  reclamar, e com null o inspector ficava sem objeto, um unbind silencioso. Agora ele lança (P3.5),
+  e com a composição nem vai existir.
+- Resolvido no commit `a2d8ffe`: o objeto de um grupo podia ser trocado
+  (`inspector["Moo"].SetValue(new Moo())` trocava o `Moo` do objeto ligado). No main, o
+  `Inspector.SetValue` (raiz e grupos aninhados) lançava exceção; o commit `2a1cf94` trocou isso
+  pela gravação pelo pai, para a struct voltar ao dono, e a proteção se perdeu. Agora o `SetValue`
+  de um grupo aberto lança, e a struct volta ao dono por um caminho interno (P3.1).
+- Uma troca feita por fora (`foo.Moo = new Moo()`) ainda passa sem sinal: o ramo só segue o objeto
+  novo. Com null, as leituras dão null e só a gravação lança. É a detecção decidida em P3.3 e P3.4.
 - A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
   inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
 
@@ -710,7 +716,8 @@ para o desenho, com as decisões de 27/09 no fim.
   fechada continua sendo editada trocando o objeto (P3.1). No main, o getter era comum e o setter
   era abstrato: cada tipo de nó decidia o seu (o `Fieldset` gravava, o `Inspector` lançava). A
   gravação de volta de uma struct passa por um caminho interno, que continua respeitando o
-  `ReadOnly`. A raiz entra na mesma regra: o objeto ligado só muda pelo bind (P3.5).
+  `ReadOnly`. A raiz entra na mesma regra: o objeto ligado só muda pelo bind (P3.5). Aplicado no
+  commit `a2d8ffe`, também para o grupo de uma struct: ela muda pelos filhos.
 - Detecção: no bind, cada grupo guarda o objeto que viu, só para comparar. Se a cadeia de pais
   devolver outro objeto (ou null), o grupo fica comprometido. A comparação acontece no `Refresh()`,
   o caminho natural, e também numa leitura (P3.3). No ramo comprometido, `GetValue` e `SetValue`
@@ -846,8 +853,8 @@ Núcleo (portar a essência)
       um tipo de nó por comportamento (P1.2), `IDisposable` (P1.5) e `TypeBinderMode` (P1.7).
 - [ ] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de um percurso à
       parte (P1.3; liberado na P9.4).
-- [ ] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; liberado na P9.2). A
-      proteção do main se perdeu no commit `2a1cf94`.
+- [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
+      A proteção do main tinha se perdido no commit `2a1cf94`.
 - [ ] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
       `SetValue` lançando até religar (P3.3, P3.4); o raio e a reação estão em aberto (P3.6).
 - [ ] `InspectorOptions` (por inspector), sobrescrevendo o global (P1.5), com a cultura (P2.7).
