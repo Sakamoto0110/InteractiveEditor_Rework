@@ -45,7 +45,7 @@ internal class Program
 
         Console.WriteLine($"== {title}");
 
-        foreach (var node in inspector)
+        foreach (var node in inspector.Rows)
         {
             var indent = new string(' ', 2 * node.Path.Count(c => c == '.'));
             var value = node.IsGroup ? "" : $" = {node.GetValue()}";
