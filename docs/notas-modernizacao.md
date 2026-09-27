@@ -520,10 +520,10 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 **Proposta** (para o objeto do grupo)
 
-- `SetValue` num grupo lança exceção, como o `Inspector.SetValue` do main. Lá também era em tempo de
-  execução: a classe abstrata não impedia a chamada, a override é que lançava. A gravação de volta
-  de uma struct passa por um caminho interno, que continua respeitando o `ReadOnly`. A raiz entra
-  na mesma regra: o objeto ligado só muda pelo bind.
+- `SetValue` num grupo lança exceção, como o `Inspector.SetValue` do main. Lá, o getter era comum
+  e o setter era abstrato: cada tipo de nó decidia o seu (o `Fieldset` gravava, o `Inspector`
+  lançava). A gravação de volta de uma struct passa por um caminho interno, que continua
+  respeitando o `ReadOnly`. A raiz entra na mesma regra: o objeto ligado só muda pelo bind.
 - Detecção: no bind, cada grupo guarda o objeto que viu, só para comparar. Se a cadeia de pais
   devolver outro objeto (ou null), o grupo fica comprometido: evento no nó, os filhos recusam
   gravação e a view desativa a branch. Um novo bind limpa.
@@ -540,6 +540,9 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
   trocando o objeto.
 - Struct não tem identidade: a detecção não se aplica, e editar um filho já regrava a struct no
   dono.
+- Setter abstrato de volta, com um tipo de nó por comportamento fixo na criação (raiz, membro e,
+  depois, botão, exibição e cabeçalho)? Dentro do nó de membro, grupo ou folha continua decidido em
+  tempo de execução, porque o `Expandable` pode mudar depois do `Create`.
 
 ---
 
