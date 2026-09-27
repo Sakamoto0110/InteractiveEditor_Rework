@@ -116,9 +116,12 @@ ainda depende de resposta continua naquele arquivo.
 - **Cinco operações** (P2.1): `Bind`, `Unbind()`, `Rebind`, `AddBind` e `RemoveBind`. Ligar lança
   exceção se já houver objeto ligado; `Unbind()`, sem parâmetro, solta tudo; religar é desligar e
   ligar; e o multi-bind põe e tira objetos. O ligar que lança é o `IsTypeBound` do main, que o
-  commit `2a1cf94` também tirou (3.3).
+  commit `2a1cf94` também tirou (3.3). `Bind`, `Unbind()` e `Rebind` aplicados no commit `4dec125`;
+  `AddBind` e `RemoveBind` vêm com o multi-bind.
 - **Um tipo só** (P2.2, P2.3): ligar, religar ou pôr no multi-bind um objeto de outro tipo lança.
-  Os tipos derivados ficam para uma conversa própria, se aparecer motivo.
+  Os tipos derivados ficam para uma conversa própria, se aparecer motivo. No `Bind` e no `Rebind`
+  (commit `4dec125`), um objeto de um tipo derivado passa, porque a árvore do tipo base serve para
+  ele; é o caso do editor de `ComponentPreset` do OverlayApplication, ligado a retângulos e elipses.
 - **Tirar o último objeto** equivale ao `Unbind()`, com o mesmo evento (P2.5).
 - **Valores mistos** (P2.4): sem scrubbing, a linha indica que as instâncias têm valores
   diferentes; com scrubbing, ela mostra o valor da primeira, e o delta vale para cada uma.
@@ -419,7 +422,7 @@ component["FillColor"].Label = "Color1";
 // component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
 // component.AddDisplay("Layer", () => tree.SelectedIndex);    // em aberto (P1.6)
 
-component.Rebind(selected);  // a cada seleção: Unbind + Bind (próximo corte)
+component.Rebind(selected);  // a cada seleção: Unbind + Bind (commit 4dec125)
 component.AddBind(other);    // cortes seguintes: multi-bind
 ```
 
@@ -436,10 +439,13 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
   cópia, e o host lê o resultado com `GetValue()`. Revisto: a troca do objeto de um grupo não deve
   ser seguida em silêncio, e sim comprometer o ramo (seção 0; 3.10).
-- **Ligar, desligar e religar** (revisto): o `bind(obj)` de novo trocando o objeto (commit
-  `2a1cf94`, que tirou o `IsTypeBound` do main) é desfeito. `Bind` lança se já houver objeto
-  ligado, e a troca é explícita: `Rebind` (`Unbind` + `Bind`). Um objeto de outro tipo lança, sem
-  mexer no que está ligado (P2.2). As cinco operações estão na seção 0 (P2.1).
+- **Ligar, desligar e religar** (aplicado, commit `4dec125`): o `bind(obj)` de novo trocando o
+  objeto (commit `2a1cf94`, que tirou o `IsTypeBound` do main) foi desfeito. `Bind` lança
+  `InvalidOperationException` se já houver objeto ligado, e a troca é explícita: `Rebind`, que é
+  `Unbind` e `Bind`. Um objeto que não serve para a árvore lança `ArgumentException` na hora, em vez
+  de falhar depois no `GetValue` de um nó (P2.2); um tipo derivado serve. O `Rebind` confere antes
+  de desligar, então um objeto recusado deixa o anterior ligado. `Unbind()` sem nada ligado não faz
+  nada. As cinco operações estão na seção 0 (P2.1); o multi-bind vem depois.
 - **ReadOnly** (aplicado, commit `6117bb1`): `SetValue` lança `InvalidOperationException` quando o
   nó está marcado como somente leitura, antes de ler qualquer coisa. Vale para o que a reflection
   marca (setter privado, `init`, campo `readonly`), para o `[InspectorReadOnly]` e para a camada
@@ -635,16 +641,17 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 45 linhas: `Create<T>()`, `bind(object)`, o `GetValue`/`SetValue` da raiz e o
-`Name`; o `Target` só serve para o nome. Deveria ser uma das peças mais completas, porque é o que o
-host e a view usam. Levantamento para o desenho, com as decisões de 27/09 no fim.
+O `Inspector` tem 72 linhas: `Create<T>()`, `Bind`, `Unbind()` e `Rebind` (commit `4dec125`), o
+`GetValue`/`SetValue` da raiz e o `Name`; o `Target` serve para o nome e para conferir o tipo no
+bind. Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento
+para o desenho, com as decisões de 27/09 no fim.
 
 **Buracos no que já existe** (testado)
 
-- Um objeto de outro tipo passa pelo `bind`: `Inspector.Create<Foo>().bind(new Bar())` aceita, a
-  árvore continua a de `Foo`, e o erro só aparece depois, no `GetValue` de um nó, como
-  `ArgumentException` do reflection. Decidido (P2.2): ligar lança na hora, sem mexer na árvore nem
-  no que já está ligado.
+- Resolvido no commit `4dec125`: um objeto de outro tipo passava pelo `bind`
+  (`Inspector.Create<Foo>().bind(new Bar())` aceitava, a árvore continuava a de `Foo`, e o erro só
+  aparecia depois, no `GetValue` de um nó, como `ArgumentException` do reflection). Agora o `Bind`
+  lança na hora, sem mexer na árvore nem no que já está ligado (P2.2).
 - O `SetValue` da raiz aceita null e objeto de outro tipo sem reclamar; com null, o inspector fica
   sem objeto, um unbind silencioso. Decidido (P3.5): lança, e com a composição nem existe.
 - O objeto de um grupo pode ser trocado: `inspector["Moo"].SetValue(new Moo())` troca o `Moo` do
@@ -859,8 +866,8 @@ Núcleo (portar a essência)
       volta (relatório, 3.6; P4.5).
 - [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`). Revisto: vira `Rebind`, e o `Bind`
       volta a lançar se já houver objeto ligado (seção 0).
-- [ ] Binding: ligar que lança se já houver objeto ligado ou se o tipo for outro (P2.2), `Unbind()`
-      e `Rebind` (liberado na P9.1).
+- [x] Binding: ligar que lança se já houver objeto ligado ou se o tipo for outro (P2.2), `Unbind()`
+      e `Rebind` (P9.1; commit `4dec125`).
 - [ ] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10).
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual (P2.6).
 - [ ] Controle do binder: o enum de controle e os métodos de força (P1.8; P1.13).
