@@ -9,7 +9,7 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
     protected object? Host;
     protected Type? Target;
 
-    private bool IsTypeBound = false;
+    private object? Instance;
     private List<InspectorNode> Children = [];
 
     protected Inspector() { }
@@ -87,12 +87,25 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
         return inspector;
     }
 
-    public override void bind<T>(T instance) => bind((object?)instance);
+    public void bind<T>(T instance)
+    {
+        if (Parent != null)
+            throw new InvalidOperationException($"Only the root inspector can be bound; '{Name}' is nested.");
+
+        if (instance == null)
+            throw new ArgumentNullException(nameof(instance));
+
+        Instance = instance;
+    }
+
+    public override object? GetValue() => Parent == null ? Instance : base.GetValue();
 
     public override void SetValue(object? value)
     {
-        throw new InvalidOperationException(
-            $"Inspector '{Name}' does not allow replacing its instance.");
+        if (Parent == null)
+            Instance = value;
+        else
+            base.SetValue(value);
     }
 
     public IEnumerator<InspectorNode> GetEnumerator()
@@ -112,29 +125,5 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
-    }
-
-    private void bind(object? instance)
-    {
-        if (Parent == null)
-        {
-            if (IsTypeBound)
-                throw new InvalidOperationException("Inspector is already bound to a type.");
-
-            if (instance == null)
-                throw new ArgumentNullException(nameof(instance));
-        }
-
-        Instance = instance;
-
-        var target = Descriptor == null
-            ? instance
-            : Descriptor.Accessors.Getter?.Invoke(instance);
-
-        foreach (var child in Children)
-            child.bind(target);
-
-        if (Parent == null)
-            IsTypeBound = true;
     }
 }

@@ -5,24 +5,35 @@ namespace InteractiveEditor;
 
 public abstract class InspectorNode
 {
-    protected object? Instance;
-
     public virtual string Name => Descriptor?.Name ?? " -- ";
     public FieldDescriptor?  Descriptor { get; init; }
     public FieldOptions? Options { get; init; }
     public Inspector? Parent { get; internal set; }
-    
-    public abstract void bind<T>(T  instance);
-     
+
     public virtual object? GetValue()
     {
-        if (Descriptor == null)
-            return Instance;
+        var owner = Parent?.GetValue();
 
-        return Descriptor.Accessors.Getter?.Invoke(Instance);
+        if (owner == null)
+            return null;
+
+        return Descriptor?.Accessors.Getter?.Invoke(owner);
     }
 
-    public abstract void SetValue(object? value);
+    public virtual void SetValue(object? value)
+    {
+        var owner = Parent?.GetValue()
+            ?? throw new InvalidOperationException($"Cannot set '{Name}': '{Parent?.Name}' is null.");
+
+        var setter = Descriptor?.Accessors.Setter
+            ?? throw new InvalidOperationException($"'{Name}' is read-only.");
+
+        setter(owner, value);
+
+        // A struct owner is a boxed copy, so it has to be written back into its own owner.
+        if (owner.GetType().IsValueType)
+            Parent!.SetValue(owner);
+    }
 }
 
 
