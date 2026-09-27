@@ -40,6 +40,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   (`fields["x"].Label = ...`). Nada de `map`, `Modify` ou provider.
 - **Exceções explodem**: caminho desconhecido lança, e exceções do configurador ou das políticas sobem
   sem ser engolidas.
+- **Binding pela cadeia de pais**: só a raiz guarda a instância, e cada nó lê e grava pelo pai a
+  cada chamada. Structs são gravadas de volta no dono, e `SetValue` com um pai null lança exceção.
+  Aplicado no commit `2a1cf94` (3.3).
 
 ---
 
@@ -157,7 +160,7 @@ criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O u
 | `BindingArgs`, `MapHandler.Modify`, `BindingConfigurator` | Configuração por campo | não existe | **Principal peça a portar** |
 | `Mapping.ResolveTypes`, `DefaultControlMapping` | Escolher o controle pelo tipo | não existe | Vira a escolha de um *tipo de editor* agnóstico |
 | `BindingService.DoBind` | Montar grupos, filhos e recuo | `Inspector.Create<T>()` monta a árvore | Coberto pela árvore (recuo = profundidade) |
-| `Fieldset.BindToObject` (busca por nome + `goto`) | Achar a instância aninhada | `Inspector.bind` (o pai resolve o filho) | Coberto, e mais correto |
+| `Fieldset.BindToObject` (busca por nome + `goto`) | Achar a instância aninhada | `GetValue`/`SetValue` pela cadeia de pais, a cada chamada | Coberto, e mais correto |
 | `Fieldset` (Panel + Label + controle + binding + conversão + scrubbing) | Uma linha do inspector | `Fieldset` (só binding) + `FieldsetView` (vazio) | Dividir em nó, configuração e view |
 | `Inspector` (Panel, layout manual, scroll, botões) | Raiz e view ao mesmo tempo | `Inspector` (árvore) + `InspectorView` (stub) | Idem |
 | `FieldLocatorService` | Localizar campos | `IEnumerable<InspectorNode>` + indexador | Coberto |
@@ -265,8 +268,15 @@ configurador tem a palavra final; com `TypeBinderMode.Manual`, entra só o que f
 
 ### 3.3 Binding
 
-- **Rebind**: `Bind(obj)` troca o objeto atual. O original permite (o `BindToObject` desfaz o bind
-  anterior); o rework hoje bloqueia com `IsTypeBound`.
+- **Cadeia de pais** (aplicado, commit `2a1cf94`): só a raiz guarda a instância. Cada nó resolve o
+  valor pelo pai a cada `GetValue`/`SetValue`, então nada abaixo da raiz fica velho quando uma
+  referência muda. Quando o dono de um membro é uma struct, o setter altera uma cópia boxed, que é
+  gravada de volta no dono dela, subindo até a primeira class ou até a raiz; vale para qualquer
+  aninhamento de class e struct. Pai null: `GetValue` devolve null e `SetValue` lança
+  `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
+  cópia, e o host lê o resultado com `GetValue()`.
+- **Rebind** (aplicado, commit `2a1cf94`): `bind(obj)` de novo troca o objeto atual, como no
+  original (o `BindToObject` desfaz o bind anterior). O `IsTypeBound`, que bloqueava, saiu.
 - **Multi-bind**: `Bind(a, b, c)`. Valores diferentes aparecem como "misto" (o original mostra só o
   primeiro); o scrubbing aplica o delta em cada instância, como no original.
 - **Objeto → UI**: `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`. O objeto deixa de
@@ -382,6 +392,8 @@ de apresentação; o resto precisa compilar em `net10.0`.
   .NET Framework 4.8.
 - Desinscrever eventos ao desfazer o bind e ao descartar a view (o `Dispose` do original é
   incompleto).
+- Leitura pela cadeia de pais: um getter por nível a cada `GetValue` (profundidade 3 = 3 chamadas de
+  reflection). Irrelevante na escala do editor; se pesar, cachear os valores por ciclo de refresh.
 
 ---
 
@@ -406,8 +418,8 @@ de apresentação; o resto precisa compilar em `net10.0`.
 ## 5. Decisões em aberto
 
 Já resolvidas (seção 0): dois binários, prefixo dos primitivos, atributos próprios, paginação,
-modo principal e precedência, service locator, camadas de opções, descrições, chaves, configurador
-e exceções.
+modo principal e precedência, service locator, camadas de opções, descrições, chaves, configurador,
+exceções e binding pela cadeia de pais.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`?
@@ -450,7 +462,8 @@ Núcleo (portar a essência)
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`).
 - [ ] Binding respeitar o `ReadOnly` das opções no `SetValue`.
-- [ ] Rebind, unbind e multi-bind.
+- [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`).
+- [ ] Unbind e multi-bind.
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
 - [ ] Conversão de texto para valor com `TypeConverter` / `IParsable<T>` e cultura definida.
 - [ ] Sanitizadores tipados (sucessores das `CapFunction`), separados em texto e valor, em lista
@@ -468,13 +481,16 @@ Apresentação
 
 Pendências da primeira revisão (já conhecidas)
 
-- [ ] Objeto intermediário null no `bind`; setter privado e campo `readonly` ainda gravados pelo
-      `SetValue` (as opções já marcam `ReadOnly`); `FieldDescriptor.Type` com o tipo dono (o tipo do
-      valor agora está em `FieldType`); membro escondido com `new`; namespace `Binding` escondendo o
-      tipo `Binding` do WinForms e do WPF.
+- [x] Objeto intermediário null no `bind`: o bind não lê mais nada; `GetValue` devolve null e
+      `SetValue` lança dizendo qual pai é null (commit `2a1cf94`).
+- [ ] Setter privado e campo `readonly` ainda gravados pelo `SetValue` (as opções já marcam
+      `ReadOnly`); `FieldDescriptor.Type` com o tipo dono (o tipo do valor agora está em
+      `FieldType`); membro escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do
+      WinForms e do WPF.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `efd0809`).
-- [ ] Structs: ficam para depois, como combinado.
+- [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
+      volta no dono (commit `2a1cf94`).
 
 ---
 
