@@ -52,7 +52,8 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   Aplicado no commit `2a1cf94` (3.3).
 - **Um membro, um nó**: a descoberta monta a árvore direto; `InspectorNode` é qualquer membro, com
   ou sem filhos, e `Inspector` é só a raiz (o objeto, o `Create` e o `bind`). As duas políticas
-  ficam numa classe só, `Policies`. Aplicado no commit `5560223`.
+  viram classes estáticas, sem interface nem instâncias, chamadas em ordem no `Create`. Aplicado nos
+  commits `5560223` e `6622a41`.
 
 ---
 
@@ -211,9 +212,10 @@ definiu:
 2. **Metadados por atributo**: atributos próprios do inspector, no tipo e nos membros.
 3. **Manual**: o que for definido no inspector depois do `Create` (`inspector["x"].Label = ...`).
 
-As camadas 1 e 2 ficam em `Policies.Apply`, uma linha cada; uma camada nova é mais uma linha ali. Os
-filtros por nome e por tipo (blacklist/whitelist, opt-in de tipos) saem com uma regra em massa
-depois do `Create` (seção 7); o filtro por instância fica com a visibilidade condicional.
+As camadas 1 e 2 são `ReflectionPolicy` e `AttributePolicy`, classes estáticas chamadas nessa ordem
+no `Create`; uma camada nova é mais uma classe e uma linha ali. Os filtros por nome e por tipo
+(blacklist/whitelist, opt-in de tipos) saem com uma regra em massa depois do `Create` (seção 7); o
+filtro por instância fica com a visibilidade condicional.
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
 DataAnnotations; aplicados no commit `5319247`)
@@ -486,7 +488,8 @@ Núcleo (portar a essência)
       `FieldOptions`, `FieldOptionsCollection`, `OptionsResolver` e o callback do `Create` (commit
       `bf6f74f`).
 - [x] Um membro, um nó: a descoberta monta a árvore direto; saem `FieldDescriptor`, `Fieldset`, o
-      `Inspector` aninhado e a lista plana, e as políticas viram uma classe só (commit `5560223`).
+      `Inspector` aninhado e a lista plana, e as políticas perdem a interface e as instâncias
+      (commits `5560223` e `6622a41`).
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, direto no inspector.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
@@ -548,12 +551,12 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
-1. Reflection (`Policies.FromReflection`): rótulo = nome do membro; editor pelo tipo (números →
-   `Number`, `bool` → `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly`
-   quando não há setter público (setter privado, `init`, campo `readonly`); objeto aninhado
-   expansível, a menos que a flag global exija o atributo.
-2. Atributos (`Policies.FromAttributes`): os dez atributos `[Inspector*]` da seção 3.2. O
-   `[InspectorExpandable]` vale no membro ou no tipo.
+1. `ReflectionPolicy`: rótulo = nome do membro; editor pelo tipo (números → `Number`, `bool` →
+   `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
+   público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
+   flag global exija o atributo.
+2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
+   no membro ou no tipo.
 3. Manual: o que for definido no inspector depois do `Create`.
 
 `Ignored`, `Order` e `Expandable` valem na enumeração do inspector, que é o que a view mostra, então
