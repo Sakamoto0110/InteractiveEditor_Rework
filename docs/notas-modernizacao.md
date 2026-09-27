@@ -321,7 +321,7 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
-**Nomes** (prefixo `SK` provisório, decidido)
+**Nomes** (prefixo `SK` provisório, decidido; a proposta de nome final é `Px`, ver 3.9)
 
 | Antes | Agora | Situação |
 |---|---|---|
@@ -417,6 +417,42 @@ exatamente o mesmo de antes.
 - Leitura pela cadeia de pais: um getter por nível a cada `GetValue` (profundidade 3 = 3 chamadas de
   reflection). Irrelevante na escala do editor; se pesar, cachear os valores por ciclo de refresh.
 
+### 3.9 PixieLib: primitivos e matemática fora do inspector (adiado)
+
+Discutido e prototipado fora do repositório; nada mudou no código. Fica registrado para quando for a
+vez.
+
+- **A ideia**: os primitivos (hoje em `InteractiveEditor/Primitives`, que nada usa ainda) saem do
+  inspector e viram a base da PixieLib em C#, que depois ganha vetores, matrizes e transformações 2D
+  e 3D.
+- **Onde** (proposta): no próprio repositório `Sakamoto0110/PixieLib`, numa pasta `dotnet/` ao lado
+  da `cpp/` que já existe (o lado C++, de 2023, usa o prefixo `px` e já tem `Vec2` em `double`). É a
+  mesma biblioteca em duas linguagens, então não há "duas PixieLib". No NuGet, `PixieLib` está
+  livre; `Pixie` não.
+- **Nomes** (proposta): o prefixo provisório `SK` vira `Px`, espelhando o `pxVec2` do C++
+  (`PxPoint`, `PxSize`, `PxColor`, `PxVec2`, `PxMat3`...). Continua sem colidir com `System.Drawing`
+  e `System.Numerics` (CS0104).
+- **Alvos** (decidido): a NekoLib vai usar a PixieLib também no .NET Framework, então ela compila
+  para `net481` além do .NET moderno.
+- **Precisões** (decidido): `float`, `double` e `int` saem de um modelo só, por um source generator
+  (`PxVec2f`, `PxVec2d`, `PxVec2i`). Generics com matemática genérica (`INumber<T>`) não servem,
+  porque não existem no `net481` (testado). O modelo usa marcadores (`__S__` para o sufixo, `__T__`
+  para o tipo) e blocos `#if` por tipo (`PX_FLOAT`, `PX_FLOATING`, `PX_INT`); no protótipo, a
+  biblioteca compilou nos dois alvos, e `PxVec2i` não tem `Length()`.
+- **Repasse para o `System.Numerics`**: a versão `float` repassa as operações para `Vector2`,
+  `Vector3`, `Matrix3x2` e `Matrix4x4`, e isso sai de graça: uma função própria que chama
+  `Vector2.Add` gera o mesmo `vaddps` que chamar direto (testado no assembly do JIT). O
+  `System.Numerics` só tem `float`, então `double` e `int` são implementação própria.
+- **`PxPoint` e `PxSize` sobre `PxVec2`** (proposta): o mesmo dado (8 bytes), com nomes e só as
+  operações que fazem sentido: ponto + tamanho → ponto, ponto + vetor → ponto, ponto − ponto →
+  vetor, tamanho + tamanho → tamanho, tamanho × k → tamanho. Conversão implícita para `PxVec2` (a
+  matemática vem dele) e explícita de volta, testadas no protótipo. As quatro variantes atuais
+  (`SKPoint`, `SKPointF`, `SKSize` e `SKSizeF`) viram `PxPoint` e `PxSize`, nas precisões que o
+  gerador produzir.
+- **Em aberto**: a precisão padrão (`float`, que repassa para o `System.Numerics`, ou `double`, como
+  o `Vec2` do C++); e, quando o passo de layout usar os primitivos, o inspector passa a depender da
+  PixieLib, uma segunda DLL (exceção à regra de 1 DLL).
+
 ---
 
 ## 4. O que não portar do 0.7.1a
@@ -444,7 +480,8 @@ principal e precedência, service locator, camadas de opções, descrições, ch
 inspector, exceções e binding pela cadeia de pais.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
-   (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`?
+   (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`? A proposta de 3.9 gera as três
+   precisões de um modelo só, e deixa em aberto só a padrão.
 2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
    qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
 3. **Cultura** para converter texto em número: invariante ou a atual?
@@ -477,6 +514,8 @@ Estrutura
 - [ ] Primitivos: conversões nos dois sentidos com as regras de 3.4, incluindo o CS0457 entre
       `ArgbColor` e `HslColor`.
 - [ ] Primitivos novos: `SKRect`, `SKPadding` e `SKDock` (depende da seção 5).
+- [ ] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
+      PixieLib, com source generator para as precisões (3.9; adiado).
 
 Núcleo (portar a essência)
 
