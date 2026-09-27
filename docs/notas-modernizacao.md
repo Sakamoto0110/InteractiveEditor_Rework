@@ -59,6 +59,10 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   precisa poder trocar de tipo. Por isso a classe não é genérica e só o `Create<T>` é. Eventos:
   alguns no inspector, a maior parte nos nós. Como a troca de tipo acontece ainda está em aberto
   (3.10).
+- **O objeto de um grupo não é trocado**: o valor de um grupo (`inspector["Moo"]`) não pode ser
+  alterado pelo inspector; só os filhos editam. Se for detectada uma troca desse objeto, a branch
+  inteira fica comprometida e pode ser desativada. No main isso vinha do `Inspector.SetValue`, que
+  lançava exceção; o commit `2a1cf94` tirou essa proteção sem registrar (3.10).
 
 ---
 
@@ -291,7 +295,8 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   gravada de volta no dono dela, subindo até a primeira class ou até a raiz; vale para qualquer
   aninhamento de class e struct. Pai null: `GetValue` devolve null e `SetValue` lança
   `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
-  cópia, e o host lê o resultado com `GetValue()`.
+  cópia, e o host lê o resultado com `GetValue()`. Revisto: a troca do objeto de um grupo não deve
+  ser seguida em silêncio, e sim comprometer a branch (seção 0; 3.10).
 - **Rebind** (aplicado, commit `2a1cf94`): `bind(obj)` de novo troca o objeto atual, como no
   original (o `BindToObject` desfaz o bind anterior). O `IsTypeBound`, que bloqueava, saiu.
 - **ReadOnly** (aplicado, commit `6117bb1`): `SetValue` lança `InvalidOperationException` quando o
@@ -477,6 +482,11 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 - O `SetValue` da raiz aceita null e objeto de outro tipo sem reclamar; com null, o inspector fica
   sem objeto, um unbind silencioso. Ele precisa aceitar valor novo, porque a cópia de uma struct na
   raiz volta por ele (3.3), mas só do tipo atual da raiz.
+- O objeto de um grupo pode ser trocado: `inspector["Moo"].SetValue(new Moo())` troca o `Moo` do
+  objeto ligado. No main, o `Inspector.SetValue` (raiz e grupos aninhados) lançava exceção; o commit
+  `2a1cf94` trocou isso pela gravação pelo pai, para a struct voltar ao dono, e a proteção se
+  perdeu. Uma troca feita por fora (`foo.Moo = new Moo()`) também passa sem sinal: a branch só segue
+  o objeto novo. Com null, as leituras dão null e só a gravação lança.
 - A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
   inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
 
@@ -498,6 +508,18 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 - Sem `Inspector<T>`: prenderia o inspector a um tipo de raiz. A classe não é genérica, e só o
   `Create<T>` é (seção 0).
 - Eventos: alguns no inspector, a maior parte nos nós.
+- O objeto de um grupo não é trocado pelo inspector; uma troca detectada compromete a branch
+  inteira, que pode ser desativada (seção 0).
+
+**Proposta** (para o objeto do grupo)
+
+- `SetValue` num grupo lança exceção, como o `Inspector.SetValue` do main. Lá também era em tempo de
+  execução: a classe abstrata não impedia a chamada, a override é que lançava. A gravação de volta
+  de uma struct passa por um caminho interno, que continua respeitando o `ReadOnly`. A raiz entra
+  na mesma regra: o objeto ligado só muda pelo bind.
+- Detecção: no bind, cada grupo guarda o objeto que viu, só para comparar. Se a cadeia de pais
+  devolver outro objeto (ou null), o grupo fica comprometido: evento no nó, os filhos recusam
+  gravação e a view desativa a branch. Um novo bind limpa.
 
 **Em aberto**
 
@@ -506,6 +528,11 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
   inspector guarda a raiz atual e troca de árvore. Na primeira, a configuração feita na árvore
   anterior se perde na troca; na segunda, cada árvore guarda a sua.
 - Quais eventos ficam no inspector e quais ficam nos nós.
+- A regra do objeto do grupo vale para todo membro com filhos ou só para o grupo aberto? Uma class
+  mostrada fechada, com editor próprio (um `Font` com o diálogo de fonte, por exemplo), é editada
+  trocando o objeto.
+- Struct não tem identidade: a detecção não se aplica, e editar um filho já regrava a struct no
+  dono.
 
 ---
 
@@ -591,6 +618,8 @@ Núcleo (portar a essência)
       (commits `5560223` e `6622a41`).
 - [ ] `Inspector` completo: hoje só `Create<T>`, `bind` e o valor da raiz, e trocar o tipo da raiz
       ainda não funciona (3.10).
+- [ ] Objeto de grupo: o inspector não troca, e uma troca por fora compromete a branch (seção 0;
+      3.10). A proteção do main se perdeu no commit `2a1cf94`.
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, direto no inspector.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
