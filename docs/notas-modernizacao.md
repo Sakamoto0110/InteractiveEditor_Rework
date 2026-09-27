@@ -27,12 +27,12 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 - **Sem compromisso de compatibilidade.** O rework não vai ser portado para nenhum app real, e o
   OverlayApplication vai ser reescrito do zero; o uso real (1.2) serve só de referência.
 - **Um projeto, dois binários** (`net10.0` e `net10.0-windows`), com o NoHost em `net10.0`.
-  Aplicado no commit `483f2dd` (3.7).
+  Aplicado no commit `c537554` (3.7).
 - **Primitivos com prefixo `SK` provisório**, até a nomenclatura final: `SKPoint`, `SKPointF`,
-  `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `8bec89b` (3.4).
+  `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `21cbeda` (3.4).
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
   `[InspectorExpandable]` para expandir objetos aninhados), por inspector e por campo. Primeiro corte
-  aplicado no commit `8756694` (seção 7).
+  aplicado no commit `5319247` (seção 7).
 - **Descrições em dois atributos**: `[InspectorTooltip]` (curta) e `[InspectorHelp]` (longa).
 - **Chaves em string**: caminho relativo à raiz (`"Moo.MooX"`); seletor por expressão fica para
   depois.
@@ -205,7 +205,7 @@ Os filtros (blacklist/whitelist, opt-in de tipos, filtro por instância) entram 
 mesma pilha. Uma política nova é só mais uma camada.
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
-DataAnnotations; aplicados no commit `8756694`)
+DataAnnotations; aplicados no commit `5319247`)
 
 | Atributo | Para quê |
 |---|---|
@@ -307,7 +307,7 @@ configurador tem a palavra final; com `TypeBinderMode.Manual`, entra só o que f
 
 | Antes | Agora | Situação |
 |---|---|---|
-| `Point`, `PointF` | `SKPoint`, `SKPointF` | Aplicado (`8bec89b`) |
+| `Point`, `PointF` | `SKPoint`, `SKPointF` | Aplicado (`21cbeda`) |
 | `Size`, `SizeF` | `SKSize`, `SKSizeF` | Aplicado |
 | `Color` | `ArgbColor` | Aplicado; espaço de cor explícito, ponte para `System.Drawing.Color` e `System.Windows.Media.Color` |
 | `ColorHSL` | `HslColor` | Aplicado; idem, com o acrônimo em PascalCase |
@@ -362,7 +362,7 @@ agrupar funcionalidades. No rework ele não volta:
 
 ### 3.7 Um projeto, dois binários (aplicado)
 
-Aplicado no commit `483f2dd`:
+Aplicado no commit `c537554`:
 
 - `InteractiveEditor.csproj` com `<TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>`;
   `UseWPF` e `UseWindowsForms` só no alvo Windows (condição por `GetTargetPlatformIdentifier`).
@@ -440,12 +440,12 @@ exceções e binding pela cadeia de pais.
 Estrutura
 
 - [x] Multi-target `net10.0;net10.0-windows` num projeto só, com o código de plataforma em arquivos
-      parciais excluídos do alvo `net10.0` (3.7; commit `483f2dd`).
-- [x] NoHost em `net10.0` (commit `483f2dd`).
+      parciais excluídos do alvo `net10.0` (3.7; commit `c537554`).
+- [x] NoHost em `net10.0` (commit `c537554`).
 - [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5).
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
-      `HslColor` (commit `8bec89b`).
+      `HslColor` (commit `21cbeda`).
 - [ ] Primitivos: conversões nos dois sentidos com as regras de 3.4, incluindo o CS0457 entre
       `ArgbColor` e `HslColor`.
 - [ ] Primitivos novos: `SKRect`, `SKPadding` e `SKDock` (depende da seção 5).
@@ -453,9 +453,9 @@ Estrutura
 Núcleo (portar a essência)
 
 - [x] Modelo de opções, primeiro corte: `GlobalOptions`, `FieldOptions` e a pilha
-      reflection < atributos < manual (seção 7; commit `8756694`).
-- [x] Atributos do inspector, com descrição curta (tooltip) e longa (`(?)`) (commit `8756694`).
-- [x] Configuração por campo com chave por caminho (`fields["Moo.MooX"]`) (commit `8756694`).
+      reflection < atributos < manual (seção 7; commit `5319247`).
+- [x] Atributos do inspector, com descrição curta (tooltip) e longa (`(?)`) (commit `5319247`).
+- [x] Configuração por campo com chave por caminho (`fields["Moo.MooX"]`) (commit `5319247`).
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, no configurador.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
@@ -488,7 +488,7 @@ Pendências da primeira revisão (já conhecidas)
       `FieldType`); membro escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do
       WinForms e do WPF.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
-      `efd0809`).
+      `7740b61`).
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
       volta no dono (commit `2a1cf94`).
 
@@ -496,7 +496,7 @@ Pendências da primeira revisão (já conhecidas)
 
 ## 7. Modelo de opções (primeiro corte, aplicado)
 
-Aplicado nos commits `8756694` (biblioteca) e `3f24952` (NoHost e objeto de teste).
+Aplicado nos commits `5319247` (biblioteca) e `16f52c0` (NoHost e objeto de teste).
 
 **Três camadas de opções**
 
