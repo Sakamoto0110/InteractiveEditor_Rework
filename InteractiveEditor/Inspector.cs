@@ -58,7 +58,14 @@ public class Inspector : InspectorNode
 
     public override object? GetValue() => Instance;
 
-    public override void SetValue(object? value) => Instance = value;
+    // The bound object only changes through Bind, Unbind and Rebind.
+    public override void SetValue(object? value)
+    {
+        throw new InvalidOperationException($"'{Name}' is the root; use Rebind() to change the bound object.");
+    }
+
+    // A struct at the root is edited in its own box, so the write-back hands that same box back.
+    internal override void Write(object? value) => Instance = value;
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
     private void CheckBindable(object instance)

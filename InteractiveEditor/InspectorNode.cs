@@ -80,6 +80,16 @@ public class InspectorNode : IEnumerable<InspectorNode>
 
     public virtual void SetValue(object? value)
     {
+        // A group is edited through its fields; the object behind it is never replaced from here.
+        if (IsGroup)
+            throw new InvalidOperationException($"'{Name}' is a group; set its fields instead.");
+
+        Write(value);
+    }
+
+    // The write itself. A struct owner comes back through here too, even when it is a group.
+    internal virtual void Write(object? value)
+    {
         if (ReadOnly)
             throw new InvalidOperationException($"'{Name}' is read-only.");
 
@@ -100,7 +110,7 @@ public class InspectorNode : IEnumerable<InspectorNode>
 
         // A struct owner is a boxed copy, so it has to be written back into its own owner.
         if (owner.GetType().IsValueType)
-            Parent!.SetValue(owner);
+            Parent!.Write(owner);
     }
 
     // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
