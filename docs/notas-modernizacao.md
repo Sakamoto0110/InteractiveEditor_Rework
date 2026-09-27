@@ -26,7 +26,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 - **Paginação substituída por scroll.** Um app que quiser páginas implementa por cima.
 - **Sem compromisso de compatibilidade.** O rework não vai ser portado para nenhum app real, e o
   OverlayApplication vai ser reescrito do zero; o uso real (1.2) serve só de referência.
-- **Um projeto, dois binários** (`net10.0` e `net10.0-windows`). Aplicado no commit `c537554` (3.7).
+- **Uma DLL, um binário** (`net10.0`): sem código de Windows na biblioteca, um alvo só basta.
+  Substitui o "um projeto, dois binários" do commit `c537554`; as views entram nesta mesma DLL
+  quando existirem. Aplicado no commit `5560223` (3.7).
 - **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
   o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
   `net10.0-windows`, versionado como na `main` e com a pasta no `.gitignore`. Aplicado nos commits
@@ -48,6 +50,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 - **Binding pela cadeia de pais**: só a raiz guarda a instância, e cada nó lê e grava pelo pai a
   cada chamada. Structs são gravadas de volta no dono, e `SetValue` com um pai null lança exceção.
   Aplicado no commit `2a1cf94` (3.3).
+- **Um membro, um nó**: a descoberta monta a árvore direto; `InspectorNode` é qualquer membro, com
+  ou sem filhos, e `Inspector` é só a raiz (o objeto, o `Create` e o `bind`). As duas políticas
+  ficam numa classe só, `Policies`. Aplicado no commit `5560223`.
 
 ---
 
@@ -161,13 +166,13 @@ criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O u
 
 | [original] | Papel | [rework] hoje | Situação |
 |---|---|---|---|
-| `Mapping.ApplyFilter` + `AddNestedMembers` | Descobrir membros, recursivo | `ReflectionDiscovery.ResolveFor` | Coberto e ampliado: campos **e** propriedades, guarda de ciclo por caminho |
+| `Mapping.ApplyFilter` + `AddNestedMembers` | Descobrir membros, recursivo | `ReflectionDiscovery.AddMembers` (monta os nós direto) | Coberto e ampliado: campos **e** propriedades, guarda de ciclo por caminho |
 | `BindingArgs`, `MapHandler.Modify`, `BindingConfigurator` | Configuração por campo | não existe | **Principal peça a portar** |
 | `Mapping.ResolveTypes`, `DefaultControlMapping` | Escolher o controle pelo tipo | não existe | Vira a escolha de um *tipo de editor* agnóstico |
 | `BindingService.DoBind` | Montar grupos, filhos e recuo | `Inspector.Create<T>()` monta a árvore | Coberto pela árvore (recuo = profundidade) |
 | `Fieldset.BindToObject` (busca por nome + `goto`) | Achar a instância aninhada | `GetValue`/`SetValue` pela cadeia de pais, a cada chamada | Coberto, e mais correto |
-| `Fieldset` (Panel + Label + controle + binding + conversão + scrubbing) | Uma linha do inspector | `Fieldset` (só binding) + `FieldsetView` (vazio) | Dividir em nó, configuração e view |
-| `Inspector` (Panel, layout manual, scroll, botões) | Raiz e view ao mesmo tempo | `Inspector` (árvore) + `InspectorView` (stub) | Idem |
+| `Fieldset` (Panel + Label + controle + binding + conversão + scrubbing) | Uma linha do inspector | `InspectorNode` (binding e opções); a view ainda não existe | Dividir em nó e view |
+| `Inspector` (Panel, layout manual, scroll, botões) | Raiz e view ao mesmo tempo | `Inspector` (só a raiz); a view ainda não existe | Idem |
 | `FieldLocatorService` | Localizar campos | `IEnumerable<InspectorNode>` + indexador | Coberto |
 | `InvokerService` | Aplicar algo a todos os campos | `foreach` / LINQ | Coberto |
 | `ManipulatorService` | Mexer depois de criado | não existe | Portar como métodos nos nós e na configuração |
@@ -183,7 +188,7 @@ criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O u
 
 ### 3.1 Camadas, tudo numa DLL
 
-1. **Descoberta** (agnóstica): tipo → descritores. Feita uma vez e cacheada por `Type`.
+1. **Descoberta** (agnóstica): tipo → árvore de nós. Feita uma vez e cacheada por `Type`.
 2. **Configuração** (agnóstica): o sucessor do `BindingArgs`. Diz *como* cada membro aparece, sem
    citar controles de nenhuma plataforma.
 3. **Binding** (agnóstico): a árvore de nós ligada a uma ou mais instâncias. Lê, grava, converte,
@@ -206,8 +211,9 @@ definiu:
 2. **Metadados por atributo**: atributos próprios do inspector, no tipo e nos membros.
 3. **Manual**: o que for definido no inspector depois do `Create` (`inspector["x"].Label = ...`).
 
-Os filtros (blacklist/whitelist, opt-in de tipos, filtro por instância) entram como políticas na
-mesma pilha. Uma política nova é só mais uma camada.
+As camadas 1 e 2 ficam em `Policies.Apply`, uma linha cada; uma camada nova é mais uma linha ali. Os
+filtros por nome e por tipo (blacklist/whitelist, opt-in de tipos) saem com uma regra em massa
+depois do `Create` (seção 7); o filtro por instância fica com a visibilidade condicional.
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
 DataAnnotations; aplicados no commit `5319247`)
@@ -341,13 +347,15 @@ importe os dois namespaces teria ambiguidade. Enquanto o prefixo for provisório
 - Do WPF para os tipos int ou float: explícitas, porque perdem precisão.
 - `ArgbColor` ↔ `HslColor`: declarar num lugar só. Hoje a conversão `ArgbColor → HslColor` existe
   nas duas structs e dá CS0457 no primeiro uso.
-- `SKPadding` e `SKDock` ↔ `Padding`, `Thickness` e `DockStyle`: só no build Windows, em arquivos
-  `*.Windows.cs` (ver 3.7).
+- `SKPadding` e `SKDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
 
 ### 3.5 Apresentação
 
 - A view não herda de `Inspector`: recebe um e o observa. Assim a raiz e os nós aninhados são
   tratados do mesmo jeito.
+- Os stubs antigos (`Presentation/WF`, `Presentation/WPF` e as fábricas `Create<T>(host)` do
+  `Inspector.Windows.cs`) saíram no commit `5560223`; a apresentação começa do zero quando for a vez
+  dela.
 - Cada plataforma traduz o enum de editor para controles (`TextBox`, `ComboBox` preenchido com os
   valores do enum, `TrackBar`/`Slider`, `CheckBox`...) e implementa o scrubbing com captura de mouse
   no rótulo.
@@ -370,26 +378,27 @@ agrupar funcionalidades. No rework ele não volta:
   numa fração das linhas;
 - manipular e vincular viram métodos do inspector e dos nós.
 
-### 3.7 Um projeto, dois binários (aplicado)
+### 3.7 Um projeto, um binário (aplicado)
 
-Aplicado no commit `c537554`:
+Primeiro veio o multi-target, no commit `c537554`: `net10.0` e `net10.0-windows` num projeto só, com
+o código de Windows em arquivos parciais `*.Windows.cs` (as fábricas `Create<T>(host)` e as
+conversões `System.Windows.*` dos primitivos) e nas pastas `Presentation/WF` e `Presentation/WPF`,
+fora do alvo `net10.0`.
 
-- `InteractiveEditor.csproj` com `<TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>`;
-  `UseWPF` e `UseWindowsForms` só no alvo Windows (condição por `GetTargetPlatformIdentifier`).
-- O código de Windows fica fora do alvo `net10.0`: os arquivos parciais `*.Windows.cs`
-  (`Inspector.Windows.cs` com as fábricas `Create<T>(host)`, e `Primitives/*.Windows.cs` com as
-  conversões `System.Windows.*`), mais `Presentation/WF/**` e `Presentation/WPF/**`. As conversões de
-  `System.Drawing` ficam no build comum.
-- `EnableWindowsTargeting` no projeto, para o alvo Windows compilar fora do Windows (CI, Linux).
+No commit `5560223` esse código saiu (eram stubs e conversões que nada usava), e com ele o segundo
+alvo: o `InteractiveEditor.csproj` voltou a ter só `<TargetFramework>net10.0</TargetFramework>`, sem
+`UseWPF`, `UseWindowsForms`, `EnableWindowsTargeting` ou blocos condicionais. A biblioteca gera um
+binário só, e os hosts WinForms e WPF (`net10.0-windows`) a referenciam normalmente.
+
 - Console de verificação em `net10.0`, que roda sem o runtime WindowsDesktop: era o NoHost; agora é
   o TuxHost (commit `e11b2df`), e o NoHost voltou a ser local.
+- Quando as views chegarem, elas entram nesta mesma DLL, e a biblioteca volta a precisar do Windows.
+  Há duas saídas: só `net10.0-windows` (projeto sem condições, mas o TuxHost deixa de rodar fora do
+  Windows) ou de novo os dois alvos, com o bloco condicional. As conversões dos primitivos para o
+  WPF voltam junto.
 
-Verificado: os membros movidos são idênticos (só ganharam `partial`); a solução compila com os mesmos
-warnings (agora um jogo por alvo); o NoHost roda no Linux com a mesma saída de antes; e os hosts
-WinForms e WPF recebem o binário Windows.
-
-Convenção daqui em diante: tudo que depende de WinForms ou WPF vai em `*.Windows.cs` ou nas pastas
-de apresentação; o resto precisa compilar em `net10.0`.
+Verificado no commit `5560223`: a solução compila sem erros e sem warnings, e o TuxHost imprime
+exatamente o mesmo de antes.
 
 ### 3.8 Performance
 
@@ -428,16 +437,14 @@ de apresentação; o resto precisa compilar em `net10.0`.
 
 ## 5. Decisões em aberto
 
-Já resolvidas (seção 0): dois binários, prefixo dos primitivos, atributos próprios, paginação, modo
+Já resolvidas (seção 0): um binário, prefixo dos primitivos, atributos próprios, paginação, modo
 principal e precedência, service locator, camadas de opções, descrições, chaves, configuração no
 inspector, exceções e binding pela cadeia de pais.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`?
-2. **`Fieldset`**: na primeira revisão sugeri trocar para `FieldNode`. Depois de ler o original,
-   recomendo manter: lá o nome faz sentido (é o conjunto rótulo + controle + `(?)` de uma linha).
-   Pelo mesmo motivo, o namespace `Binding` poderia voltar a ser `Fields`, como no original, o que
-   também resolve o CS0118.
+2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
+   qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
 3. **Cultura** para converter texto em número: invariante ou a atual?
 4. **Nós manuais** (botão, campo só de exibição, cabeçalho): nomes como `inspector.AddButton(...)` e
    `inspector.AddDisplay(...)`, direto no inspector?
@@ -455,6 +462,8 @@ Estrutura
 
 - [x] Multi-target `net10.0;net10.0-windows` num projeto só, com o código de plataforma em arquivos
       parciais excluídos do alvo `net10.0` (3.7; commit `c537554`).
+- [x] Um alvo só (`net10.0`): sem código de Windows na biblioteca, saem o segundo alvo e os blocos
+      condicionais (3.7; commit `5560223`).
 - [x] NoHost em `net10.0` (commit `c537554`).
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
       O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
@@ -476,6 +485,8 @@ Núcleo (portar a essência)
 - [x] Opções no próprio nó e configuração direto no inspector, por caminho ou encadeada; saem
       `FieldOptions`, `FieldOptionsCollection`, `OptionsResolver` e o callback do `Create` (commit
       `bf6f74f`).
+- [x] Um membro, um nó: a descoberta monta a árvore direto; saem `FieldDescriptor`, `Fieldset`, o
+      `Inspector` aninhado e a lista plana, e as políticas viram uma classe só (commit `5560223`).
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, direto no inspector.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
@@ -507,8 +518,10 @@ Pendências da primeira revisão (já conhecidas)
       `SetValue` lança dizendo qual pai é null (commit `2a1cf94`).
 - [x] Setter privado e campo `readonly` gravados pelo `SetValue`: agora ele respeita o `ReadOnly`
       que as opções marcam (commit `6117bb1`).
-- [ ] `FieldDescriptor.Type` com o tipo dono (o tipo do valor agora está em `FieldType`); membro
-      escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do WinForms e do WPF.
+- [x] `FieldDescriptor.Type` com o tipo dono e o namespace `Binding` escondendo o tipo `Binding` do
+      WinForms e do WPF: os dois saíram (commit `5560223`).
+- [ ] Membro escondido com `new`: não quebra mais o `Create`, mas aparece duas vezes, e o indexador
+      acha o do tipo derivado, que vem primeiro.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
@@ -535,12 +548,12 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
-1. `ReflectionPolicy`: rótulo = nome do membro; editor pelo tipo (números → `Number`, `bool` →
-   `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
-   público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a flag
-   global exija o atributo.
-2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale no
-   membro ou no tipo.
+1. Reflection (`Policies.FromReflection`): rótulo = nome do membro; editor pelo tipo (números →
+   `Number`, `bool` → `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly`
+   quando não há setter público (setter privado, `init`, campo `readonly`); objeto aninhado
+   expansível, a menos que a flag global exija o atributo.
+2. Atributos (`Policies.FromAttributes`): os dez atributos `[Inspector*]` da seção 3.2. O
+   `[InspectorExpandable]` vale no membro ou no tipo.
 3. Manual: o que for definido no inspector depois do `Create`.
 
 `Ignored`, `Order` e `Expandable` valem na enumeração do inspector, que é o que a view mostra, então
