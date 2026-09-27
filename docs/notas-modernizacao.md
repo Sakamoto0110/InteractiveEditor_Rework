@@ -65,7 +65,8 @@ ainda depende de resposta continua naquele arquivo.
   folha continua decidido em tempo de execução dentro do nó de membro, porque o `Expandable` pode
   mudar depois do `Create`. A ver como fica no código.
 - **Enumeração** (P1.3): o inspector continua enumerável e entrega todos os nós, inclusive os
-  ignorados e os de dentro de grupos fechados; as linhas da view saem de um percurso à parte.
+  ignorados e os de dentro de grupos fechados; as linhas da view saem de um percurso à parte,
+  `Rows`. Aplicado no commit `b456398`, no nó, e com ele no inspector.
 - **Eventos** (P1.4), sem economia: no inspector, a criação, a descoberta e o ciclo do bind; nos
   nós, `ValueChanged` (no lugar do `ValueApplied`), o objeto do grupo trocado por fora e a falha de
   bind. A lista está na 3.10, e os nomes são exemplos.
@@ -678,7 +679,8 @@ as decisões de 27/09 no fim.
 - Setter abstrato de volta, com um tipo de nó por comportamento fixo na criação (P1.2). Dentro do nó
   de membro, grupo ou folha continua decidido em tempo de execução, porque o `Expandable` pode mudar
   depois do `Create`.
-- Enumerável, entregando todos os nós; as linhas da view saem de um percurso à parte (P1.3).
+- Enumerável, entregando todos os nós; as linhas da view saem de um percurso à parte, `Rows` (P1.3;
+  commit `b456398`).
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó, sobrescrevendo
   o global (P1.5): as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2) e
   a cultura (P2.7). O `Create` trava o `GlobalOptions` até o `Dispose` (P1.5, P4.4).
@@ -851,8 +853,8 @@ Núcleo (portar a essência)
       com severidade (3.11; P0.1, P0.2).
 - [ ] `Inspector` completo (3.10): composição (P1.1; aplicar depende da P9.3), setter abstrato com
       um tipo de nó por comportamento (P1.2), `IDisposable` (P1.5) e `TypeBinderMode` (P1.7).
-- [ ] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de um percurso à
-      parte (P1.3; liberado na P9.4).
+- [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
+      commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
       A proteção do main tinha se perdido no commit `2a1cf94`.
 - [ ] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
@@ -947,9 +949,10 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
    no membro ou no tipo.
 3. Manual: o que for definido no inspector depois do `Create`.
 
-`Ignored`, `Order` e `Expandable` valem na enumeração do inspector, que é o que a view mostra, então
-podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado sai com a subárvore; um
-objeto que não é expansível aparece como campo `Display`, sem os filhos; irmãos saem por `Order`.
+`Ignored`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o que a view
+mostra, então podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado sai com a
+subárvore; um objeto que não é expansível aparece como campo `Display`, sem os filhos; irmãos saem
+por `Order`.
 Nos empates vale a ordem em que a reflection devolve os membros, que não é a de declaração quando
 campos e propriedades se misturam: primeiro as propriedades, depois os campos, e os membros do
 próprio tipo antes dos herdados (testado). O nó ignorado continua na árvore, então a camada manual
@@ -976,8 +979,9 @@ foreach (var node in inspector)
         node.ScrubMultiplier = 1;
 ```
 
-Ela só alcança o que a enumeração mostra: nós ignorados e os de dentro de objetos não expansíveis
-ficam de fora.
+Desde o commit `b456398`, a enumeração entrega a árvore inteira, então a regra alcança também os
+nós ignorados e os de dentro de objetos não expansíveis (antes ela só via as linhas da view). Para
+percorrer só o que a view mostra, `inspector.Rows`.
 
 **Exceções**: um caminho desconhecido lança `KeyNotFoundException` com o nome do nó em que a busca
 começou e o caminho (`'Foo' has no field at path 'Moo.Nope'.`). Exceções das políticas e de
