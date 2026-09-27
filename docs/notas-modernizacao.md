@@ -425,6 +425,8 @@ vez.
 - **A ideia**: os primitivos (hoje em `InteractiveEditor/Primitives`, que nada usa ainda) saem do
   inspector e viram a base da PixieLib em C#, que depois ganha vetores, matrizes e transformações 2D
   e 3D.
+- **Enquanto isso** (decidido): os primitivos atuais ficam no InteractiveEditor, como estão, para
+  segurar as pontas. Só saem quando a PixieLib existir.
 - **Onde** (proposta): no próprio repositório `Sakamoto0110/PixieLib`, numa pasta `dotnet/` ao lado
   da `cpp/` que já existe (o lado C++, de 2023, usa o prefixo `px` e já tem `Vec2` em `double`). É a
   mesma biblioteca em duas linguagens, então não há "duas PixieLib". No NuGet, `PixieLib` está
