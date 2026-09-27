@@ -2,5 +2,5 @@
 
 internal interface IFieldPolicy
 {
-    void Apply(FieldOptions field);
+    void Apply(InspectorNode node);
 }

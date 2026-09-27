@@ -1,11 +1,14 @@
 ﻿using System.Collections;
 using InteractiveEditor.Binding;
-using InteractiveEditor.Options;
+using InteractiveEditor.Model;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
 public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
 {
+    private static readonly IFieldPolicy[] Policies = [new ReflectionPolicy(), new AttributePolicy()];
+
     protected object? Host;
     protected Type? Target;
 
@@ -16,75 +19,42 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
 
     public override string Name => Descriptor?.Name ?? Target?.Name ?? " -- ";
 
-    public InspectorNode this[string name]
+    public override bool IsGroup => Expandable;
+
+    internal InspectorNode? Child(string name) => Children.FirstOrDefault(c => c.Name == name);
+
+    public static Inspector Create<T>()
     {
-        get
+        var root = new Inspector { Target = typeof(T) };
+        var groups = new Dictionary<string, Inspector>(StringComparer.Ordinal);
+        var descriptors = ReflectionDiscovery.ResolveFor(typeof(T));
+
+        for (var i = 0; i < descriptors.Count; i++)
         {
-            if (Parent == null && Name == name)
-                return this;
+            var descriptor = descriptors[i];
 
-            var child = Children.FirstOrDefault(c => c.Name == name);
+            // Descriptors come in pre-order, so a member's own members come right after it.
+            var hasMembers = i + 1 < descriptors.Count
+                && descriptors[i + 1].FullPath.StartsWith(descriptor.FullPath + ".", StringComparison.Ordinal);
 
-            if (child == null)
-                throw new KeyNotFoundException(
-                    $"Node '{name}' not found in inspector '{Name}'.");
+            InspectorNode node = hasMembers
+                ? new Inspector { Descriptor = descriptor }
+                : new Fieldset { Descriptor = descriptor };
 
-            return child;
-        }
-    }
-
-    public static Inspector Create<T>(Action<FieldOptionsCollection>? configure = null)
-    {
-        var inspector = new Inspector
-        {
-            Target = typeof(T)
-        };
-
-        var inspectors = new Dictionary<string, Inspector>();
-
-        foreach (var field in OptionsResolver.Resolve(typeof(T), configure))
-        {
-            InspectorNode node;
-
-            if (field.IsGroup)
-            {
-                node = new Inspector
-                {
-                    Descriptor = field.Member,
-                    Options = field
-                };
-            }
-            else
-            {
-                node = new Fieldset
-                {
-                    Descriptor = field.Member,
-                    Options = field
-                };
-            }
-
-            var separator = field.Path.LastIndexOf('.');
-
-            Inspector parent;
-
-            if (separator == -1)
-            {
-                parent = inspector;
-            }
-            else
-            {
-                var parentPath = field.Path[..separator];
-                parent = inspectors[parentPath];
-            }
+            var separator = descriptor.FullPath.LastIndexOf('.');
+            var parent = separator == -1 ? root : groups[descriptor.FullPath[..separator]];
 
             node.Parent = parent;
             parent.Children.Add(node);
 
-            if (node is Inspector nestedInspector)
-                inspectors.Add(field.Path, nestedInspector);
+            if (node is Inspector group)
+                groups.Add(descriptor.FullPath, group);
+
+            foreach (var policy in Policies)
+                policy.Apply(node);
         }
 
-        return inspector;
+        return root;
     }
 
     public void bind<T>(T instance)
@@ -108,15 +78,16 @@ public partial class Inspector : InspectorNode, IEnumerable<InspectorNode>
             base.SetValue(value);
     }
 
+    // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
     public IEnumerator<InspectorNode> GetEnumerator()
     {
-        foreach (var child in Children)
+        foreach (var child in Children.Where(c => !c.Ignored).OrderBy(c => c.Order))
         {
             yield return child;
 
-            if (child is Inspector inspector)
+            if (child is Inspector { IsGroup: true } group)
             {
-                 foreach (var node in inspector)
+                foreach (var node in group)
                     yield return node;
             }
         }
