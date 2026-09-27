@@ -26,8 +26,11 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 - **Paginação substituída por scroll.** Um app que quiser páginas implementa por cima.
 - **Sem compromisso de compatibilidade.** O rework não vai ser portado para nenhum app real, e o
   OverlayApplication vai ser reescrito do zero; o uso real (1.2) serve só de referência.
-- **Um projeto, dois binários** (`net10.0` e `net10.0-windows`), com o NoHost em `net10.0`.
-  Aplicado no commit `c537554` (3.7).
+- **Um projeto, dois binários** (`net10.0` e `net10.0-windows`). Aplicado no commit `c537554` (3.7).
+- **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
+  o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
+  `net10.0-windows`, fora do repositório e ignorado. Aplicado nos commits `e11b2df`, `176f366` e
+  `9587e12`.
 - **Primitivos com prefixo `SK` provisório**, até a nomenclatura final: `SKPoint`, `SKPointF`,
   `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `21cbeda` (3.4).
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
@@ -378,7 +381,8 @@ Aplicado no commit `c537554`:
   conversões `System.Windows.*`), mais `Presentation/WF/**` e `Presentation/WPF/**`. As conversões de
   `System.Drawing` ficam no build comum.
 - `EnableWindowsTargeting` no projeto, para o alvo Windows compilar fora do Windows (CI, Linux).
-- NoHost em `net10.0`: roda sem o runtime WindowsDesktop.
+- Console de verificação em `net10.0`, que roda sem o runtime WindowsDesktop: era o NoHost; agora é
+  o TuxHost (commit `e11b2df`), e o NoHost voltou a ser local.
 
 Verificado: os membros movidos são idênticos (só ganharam `partial`); a solução compila com os mesmos
 warnings (agora um jogo por alvo); o NoHost roda no Linux com a mesma saída de antes; e os hosts
@@ -452,6 +456,9 @@ Estrutura
 - [x] Multi-target `net10.0;net10.0-windows` num projeto só, com o código de plataforma em arquivos
       parciais excluídos do alvo `net10.0` (3.7; commit `c537554`).
 - [x] NoHost em `net10.0` (commit `c537554`).
+- [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
+      O NoHost voltou para `net10.0-windows` (commit `176f366`), saiu do repositório e voltou a ser
+      ignorado (commit `9587e12`).
 - [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5).
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
@@ -503,7 +510,7 @@ Pendências da primeira revisão (já conhecidas)
 - [ ] `FieldDescriptor.Type` com o tipo dono (o tipo do valor agora está em `FieldType`); membro
       escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do WinForms e do WPF.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
-      `7740b61`).
+      `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
       volta no dono (commit `2a1cf94`).
 
@@ -584,8 +591,9 @@ atributos inválidos (por exemplo `[InspectorRange(10, 1)]`) sobem sem tratament
   continua compilando sem erros e sem warnings.
 
 **Para confirmar**: com a flag global ligada, a permissão de expandir vale por membro ou por tipo e
-não passa para os níveis de baixo. No NoHost, `Boo.Details` expande pelo atributo, mas `Details.Doo`
-não, porque o tipo `Doo` não tem o atributo. É o comportamento do `TypeSafeLock` do original.
+não passa para os níveis de baixo. No TuxHost, `Boo.Details` expande pelo atributo, mas
+`Details.Doo` não, porque o tipo `Doo` não tem o atributo. É o comportamento do `TypeSafeLock` do
+original.
 
 **Próximos cortes**: itens de escolha, sanitizadores, visibilidade condicional, gancho de conversão,
 `ValueApplied`, nós manuais (botão, exibição, cabeçalho) e `InspectorOptions` com o layout.
