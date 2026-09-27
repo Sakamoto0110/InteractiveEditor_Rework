@@ -1,5 +1,5 @@
 ﻿using InteractiveEditor.Model;
-using InteractiveEditor.Options;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
@@ -21,8 +21,12 @@ public class Inspector : InspectorNode
 
         ReflectionDiscovery.AddMembers(root, typeof(T));
 
+        // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
         foreach (var node in root.Descendants())
-            Policies.Apply(node);
+        {
+            ReflectionPolicy.Apply(node);
+            AttributePolicy.Apply(node);
+        }
 
         return root;
     }
