@@ -56,17 +56,18 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   3.10). As duas políticas viram classes estáticas, sem interface nem instâncias, chamadas em ordem
   no `Create`. Aplicado nos commits `5560223` e `6622a41`.
 - **`Inspector` não genérico**: um `Inspector<T>` prenderia o inspector a um tipo de raiz, e ele
-  precisa poder trocar de tipo. Por isso a classe não é genérica e só o `Create<T>` é. Eventos:
-  alguns no inspector, a maior parte nos nós. Como a troca de tipo acontece ainda está em aberto
-  (3.10).
+  precisa poder trocar a instância da raiz, inclusive por uma de outro tipo. Por isso a classe não
+  é genérica e só o `Create<T>` é. Eventos: alguns no inspector, a maior parte nos nós. Como a troca
+  acontece ainda está em aberto (3.10).
 - **O objeto de um grupo não é trocado**: o valor de um grupo (`inspector["Moo"]`) não pode ser
   alterado pelo inspector; só os filhos editam. Se for detectada uma troca desse objeto, a branch
   inteira fica comprometida e pode ser desativada. No main isso vinha do `Inspector.SetValue`, que
   lançava exceção; o commit `2a1cf94` tirou essa proteção sem registrar (3.10).
-- **API de binding**: `Bind` lança exceção se já houver objeto ligado, senão liga o objeto;
-  `Unbind` limpa e solta todos os objetos, de forma explícita; `Rebind` é `Unbind` + `Bind`;
-  `AddBind` e `RemoveBind` põem e tiram um objeto do bind (multi-bind). O `Bind` que lança é o
-  `IsTypeBound` do main, que o commit `2a1cf94` também tirou (3.3).
+- **Binding** (as capacidades; os nomes são exemplos): ligar lança exceção se já houver objeto
+  ligado; desligar tudo é explícito (`Unbind()`, sem parâmetro); religar é desligar e ligar; e dá
+  para pôr e tirar um objeto do bind (multi-bind), algo como `Bind`, `Unbind()`, `Rebind`,
+  `AddBind` e `RemoveBind`. O ligar que lança é o `IsTypeBound` do main, que o commit `2a1cf94`
+  também tirou (3.3).
 
 ---
 
@@ -530,10 +531,9 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 **Em aberto**
 
-- Troca de tipo com a API de binding: a leitura natural é que ela só acontece com nada ligado
-  (`Rebind`, ou `Unbind` + `Bind`, com um objeto de outro tipo refaz a árvore) e que o `AddBind`
-  exige o mesmo tipo. Falta confirmar, e decidir o que acontece com a configuração da árvore
-  anterior.
+- Troca de instância da raiz: pelo religar (ou desligar e ligar). Se a instância nova for de outro
+  tipo, a árvore é refeita; o pôr um objeto no multi-bind exige o mesmo tipo? Falta confirmar, e
+  decidir o que acontece com a configuração da árvore anterior.
 - Quais eventos ficam no inspector e quais ficam nos nós.
 - A regra do objeto do grupo vale para todo membro com filhos ou só para o grupo aberto? Uma class
   mostrada fechada, com editor próprio (um `Font` com o diálogo de fonte, por exemplo), é editada
@@ -568,8 +568,8 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 Já resolvidas (seção 0): um binário, prefixo dos primitivos, atributos próprios, paginação, modo
 principal e precedência, service locator, camadas de opções, descrições, chaves, configuração no
-inspector, exceções, binding pela cadeia de pais, `Inspector` não genérico, objeto do grupo e API
-de binding.
+inspector, exceções, binding pela cadeia de pais, `Inspector` não genérico, objeto do grupo e
+capacidades do binding.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `PxRect`, `PxPadding` e `PxDock`? A proposta de 3.9 gera as três
@@ -641,8 +641,8 @@ Núcleo (portar a essência)
       leitura tem `ReadOnly = false` nas opções, mas o `SetValue` recusa.
 - [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`). Revisto: vira `Rebind`, e o `Bind`
       volta a lançar se já houver objeto ligado (seção 0).
-- [ ] API de binding: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (seção 0), com os
-      valores mistos do multi-bind (3.3).
+- [ ] Binding: ligar que lança se já ligado, `Unbind()`, religar e multi-bind (nomes de exemplo;
+      seção 0), com os valores mistos (3.3).
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
 - [ ] Conversão de texto para valor com `TypeConverter` / `IParsable<T>` e cultura definida.
 - [ ] Sanitizadores tipados (sucessores das `CapFunction`), separados em texto e valor, em lista
