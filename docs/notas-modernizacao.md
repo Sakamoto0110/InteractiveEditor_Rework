@@ -52,9 +52,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   cada chamada. Structs são gravadas de volta no dono, e `SetValue` com um pai null lança exceção.
   Aplicado no commit `2a1cf94` (3.3).
 - **Um membro, um nó**: a descoberta monta a árvore direto; `InspectorNode` é qualquer membro, com
-  ou sem filhos, e `Inspector` é só a raiz (o objeto, o `Create` e o `bind`). As duas políticas
-  viram classes estáticas, sem interface nem instâncias, chamadas em ordem no `Create`. Aplicado nos
-  commits `5560223` e `6622a41`.
+  ou sem filhos, e `Inspector` é a raiz (por enquanto só o objeto, o `Create` e o `bind`; ver
+  3.10). As duas políticas viram classes estáticas, sem interface nem instâncias, chamadas em ordem
+  no `Create`. Aplicado nos commits `5560223` e `6622a41`.
 
 ---
 
@@ -190,7 +190,8 @@ criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O u
 
 ### 3.1 Camadas, tudo numa DLL
 
-1. **Descoberta** (agnóstica): tipo → árvore de nós. Feita uma vez e cacheada por `Type`.
+1. **Descoberta** (agnóstica): tipo → árvore de nós. Os membros são lidos uma vez e cacheados por
+   `Type`; os nós são de cada inspector, porque guardam as opções (3.10).
 2. **Configuração** (agnóstica): o sucessor do `BindingArgs`. Diz *como* cada membro aparece, sem
    citar controles de nenhuma plataforma.
 3. **Binding** (agnóstico): a árvore de nós ligada a uma ou mais instâncias. Lê, grava, converte,
@@ -457,6 +458,41 @@ vez.
   o `Vec2` do C++); e, quando o passo de layout usar os primitivos, o inspector passa a depender da
   PixieLib, uma segunda DLL (exceção à regra de 1 DLL).
 
+### 3.10 O `Inspector`: hoje raso
+
+O `Inspector` tem 45 linhas: `Create<T>()`, `bind(object)`, o `GetValue`/`SetValue` da raiz e o
+`Name`; o `Target` só serve para o nome. Deveria ser uma das peças mais completas, porque é o que o
+host e a view usam. Levantamento para o desenho, sem nada decidido.
+
+**Buracos no que já existe** (testado)
+
+- O `bind` aceita objeto de outro tipo: `Inspector.Create<Foo>().bind(new Bar())` passa, e o erro só
+  aparece depois, no `GetValue` de um nó, como `ArgumentException` do reflection.
+- O `SetValue` da raiz aceita null e objeto de outro tipo sem reclamar; com null, o inspector fica
+  sem objeto, um unbind silencioso. Ele precisa aceitar valor novo, porque a cópia de uma struct na
+  raiz volta por ele (3.3), mas só do tipo do alvo.
+- A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
+  inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
+
+**O que as notas já põem no inspector, hoje espalhado**
+
+- Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó (seção 0), com
+  as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2).
+- Ciclo do bind: unbind, multi-bind com valores mistos e `Refresh()` (3.3).
+- Eventos: `BindStarted` e `BindFinished` (1.1, item 9), os de ciclo de vida com payload de falha e
+  o `ValueApplied` (3.3). São o que a view observa (3.5).
+- Nós manuais: botão, exibição e cabeçalho (`AddButton`, `AddDisplay`; seção 5, item 4).
+- `TypeBinderMode`: automático ou só o que foi declarado (3.2).
+- Filtro por instância (sucessor do `IVarProvider`) e visibilidade condicional, que dependem do
+  objeto ligado (3.2).
+- Aplicar sob demanda (Apply e Reload), previsto e nunca terminado no original (1.1); sem decisão.
+
+**Em aberto**
+
+- `Inspector<T>`, com `bind(T)` checado pelo compilador, ou a checagem do tipo no próprio `bind`, em
+  tempo de execução?
+- O que fica no inspector e o que fica nos nós (eventos por nó ou só na raiz, por exemplo).
+
 ---
 
 ## 4. O que não portar do 0.7.1a
@@ -497,6 +533,8 @@ inspector, exceções e binding pela cadeia de pais.
 6. **ReadOnly num objeto aninhado (class)**: hoje vale só para o próprio membro: não dá para trocar
    o objeto, mas os filhos continuam editáveis. Um `[InspectorReadOnly]` explícito num objeto
    aninhado deveria passar para os filhos?
+7. **O `Inspector`** (3.10): o que ele concentra (opções, ciclo do bind, eventos, nós manuais) e se
+   vira `Inspector<T>`. Vem antes das views, porque é o que elas observam.
 
 ---
 
@@ -536,6 +574,8 @@ Núcleo (portar a essência)
 - [x] Um membro, um nó: a descoberta monta a árvore direto; saem `FieldDescriptor`, `Fieldset`, o
       `Inspector` aninhado e a lista plana, e as políticas perdem a interface e as instâncias
       (commits `5560223` e `6622a41`).
+- [ ] `Inspector` completo: hoje só `Create<T>`, `bind` e o valor da raiz; o `bind` e o `SetValue`
+      da raiz aceitam objeto de outro tipo (3.10).
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, direto no inspector.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
