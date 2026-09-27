@@ -8,7 +8,8 @@ inspector foi feito.
 
 O que já foi decidido está na seção 0, e o que já foi aplicado no código está marcado com `[x]` na
 seção 6. O resto são propostas para discutir. As perguntas em aberto estão juntas, numeradas, em
-`perguntas-em-aberto.md`.
+`perguntas-em-aberto.md`, e o que é preciso para retomar o trabalho num contexto novo está em
+`passagem-de-contexto.md`.
 
 Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está hoje aqui,
 **[proposta]** é o que eu sugiro.
