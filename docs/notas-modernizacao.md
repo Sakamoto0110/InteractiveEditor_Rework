@@ -33,8 +33,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
   `net10.0-windows`, versionado como na `main` e com a pasta no `.gitignore`. Aplicado nos commits
   `e11b2df`, `176f366` e `9587e12`.
-- **Primitivos com prefixo `SK` provisório**, até a nomenclatura final: `SKPoint`, `SKPointF`,
-  `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `21cbeda` (3.4).
+- **Primitivos com prefixo `Px`**, o mesmo da PixieLib (3.9): `PxPoint`, `PxPointF`, `PxSize` e
+  `PxSizeF`; cores como `ArgbColor` e `HslColor`. Substitui o `SK` provisório do commit `21cbeda`.
+  Aplicado no commit `9e15f6e` (3.4).
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
   `[InspectorExpandable]` para expandir objetos aninhados), por inspector e por campo. Primeiro corte
   aplicado no commit `5319247` (seção 7).
@@ -321,22 +322,22 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
-**Nomes** (prefixo `SK` provisório, decidido; a proposta de nome final é `Px`, ver 3.9)
+**Nomes** (prefixo `Px`, decidido: o mesmo da PixieLib, ver 3.9)
 
 | Antes | Agora | Situação |
 |---|---|---|
-| `Point`, `PointF` | `SKPoint`, `SKPointF` | Aplicado (`21cbeda`) |
-| `Size`, `SizeF` | `SKSize`, `SKSizeF` | Aplicado |
+| `Point`, `PointF` | `PxPoint`, `PxPointF` | Aplicado (`21cbeda` com `SK`, `9e15f6e` com `Px`) |
+| `Size`, `SizeF` | `PxSize`, `PxSizeF` | Aplicado |
 | `Color` | `ArgbColor` | Aplicado; espaço de cor explícito, ponte para `System.Drawing.Color` e `System.Windows.Media.Color` |
 | `ColorHSL` | `HslColor` | Aplicado; idem, com o acrônimo em PascalCase |
-| (novo) | `SKRect` | Proposto: resultado do passo de layout |
-| (novo) | `SKPadding` | Proposto: margens (`Padding` no WinForms, `Thickness` no WPF) |
-| (novo) | `SKDock` (enum) | Proposto: substitui o `DockStyle` nas opções |
+| (novo) | `PxRect` | Proposto: resultado do passo de layout |
+| (novo) | `PxPadding` | Proposto: margens (`Padding` no WinForms, `Thickness` no WPF) |
+| (novo) | `PxDock` (enum) | Proposto: substitui o `DockStyle` nas opções |
 
 Com os nomes novos, um arquivo WinForms ou WPF que importa `InteractiveEditor.Primitives` deixou de
 ter ambiguidade (CS0104) com `System.Drawing`, `System.Windows` e `System.Windows.Media` (testado).
-Ressalva do `SK`: o SkiaSharp também tem `SKPoint`, `SKSize` e `SKColor`, então um arquivo que
-importe os dois namespaces teria ambiguidade. Enquanto o prefixo for provisório, não é problema.
+O `SK` provisório colidia com o SkiaSharp (`SKPoint`, `SKSize` e `SKColor`); o `Px` não colide com
+ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
 
 **Regras de conversão (proposta)**
 
@@ -349,7 +350,7 @@ importe os dois namespaces teria ambiguidade. Enquanto o prefixo for provisório
 - Do WPF para os tipos int ou float: explícitas, porque perdem precisão.
 - `ArgbColor` ↔ `HslColor`: declarar num lugar só. Hoje a conversão `ArgbColor → HslColor` existe
   nas duas structs e dá CS0457 no primeiro uso.
-- `SKPadding` e `SKDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
+- `PxPadding` e `PxDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
 
 ### 3.5 Apresentação
 
@@ -425,15 +426,16 @@ vez.
 - **A ideia**: os primitivos (hoje em `InteractiveEditor/Primitives`, que nada usa ainda) saem do
   inspector e viram a base da PixieLib em C#, que depois ganha vetores, matrizes e transformações 2D
   e 3D.
-- **Enquanto isso** (decidido): os primitivos atuais ficam no InteractiveEditor, como estão, para
-  segurar as pontas. Só saem quando a PixieLib existir.
+- **Enquanto isso** (decidido): os primitivos atuais ficam no InteractiveEditor para segurar as
+  pontas, já com o prefixo `Px` (commit `9e15f6e`). Só saem quando a PixieLib existir.
 - **Onde** (proposta): no próprio repositório `Sakamoto0110/PixieLib`, numa pasta `dotnet/` ao lado
   da `cpp/` que já existe (o lado C++, de 2023, usa o prefixo `px` e já tem `Vec2` em `double`). É a
   mesma biblioteca em duas linguagens, então não há "duas PixieLib". No NuGet, `PixieLib` está
   livre; `Pixie` não.
-- **Nomes** (proposta): o prefixo provisório `SK` vira `Px`, espelhando o `pxVec2` do C++
-  (`PxPoint`, `PxSize`, `PxColor`, `PxVec2`, `PxMat3`...). Continua sem colidir com `System.Drawing`
-  e `System.Numerics` (CS0104).
+- **Nomes** (decidido): o prefixo provisório `SK` virou `Px`, espelhando o `pxVec2` do C++
+  (`PxPoint`, `PxSize`, `PxVec2`, `PxMat3`...), e os primitivos atuais já usam (3.4). Não colide
+  com `System.Drawing`, `System.Numerics` nem SkiaSharp (CS0104, testado). As cores continuam
+  `ArgbColor` e `HslColor`; se viram `PxColor` fica em aberto (seção 5).
 - **Alvos** (decidido): a NekoLib vai usar a PixieLib também no .NET Framework, então ela compila
   para `net481` além do .NET moderno.
 - **Precisões** (decidido): `float`, `double` e `int` saem de um modelo só, por um source generator
@@ -449,8 +451,8 @@ vez.
   operações que fazem sentido: ponto + tamanho → ponto, ponto + vetor → ponto, ponto − ponto →
   vetor, tamanho + tamanho → tamanho, tamanho × k → tamanho. Conversão implícita para `PxVec2` (a
   matemática vem dele) e explícita de volta, testadas no protótipo. As quatro variantes atuais
-  (`SKPoint`, `SKPointF`, `SKSize` e `SKSizeF`) viram `PxPoint` e `PxSize`, nas precisões que o
-  gerador produzir.
+  (`PxPoint`, `PxPointF`, `PxSize` e `PxSizeF`) passam a sair do gerador, com os sufixos de
+  precisão dele.
 - **Em aberto**: a precisão padrão (`float`, que repassa para o `System.Numerics`, ou `double`, como
   o `Vec2` do C++); e, quando o passo de layout usar os primitivos, o inspector passa a depender da
   PixieLib, uma segunda DLL (exceção à regra de 1 DLL).
@@ -482,8 +484,9 @@ principal e precedência, service locator, camadas de opções, descrições, ch
 inspector, exceções e binding pela cadeia de pais.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
-   (como o WPF)? E criar os novos `SKRect`, `SKPadding` e `SKDock`? A proposta de 3.9 gera as três
-   precisões de um modelo só, e deixa em aberto só a padrão.
+   (como o WPF)? E criar os novos `PxRect`, `PxPadding` e `PxDock`? A proposta de 3.9 gera as três
+   precisões de um modelo só, e deixa em aberto só a padrão. As cores ganham o prefixo (`PxColor`)
+   ou continuam com o espaço de cor no nome (`ArgbColor`, `HslColor`)?
 2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
    qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
 3. **Cultura** para converter texto em número: invariante ou a atual?
@@ -513,9 +516,11 @@ Estrutura
       duas plataformas (3.5).
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
       `HslColor` (commit `21cbeda`).
+- [x] Primitivos: prefixo `Px` no lugar do `SK` provisório (`PxPoint`, `PxPointF`, `PxSize` e
+      `PxSizeF`), o mesmo da PixieLib (3.9; commit `9e15f6e`).
 - [ ] Primitivos: conversões nos dois sentidos com as regras de 3.4, incluindo o CS0457 entre
       `ArgbColor` e `HslColor`.
-- [ ] Primitivos novos: `SKRect`, `SKPadding` e `SKDock` (depende da seção 5).
+- [ ] Primitivos novos: `PxRect`, `PxPadding` e `PxDock` (depende da seção 5).
 - [ ] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
       PixieLib, com source generator para as precisões (3.9; adiado).
 
