@@ -238,7 +238,7 @@ inspector["Pos.X"].SetValue(5);    // edição pelo inspector: também regrava o
 
 A pergunta: o grupo de uma struct fica fora da detecção, mostrando sempre o valor atual, sem ramo
 comprometido? Gravar no grupo fica proibido do mesmo jeito (9.2): `inspector["Pos"].SetValue(...)`
-lança, e a struct muda pelos filhos.
+lança (commit `a2d8ffe`), e a struct muda pelos filhos.
 
 Sugestão: sim.
 
@@ -381,7 +381,7 @@ inspector.Label = "x";            // compila, e ninguém lê: a raiz não é um 
 inspector.Range = ...;            // idem
 inspector.ReadOnly = true;        // idem
 inspector.GetValue();             // devolve o objeto ligado
-inspector.SetValue(outroFoo);     // com a 9.2, lança
+inspector.SetValue(outroFoo);     // lança desde o commit a2d8ffe (9.2)
 ```
 
 Com a composição, o `Inspector` deixa de ser um nó: ele guarda a raiz num campo interno e expõe só
