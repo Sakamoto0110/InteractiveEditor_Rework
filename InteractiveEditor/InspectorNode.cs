@@ -114,18 +114,27 @@ public class InspectorNode : IEnumerable<InspectorNode>
     }
 
     // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
-    public IEnumerator<InspectorNode> GetEnumerator()
+    public IEnumerable<InspectorNode> Rows
     {
-        foreach (var child in Children.Where(c => !c.Ignored).OrderBy(c => c.Order))
+        get
         {
-            yield return child;
-
-            if (child.IsGroup)
+            foreach (var child in Children.Where(c => !c.Ignored).OrderBy(c => c.Order))
             {
-                foreach (var node in child)
-                    yield return node;
+                yield return child;
+
+                if (child.IsGroup)
+                {
+                    foreach (var node in child.Rows)
+                        yield return node;
+                }
             }
         }
+    }
+
+    // The whole tree below this node, as discovered: ignored nodes and the insides of closed groups too.
+    public IEnumerator<InspectorNode> GetEnumerator()
+    {
+        return Descendants().GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
