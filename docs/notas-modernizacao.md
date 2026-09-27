@@ -704,8 +704,10 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 
 `Ignored`, `Order` e `Expandable` valem na enumeração do inspector, que é o que a view mostra, então
 podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado sai com a subárvore; um
-objeto que não é expansível aparece como campo `Display`, sem os filhos; irmãos saem por `Order`,
-mantendo a ordem de declaração nos empates. O nó ignorado continua na árvore, então a camada manual
+objeto que não é expansível aparece como campo `Display`, sem os filhos; irmãos saem por `Order`.
+Nos empates vale a ordem em que a reflection devolve os membros, que não é a de declaração quando
+campos e propriedades se misturam: primeiro as propriedades, depois os campos, e os membros do
+próprio tipo antes dos herdados (testado). O nó ignorado continua na árvore, então a camada manual
 pode trazê-lo de volta (`Ignored = false`), mesmo quando foi o `[InspectorIgnore]` que o escondeu.
 
 **Configuração**: o `Create` já aplica as duas políticas, e o que se define depois, no próprio
