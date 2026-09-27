@@ -31,15 +31,42 @@ public class Inspector : InspectorNode
         return root;
     }
 
-    public void bind(object instance)
+    // One object at a time for now (multi-bind comes later), so swapping it is explicit.
+    public void Bind(object instance)
     {
-        if (instance == null)
-            throw new ArgumentNullException(nameof(instance));
+        CheckBindable(instance);
+
+        if (Instance != null)
+            throw new InvalidOperationException($"'{Name}' is already bound; call Unbind() or Rebind() first.");
 
         Instance = instance;
+    }
+
+    public void Unbind()
+    {
+        Instance = null;
+    }
+
+    public void Rebind(object instance)
+    {
+        // Checked before unbinding, so a refused instance leaves the current one bound.
+        CheckBindable(instance);
+
+        Unbind();
+        Bind(instance);
     }
 
     public override object? GetValue() => Instance;
 
     public override void SetValue(object? value) => Instance = value;
+
+    // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
+    private void CheckBindable(object instance)
+    {
+        if (instance == null)
+            throw new ArgumentNullException(nameof(instance));
+
+        if (!Target.IsInstanceOfType(instance))
+            throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
+    }
 }

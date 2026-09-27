@@ -41,7 +41,7 @@ internal class Program
 
     static void Print(string title, Inspector inspector, object instance)
     {
-        inspector.bind(instance);
+        inspector.Bind(instance);
 
         Console.WriteLine($"== {title}");
 
