@@ -63,6 +63,10 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   alterado pelo inspector; só os filhos editam. Se for detectada uma troca desse objeto, a branch
   inteira fica comprometida e pode ser desativada. No main isso vinha do `Inspector.SetValue`, que
   lançava exceção; o commit `2a1cf94` tirou essa proteção sem registrar (3.10).
+- **API de binding**: `Bind` lança exceção se já houver objeto ligado, senão liga o objeto;
+  `Unbind` limpa e solta todos os objetos, de forma explícita; `Rebind` é `Unbind` + `Bind`;
+  `AddBind` e `RemoveBind` põem e tiram um objeto do bind (multi-bind). O `Bind` que lança é o
+  `IsTypeBound` do main, que o commit `2a1cf94` também tirou (3.3).
 
 ---
 
@@ -280,8 +284,8 @@ component["FillColor"].Label = "Color1";
 // component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
 // component.AddDisplay("Layer", () => tree.SelectedIndex);
 
-component.bind(selected);    // rebind a cada seleção (já funciona)
-component.bind(selection);   // cortes seguintes: multi-bind
+component.Rebind(selected);  // a cada seleção: Unbind + Bind (próximo corte)
+component.AddBind(other);    // cortes seguintes: multi-bind
 ```
 
 No modo automático (o padrão), os membros refletidos entram sozinhos, os atributos ajustam e a
@@ -297,8 +301,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
   cópia, e o host lê o resultado com `GetValue()`. Revisto: a troca do objeto de um grupo não deve
   ser seguida em silêncio, e sim comprometer a branch (seção 0; 3.10).
-- **Rebind** (aplicado, commit `2a1cf94`): `bind(obj)` de novo troca o objeto atual, como no
-  original (o `BindToObject` desfaz o bind anterior). O `IsTypeBound`, que bloqueava, saiu.
+- **Rebind** (revisto): o `bind(obj)` de novo trocando o objeto (commit `2a1cf94`, que tirou o
+  `IsTypeBound` do main) é desfeito. `Bind` lança se já houver objeto ligado, e a troca é
+  explícita: `Rebind` (`Unbind` + `Bind`). A API inteira está na seção 0.
 - **ReadOnly** (aplicado, commit `6117bb1`): `SetValue` lança `InvalidOperationException` quando o
   nó está marcado como somente leitura, antes de ler qualquer coisa. Vale para o que a reflection
   marca (setter privado, `init`, campo `readonly`), para o `[InspectorReadOnly]` e para a camada
@@ -306,8 +311,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   de uma struct passa pelo `SetValue` do dono, um membro de struct somente leitura também é
   recusado; já os membros de uma class somente leitura continuam editáveis, porque a edição é no
   próprio objeto (seção 5, item 6).
-- **Multi-bind**: `Bind(a, b, c)`. Valores diferentes aparecem como "misto" (o original mostra só o
-  primeiro); o scrubbing aplica o delta em cada instância, como no original.
+- **Multi-bind**: `AddBind` e `RemoveBind` (seção 0). Valores diferentes aparecem como "misto" (o
+  original mostra só o primeiro); o scrubbing aplica o delta em cada instância, como no original.
+  Com vários objetos, cada nó passa a ter um valor por objeto, e a cadeia de pais resolve cada um.
 - **Objeto → UI**: `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`. O objeto deixa de
   guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar o mesmo objeto.
   Um `Refresh()` manual cobre quem não implementa a interface.
@@ -494,7 +500,8 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó (seção 0), com
   as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2).
-- Ciclo do bind: unbind, multi-bind com valores mistos e `Refresh()` (3.3).
+- Ciclo do bind: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (seção 0), os valores
+  mistos do multi-bind e o `Refresh()` (3.3).
 - Eventos: `BindStarted` e `BindFinished` (1.1, item 9), os de ciclo de vida com payload de falha e
   o `ValueApplied` (3.3). São o que a view observa (3.5).
 - Nós manuais: botão, exibição e cabeçalho (`AddButton`, `AddDisplay`; seção 5, item 4).
@@ -523,10 +530,10 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 **Em aberto**
 
-- Como a troca de tipo acontece: o `bind` com um objeto de outro tipo refaz a árvore, e o
-  `Inspector` continua sendo a raiz; ou o `Create<T>` devolve só a árvore (`InspectorNode`), e o
-  inspector guarda a raiz atual e troca de árvore. Na primeira, a configuração feita na árvore
-  anterior se perde na troca; na segunda, cada árvore guarda a sua.
+- Troca de tipo com a API de binding: a leitura natural é que ela só acontece com nada ligado
+  (`Rebind`, ou `Unbind` + `Bind`, com um objeto de outro tipo refaz a árvore) e que o `AddBind`
+  exige o mesmo tipo. Falta confirmar, e decidir o que acontece com a configuração da árvore
+  anterior.
 - Quais eventos ficam no inspector e quais ficam nos nós.
 - A regra do objeto do grupo vale para todo membro com filhos ou só para o grupo aberto? Uma class
   mostrada fechada, com editor próprio (um `Font` com o diálogo de fonte, por exemplo), é editada
@@ -558,7 +565,8 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 
 Já resolvidas (seção 0): um binário, prefixo dos primitivos, atributos próprios, paginação, modo
 principal e precedência, service locator, camadas de opções, descrições, chaves, configuração no
-inspector, exceções, binding pela cadeia de pais e `Inspector` não genérico.
+inspector, exceções, binding pela cadeia de pais, `Inspector` não genérico, objeto do grupo e API
+de binding.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `PxRect`, `PxPadding` e `PxDock`? A proposta de 3.9 gera as três
@@ -628,8 +636,10 @@ Núcleo (portar a essência)
 - [x] Binding respeitar o `ReadOnly` das opções no `SetValue` (commit `6117bb1`).
 - [ ] `ReadOnly` efetivo no nó, para a view desabilitar o editor: o filho de uma struct somente
       leitura tem `ReadOnly = false` nas opções, mas o `SetValue` recusa.
-- [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`).
-- [ ] Unbind e multi-bind.
+- [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`). Revisto: vira `Rebind`, e o `Bind`
+      volta a lançar se já houver objeto ligado (seção 0).
+- [ ] API de binding: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (seção 0), com os
+      valores mistos do multi-bind (3.3).
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
 - [ ] Conversão de texto para valor com `TypeConverter` / `IParsable<T>` e cultura definida.
 - [ ] Sanitizadores tipados (sucessores das `CapFunction`), separados em texto e valor, em lista
