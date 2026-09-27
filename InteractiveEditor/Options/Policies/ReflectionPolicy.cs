@@ -13,15 +13,15 @@ internal sealed class ReflectionPolicy : IFieldPolicy
         typeof(float), typeof(double), typeof(decimal),
     ];
 
-    public void Apply(FieldOptions field)
+    public void Apply(InspectorNode node)
     {
-        if (field.Member is not { } member)
+        if (node.Descriptor is not { } member)
             return;
 
-        field.Label = member.Name;
-        field.Editor = EditorFor(member.FieldType);
-        field.ReadOnly = !IsPubliclyWritable(member.MemberInfo);
-        field.Expandable = field.HasMembers && !GlobalOptions.RequireExpandableAttribute;
+        node.Label = member.Name;
+        node.Editor = EditorFor(member.FieldType);
+        node.ReadOnly = !IsPubliclyWritable(member.MemberInfo);
+        node.Expandable = node is Inspector && !GlobalOptions.RequireExpandableAttribute;
     }
 
     private static EditorKind EditorFor(Type type)
