@@ -674,7 +674,8 @@ Pendências da primeira revisão (já conhecidas)
 - [x] `FieldDescriptor.Type` com o tipo dono e o namespace `Binding` escondendo o tipo `Binding` do
       WinForms e do WPF: os dois saíram (commit `5560223`).
 - [ ] Membro escondido com `new`: não quebra mais o `Create`, mas aparece duas vezes, e o indexador
-      acha o do tipo derivado, que vem primeiro.
+      acha o do tipo derivado, que vem primeiro. Só quando o tipo muda: com o mesmo tipo
+      (`public new int Value`), aparece uma vez só (testado).
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
