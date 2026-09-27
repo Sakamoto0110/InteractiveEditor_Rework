@@ -277,6 +277,13 @@ configurador tem a palavra final; com `TypeBinderMode.Manual`, entra só o que f
   cópia, e o host lê o resultado com `GetValue()`.
 - **Rebind** (aplicado, commit `2a1cf94`): `bind(obj)` de novo troca o objeto atual, como no
   original (o `BindToObject` desfaz o bind anterior). O `IsTypeBound`, que bloqueava, saiu.
+- **ReadOnly** (aplicado, commit `6117bb1`): `SetValue` lança `InvalidOperationException` quando o
+  nó está marcado como somente leitura, antes de ler qualquer coisa. Vale para o que a reflection
+  marca (setter privado, `init`, campo `readonly`), para o `[InspectorReadOnly]` e para a camada
+  manual, que continua podendo reabrir (`fields["x"].ReadOnly = false`). Como a gravação de volta de
+  uma struct passa pelo `SetValue` do dono, um membro de struct somente leitura também é recusado;
+  já os membros de uma class somente leitura continuam editáveis, porque a edição é no próprio
+  objeto (seção 5, item 6).
 - **Multi-bind**: `Bind(a, b, c)`. Valores diferentes aparecem como "misto" (o original mostra só o
   primeiro); o scrubbing aplica o delta em cada instância, como no original.
 - **Objeto → UI**: `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`. O objeto deixa de
@@ -432,6 +439,9 @@ exceções e binding pela cadeia de pais.
    `fields.AddDisplay(...)`, no mesmo configurador?
 5. **Permissão de expandir** com a flag global: vale só para o membro ou tipo marcado (como hoje e
    como no `TypeSafeLock`) ou passa para os níveis de baixo?
+6. **ReadOnly num objeto aninhado (class)**: hoje vale só para o próprio membro: não dá para trocar
+   o objeto, mas os filhos continuam editáveis. Um `[InspectorReadOnly]` explícito num objeto
+   aninhado deveria passar para os filhos?
 
 ---
 
@@ -461,7 +471,9 @@ Núcleo (portar a essência)
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`).
-- [ ] Binding respeitar o `ReadOnly` das opções no `SetValue`.
+- [x] Binding respeitar o `ReadOnly` das opções no `SetValue` (commit `6117bb1`).
+- [ ] `ReadOnly` efetivo no nó, para a view desabilitar o editor: o filho de uma struct somente
+      leitura tem `ReadOnly = false` nas opções, mas o `SetValue` recusa.
 - [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`).
 - [ ] Unbind e multi-bind.
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual.
@@ -483,10 +495,10 @@ Pendências da primeira revisão (já conhecidas)
 
 - [x] Objeto intermediário null no `bind`: o bind não lê mais nada; `GetValue` devolve null e
       `SetValue` lança dizendo qual pai é null (commit `2a1cf94`).
-- [ ] Setter privado e campo `readonly` ainda gravados pelo `SetValue` (as opções já marcam
-      `ReadOnly`); `FieldDescriptor.Type` com o tipo dono (o tipo do valor agora está em
-      `FieldType`); membro escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do
-      WinForms e do WPF.
+- [x] Setter privado e campo `readonly` gravados pelo `SetValue`: agora ele respeita o `ReadOnly`
+      que as opções marcam (commit `6117bb1`).
+- [ ] `FieldDescriptor.Type` com o tipo dono (o tipo do valor agora está em `FieldType`); membro
+      escondido com `new`; namespace `Binding` escondendo o tipo `Binding` do WinForms e do WPF.
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`).
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
@@ -559,5 +571,4 @@ não passa para os níveis de baixo. No NoHost, `Boo.Details` expande pelo atrib
 não, porque o tipo `Doo` não tem o atributo. É o comportamento do `TypeSafeLock` do original.
 
 **Próximos cortes**: itens de escolha, sanitizadores, visibilidade condicional, gancho de conversão,
-`ValueApplied`, nós manuais (botão, exibição, cabeçalho), `InspectorOptions` com o layout, e o
-binding respeitar o `ReadOnly` (a opção já marca, mas o `SetValue` ainda grava).
+`ValueApplied`, nós manuais (botão, exibição, cabeçalho) e `InspectorOptions` com o layout.
