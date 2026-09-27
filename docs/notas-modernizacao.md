@@ -29,8 +29,8 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 - **Um projeto, dois binários** (`net10.0` e `net10.0-windows`). Aplicado no commit `c537554` (3.7).
 - **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
   o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
-  `net10.0-windows`, fora do repositório e ignorado. Aplicado nos commits `e11b2df`, `176f366` e
-  `9587e12`.
+  `net10.0-windows`, versionado como na `main` e com a pasta no `.gitignore`. Aplicado nos commits
+  `e11b2df`, `176f366` e `9587e12`.
 - **Primitivos com prefixo `SK` provisório**, até a nomenclatura final: `SKPoint`, `SKPointF`,
   `SKSize` e `SKSizeF`; cores como `ArgbColor` e `HslColor`. Aplicado no commit `21cbeda` (3.4).
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
@@ -457,8 +457,8 @@ Estrutura
       parciais excluídos do alvo `net10.0` (3.7; commit `c537554`).
 - [x] NoHost em `net10.0` (commit `c537554`).
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
-      O NoHost voltou para `net10.0-windows` (commit `176f366`), saiu do repositório e voltou a ser
-      ignorado (commit `9587e12`).
+      O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
+      `.gitignore`, como na `main`, sem sair do repositório (commit `9587e12` e o seguinte).
 - [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5).
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
