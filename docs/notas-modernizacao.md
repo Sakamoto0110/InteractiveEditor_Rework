@@ -543,6 +543,12 @@ host e a view usam. Levantamento para o desenho, com as primeiras decisões no f
 - Setter abstrato de volta, com um tipo de nó por comportamento fixo na criação (raiz, membro e,
   depois, botão, exibição e cabeçalho)? Dentro do nó de membro, grupo ou folha continua decidido em
   tempo de execução, porque o `Expandable` pode mudar depois do `Create`.
+- O inspector deixa de ser enumerável? Hoje ele é porque o nó é, e o `foreach` entrega um percurso
+  só, as linhas da view; a regra em massa cai nisso (não alcança ignorados nem o que está dentro de
+  grupo fechado), e um `inspector.Count()` conta linhas, não nós. Proposta: nenhum dos dois é
+  enumerável, e cada percurso ganha um nome (de exemplo): `Nodes`, todos os nós (o `Descendants()`
+  que o `Create` já usa); `Rows`, as linhas da view; e `Children`, os filhos diretos de um nó. LINQ
+  continua valendo em cada um, e o indexador fica.
 
 ---
 
