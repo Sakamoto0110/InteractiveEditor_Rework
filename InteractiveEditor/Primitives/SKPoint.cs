@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace InteractiveEditor.Primitives;
 
-public partial struct SKPoint : IEquatable<SKPoint>
+public struct SKPoint : IEquatable<SKPoint>
 {
     public static readonly SKPoint Empty = new SKPoint(0, 0);
 

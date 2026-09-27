@@ -2,106 +2,35 @@
 
 namespace InteractiveEditor.Model;
 
-public static class ReflectionDiscovery
+internal static class ReflectionDiscovery
 {
-    public static IReadOnlyList<FieldDescriptor> ResolveFor(Type type)
+    public static void AddMembers(InspectorNode parent, Type type)
     {
-        var fields = new List<FieldDescriptor>();
-        var ancestry = new HashSet<Type>();
-
-        ResolveType(
-            type,
-            fields,
-            null,
-            ancestry);
-
-        return fields;
+        AddMembers(parent, type, []);
     }
 
-    private static void ResolveType(
-        Type type,
-        List<FieldDescriptor> fields,
-        string? parentFullPath,
-        HashSet<Type> ancestry)
+    private static void AddMembers(InspectorNode parent, Type type, HashSet<Type> ancestry)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
 
-        if (IsTerminal(type))
+        if (IsTerminal(type) || !ancestry.Add(type))
             return;
 
-        if (!ancestry.Add(type))
-            return;
-
-        var flags = BindingFlags.Public | BindingFlags.Instance;
-
-        foreach (var mi in type.GetMembers(flags).Where(mi => mi is FieldInfo or PropertyInfo))
+        foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (mi is PropertyInfo pi && pi.GetIndexParameters().Length != 0)
+            if (member is PropertyInfo property && property.GetIndexParameters().Length != 0)
                 continue;
 
-            var accessors = CreateAccessors(mi);
-            var memberType = GetMemberType(mi);
+            if (member is not (FieldInfo or PropertyInfo))
+                continue;
 
-            var fullPath = parentFullPath == null
-                ? mi.Name
-                : $"{parentFullPath}.{mi.Name}";
+            var node = parent.Add(member);
 
-            var descriptor = new FieldDescriptor
-            {
-                Type = type,
-                Name = mi.Name,
-                Path = $"{mi.DeclaringType?.Name ?? string.Empty}.{mi.Name}",
-                FullPath = fullPath,
-                MemberType = mi.MemberType,
-                MemberInfo = mi,
-                FieldType = memberType,
-                Accessors = accessors,
-                OwnerGetter = obj => obj
-            };
-
-            fields.Add(descriptor);
-
-            if (!IsTerminal(memberType) && accessors.Getter != null)
-            {
-                ResolveType(
-                    memberType,
-                    fields,
-                    fullPath,
-                    ancestry);
-            }
+            if (member is FieldInfo || ((PropertyInfo)member).CanRead)
+                AddMembers(node, node.ValueType!, ancestry);
         }
 
         ancestry.Remove(type);
-    }
-
-    private static FieldDescriptor.FieldAccessors CreateAccessors(MemberInfo mi)
-    {
-        return mi switch
-        {
-            FieldInfo fi => new FieldDescriptor.FieldAccessors
-            {
-                Getter = obj => fi.GetValue(obj),
-                Setter = (obj, value) => fi.SetValue(obj, value)
-            },
-
-            PropertyInfo pi => new FieldDescriptor.FieldAccessors
-            {
-                Getter = pi.CanRead ? obj => pi.GetValue(obj) : null,
-                Setter = pi.CanWrite ? (obj, value) => pi.SetValue(obj, value) : null
-            },
-
-            _ => throw new NotSupportedException()
-        };
-    }
-
-    private static Type GetMemberType(MemberInfo mi)
-    {
-        return mi switch
-        {
-            FieldInfo fi => fi.FieldType,
-            PropertyInfo pi => pi.PropertyType,
-            _ => throw new NotSupportedException()
-        };
     }
 
     internal static bool IsTerminal(Type type)

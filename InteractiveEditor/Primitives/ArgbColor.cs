@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public partial struct ArgbColor : IEquatable<ArgbColor>
+public struct ArgbColor : IEquatable<ArgbColor>
 {
     public static readonly ArgbColor Empty = new ArgbColor(0, 0, 0, 0);
 

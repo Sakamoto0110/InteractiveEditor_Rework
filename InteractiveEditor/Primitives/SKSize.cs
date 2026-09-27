@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public partial struct SKSize : IEquatable<SKSize>
+public struct SKSize : IEquatable<SKSize>
 {
     public static readonly SKSize Empty = new SKSize(0, 0);
 
