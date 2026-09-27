@@ -1,814 +1,400 @@
 # Perguntas em aberto
 
-Todas as perguntas sem resposta até 27 de setembro de 2026, juntadas das notas
-(`notas-modernizacao.md`) e das conversas. Cada uma traz um exemplo: como é hoje, quando já existe,
-e como ficaria cada opção. Os nomes de métodos e propriedades que ainda não existem são só
-ilustração. Quando eu já tinha sugerido algo, a sugestão vem no fim, junto com a origem. As
-marcadas com **(antes das views)** são as que eu resolveria antes de começar a apresentação. O
-fluxo atual está explicado no relatório "Fluxo e políticas do Inspector"
-(https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk).
+Estado de 27 de setembro de 2026, depois das respostas do mesmo dia. As respondidas saíram daqui e
+estão na seção 0 de `notas-modernizacao.md`, citadas com um `P` na frente do número (`P2.2`). O que
+ficou: as que não foram respondidas, as que ficaram para o final e os desdobramentos das respostas.
 
-Dá para responder pelo número, por exemplo: "2.3: sim" ou "3.1: só o grupo aberto".
+Os números antigos continuam valendo, e os novos seguem a numeração de cada seção, sem reaproveitar
+número. A seção 0 é nova: ela é da premissa de erros. Os nomes que ainda não existem no código são
+só ilustração, e a sugestão, quando há, vem no fim de cada pergunta.
+
+Dá para responder pelo número, como antes: "3.2: sim" ou "1.13: ok".
 
 ---
 
+## 0. A premissa: o inspector não cai
+
+### 0.1 Severidade
+
+A premissa fala em fallback automático, em semiautomático e em só as falhas graves subirem. Uma
+escala possível, da mais leve para a mais grave:
+
+| Nível | O que aconteceu | Exemplo |
+|---|---|---|
+| Recuperado | fallback automático, sem ambiguidade | um getter lança numa leitura da view: a linha mostra o erro, e a leitura seguinte tenta de novo |
+| Contornado | fallback semiautomático: não caiu, mas pode não ser o certo | `[InspectorRange(10, 1)]`: a faixa é ignorada, e quem assina o evento pode pôr outra |
+| Crítico | sem resolução: o nó que falhou sai, e o resto continua | o tipo de um membro não carrega (assembly ausente) |
+| Fatal | o inspector não tem como continuar | o próprio tipo da raiz não pode ser lido |
+
+Com isso, a contagem do `OnCreated` sai direto: todos os erros, os contornados que ninguém tratou
+(o fallback valeu) e os críticos.
+
+Sugestão: essa escala, e só o fatal sobe para quem chamou. Na resposta, o crítico também subia, mas
+o exemplo do `CriticalErrorCount` dizia que ele não derruba nada.
+
+### 0.2 Onde passa a linha entre lançar e avisar
+
+As respostas pediram exceção para o uso errado da API, e a premissa pede evento para os pontos
+fracos. A linha que eu tirei disso:
+
+```csharp
+inspector.Bind(foo);
+inspector.Bind(bar);          // uso errado: lança, e o foo continua ligado
+inspector["Moo.Nope"];        // uso errado: KeyNotFoundException, como hoje
+inspector["Moo"].SetValue(m); // uso errado: lança (grupo)
+
+class Boo { [InspectorRange(10, 1)] public int Opacity { get; set; } }
+Inspector.Create<Boo>();      // hoje lança. Uso errado ou ponto fraco da descoberta?
+```
+
+O atributo inválido é o caso de fronteira: foi quem escreveu a classe que errou, mas o erro aparece
+dentro da descoberta.
+
+Sugestão: a linha como acima, e o atributo inválido como ponto fraco (evento, fallback e o
+`Create` segue).
+
 ## 1. O Inspector
 
-### 1.1 Herança ou composição (antes das views)
+### 1.6 Campo só de exibição (o resto da 1.6)
 
-O `Inspector` continua sendo um `InspectorNode`, e com isso herda o `GetValue`/`SetValue` e as
-opções de membro, que não fazem sentido na raiz? Ou passa a guardar a raiz como um nó interno?
+O botão entra e o cabeçalho não. Faltou o campo só de exibição. Um membro somente leitura já cobre o
+`UID` e o `Name` do OverlayApplication; o caso que sobra é um valor sem membro, como o `Layer`, que
+vinha da árvore de camadas.
 
 ```csharp
-// hoje: tudo isso compila
-var inspector = Inspector.Create<Foo>();
-inspector.Label = "Foo";                     // nada lê: a raiz não é um membro
-inspector.Range = new NumericRange(0, 1);    // idem
-inspector.SetValue(null);                    // desliga o objeto sem passar pelo bind
+component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());   // entra
+component.AddDisplay("Layer", () => tree.SelectedIndex);        // entra?
+```
 
-// composição: o Inspector guarda a raiz e expõe só o que é dele
-public class Inspector
+Sugestão: entra, com um getter.
+
+### 1.9 Os eventos da criação
+
+A criação, a descoberta e as falhas dela acontecem dentro do `Create`. Quando o `Create` devolve o
+inspector, esses eventos já passaram, e ninguém conseguiu assinar.
+
+```csharp
+var inspector = Inspector.Create<Foo>();       // a descoberta roda aqui dentro
+inspector.OnDiscoveryFailure += ...;           // tarde demais
+```
+
+- (a) eventos estáticos, que valem para todos os inspectors: assina antes do `Create`;
+- (b) criação em dois passos: criar, assinar e só então descobrir (`inspector.Build()`);
+- (c) o `Create` guarda o resultado no inspector (as contagens e as falhas), para ler depois; aí
+  ninguém age no meio da descoberta.
+
+Sugestão: (a) para agir no meio do caminho e (c) para conferir depois.
+
+### 1.10 `ValueChanged` nos dois sentidos
+
+`ValueChanged` serve. Há só um motivo para pensar no nome: com o `INotifyPropertyChanged` (P2.6), o
+nó também fica sabendo de mudanças que vêm do objeto, e a view precisa separar as duas para não
+entrar em laço (ela grava, o evento volta, ela atualiza o controle, o controle avisa que mudou...).
+
+```csharp
+node.ValueChanged += (s, e) =>
 {
-    private readonly RootNode Root;          // interno: o topo da cadeia de pais
+    if (e.Source == ValueSource.View)
+        return;                   // a própria edição: nada a fazer
+    UpdateControl(node);          // veio do objeto, de um Refresh() ou de um Force*
+};
+```
 
-    public InspectorNode this[string path] => Root[path];
-    public void Bind(object instance) { ... }
+Sugestão: um evento só, com a origem nos args. E os nomes seguem a convenção do .NET: o evento se
+chama `Created`, e `OnCreated` é o método que o dispara.
+
+### 1.11 A trava das opções globais com vários inspectors
+
+A trava fica enquanto houver pelo menos um inspector vivo. Um inspector que nunca recebe `Dispose`
+segura a trava para sempre: o finalizador não serve, porque não tem hora para rodar.
+
+```csharp
+using var a = Inspector.Create<Foo>();
+var b = Inspector.Create<Boo>();                     // sem using nem Dispose
+a.Dispose();
+GlobalOptions.RequireExpandableAttribute = true;     // lança: o b ainda está vivo
+```
+
+O TuxHost muda junto: hoje ele liga a flag com três inspectors vivos.
+
+Sugestão: uma contagem de inspectors vivos, que solta a trava no último `Dispose`; a mensagem da
+exceção diz quantos ainda estão vivos.
+
+### 1.12 O modo pelo jeito de criar (a opinião que você pediu na 1.7)
+
+Concordo: tipado infere o automático, e sem tipo infere o manual, porque sem tipo não há o que
+descobrir. Eu só manteria o modo explícito para o caso tipado e manual, que é o do
+OverlayApplication: editores de tipos conhecidos, montados campo a campo. Tipado, o `Add("X")`
+confere na hora que o membro existe, e o editor sai do tipo dele; sem tipo, o membro só é procurado
+pelo nome no bind, e um erro de digitação só aparece lá.
+
+```csharp
+var auto = Inspector.Create<ComponentPreset>();                       // automático
+var manual = Inspector.Create<ComponentPreset>(TypeBinderMode.Manual);
+manual.Add("X").Label = "PosX";           // confere já que ComponentPreset tem X
+var untyped = Inspector.Create();         // manual, sem tipo
+untyped.Add("X");                         // o X só é procurado no bind
+```
+
+Confirma?
+
+### 1.13 O enum de controle do binder
+
+Pelo que você descreveu, `Automatic` só vale junto com um sentido, e `Manual` exclui o resto. Dá
+para o próprio enum não ter combinação inválida: automático é ter algum sentido ligado, e manual é
+não ter nenhum.
+
+```csharp
+[Flags]
+enum BinderControlMode
+{
+    Manual = 0,                                    // nada passa sozinho: só os Force*
+    ViewToInstance = 1,
+    InstanceToView = 2,
+    Automatic = ViewToInstance | InstanceToView,   // os dois sentidos: o padrão
 }
 ```
 
-Sugestão: composição. Origem: conversa de 27/09.
-
-### 1.2 Setter abstrato de volta (antes das views)
-
-Voltar ao desenho do main, com o getter comum e o setter abstrato, e um tipo de nó por
-comportamento fixo na criação?
-
-```csharp
-// no main
-public abstract class InspectorNode
-{
-    public virtual object? GetValue() { ... }        // comum
-    public abstract void SetValue(object? value);    // cada tipo decide
-}
-public class Fieldset : InspectorNode { ... }        // grava
-public class Inspector : InspectorNode { ... }       // lança: não troca a instância
-
-// proposta
-class MemberNode : InspectorNode { ... }    // grava; recusa quando é um grupo aberto
-class ButtonNode : InspectorNode { ... }    // depois: sem valor, SetValue lança
-class DisplayNode : InspectorNode { ... }   // depois: só leitura, SetValue lança
-```
-
-Grupo ou folha fica decidido em tempo de execução dentro do `MemberNode`, porque o `Expandable`
-pode mudar depois do `Create` (`inspector["Details"].Expandable = false` transforma o grupo numa
-linha só), e a classe de um objeto não muda. Sugestão: sim, desse jeito. Origem: 3.10.
-
-### 1.3 Enumerável (antes das views)
-
-O inspector e o nó deixam de ser `IEnumerable`?
-
-```csharp
-// hoje: o foreach entrega só as linhas da view
-foreach (var node in inspector)
-    node.ScrubMultiplier = 1;          // não alcança ignorados nem o que está em grupo fechado
-inspector.Count();                     // conta linhas visíveis, não nós
-
-// proposta: um nome por percurso
-foreach (var node in inspector.Nodes)              // todos os nós
-    if (node.Editor == EditorKind.Number)
-        node.ScrubMultiplier = 1;
-view.Show(inspector.Rows);                         // as linhas da view
-foreach (var child in inspector["Moo"].Children)   // os filhos diretos
-    ...
-```
-
-Sugestão: sim. Origem: 3.10.
-
-### 1.4 Eventos (antes das views)
-
-Já decidido: alguns no inspector, a maior parte nos nós. Falta a lista. O original tinha
-`FieldPreBind`, `FieldBindStarted`, `FieldBindFinished` e `FieldBindFailure` nos campos, e
-`BindStarted` e `BindFinished` no inspector.
-
-```csharp
-// no inspector
-inspector.Bound += ...;         // um objeto foi ligado
-inspector.Unbound += ...;       // tudo foi desligado
-
-// nos nós
-node.ValueApplied += ...;       // um valor foi gravado
-node.Compromised += ...;        // o objeto do grupo foi trocado por fora (seção 3)
-node.BindFailed += ...;         // falha, com mensagem, motivo, sugestão e caminho
-```
-
-Origem: 3.10, 3.3 e 1.1, item 9.
-
-### 1.5 `InspectorOptions`
-
-O que entra nas opções por inspector, e como elas sobrescrevem o `GlobalOptions`? No
-OverlayApplication, cada editor tinha `FieldHeight = 23` e `Horizontal_Spacing = 0`.
-
-```csharp
-GlobalOptions.RequireExpandableAttribute = true;          // o processo inteiro
-
-var inspector = Inspector.Create<ComponentPreset>();
-inspector.Options.FieldHeight = 23;                       // só este inspector
-inspector.Options.HorizontalSpacing = 0;
-inspector.Options.RequireExpandableAttribute = false;     // sobrescreve o global?
-```
-
-Origem: seção 7.
-
-### 1.6 Nós manuais
-
-Botão, campo só de exibição e cabeçalho entram direto no inspector?
-
-```csharp
-component.AddHeader("Camada");
-component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
-component.AddDisplay("Layer", () => tree.SelectedIndex);
-```
-
-Origem: seção 5, item 4; o esboço de 3.2.
-
-### 1.7 `TypeBinderMode`
-
-Continua existindo um modo "só o que foi declarado", além do automático?
-
-```csharp
-var auto = Inspector.Create<ComponentPreset>();                          // todos os membros
-var manual = Inspector.Create<ComponentPreset>(TypeBinderMode.Manual);   // começa vazio
-manual.Add("X").Label = "PosX";                                          // só o declarado
-```
-
-Origem: 3.2.
-
-### 1.8 Aplicar sob demanda
-
-O Apply e o Reload do original, que nunca foram terminados, entram? Lá, o `AutoUpdateEnabled`
-desligava a gravação, mas nada aplicava depois.
-
-```csharp
-inspector.AutoApply = false;    // as edições ficam pendentes
-inspector.Apply();              // grava tudo no objeto
-inspector.Reload();             // descarta as pendentes e relê do objeto
-```
-
-Origem: 1.1 e 3.10.
+Sugestão: assim, sem precisar validar.
 
 ## 2. Binding
 
-### 2.1 Nomes
+### 2.10 O `GetValue` com valores mistos
 
-Os métodos citados eram exemplos. Quais ficam, e com que caixa?
-
-```csharp
-inspector.Bind(foo);        inspector.Unbind();         inspector.Rebind(bar);
-inspector.AddBind(foo2);    inspector.RemoveBind(foo2);
-
-inspector.bind(foo);        // ou minúsculo, como o bind de hoje
-```
-
-Origem: seção 0.
-
-### 2.2 Trocar a instância da raiz por outro tipo
-
-A árvore é refeita. A configuração feita na árvore anterior se perde, ou o inspector guarda uma
-árvore por tipo?
-
-```csharp
-var inspector = Inspector.Create<Foo>();
-inspector["x"].Label = "PosX";
-inspector.Bind(foo);
-
-inspector.Rebind(boo);      // outro tipo: a árvore passa a ser a de Boo
-inspector.Rebind(foo);      // de volta a Foo: o rótulo continua "PosX" ou volta a ser "x"?
-```
-
-Origem: 3.10.
-
-### 2.3 Multi-bind com tipos diferentes
-
-Pôr mais um objeto no bind exige o mesmo tipo dos que já estão ligados?
-
-```csharp
-inspector.Bind(foo1);
-inspector.AddBind(foo2);        // mesmo tipo: ok
-inspector.AddBind(boo);         // outro tipo: lança?
-inspector.AddBind(fooDerived);  // um tipo derivado de Foo: aceita?
-```
-
-Sugestão: o mesmo tipo; o derivado fica para você decidir. Origem: 3.10.
-
-### 2.4 Valores mistos
-
-Com vários objetos, cada nó tem um valor por objeto. O que o `GetValue` devolve, e o que a view
-mostra?
-
-```csharp
-inspector.Bind(a);              // a.x == 1
-inspector.AddBind(b);           // b.x == 2
-
-inspector["x"].GetValue();      // 1? um marcador de "misto"? a lista { 1, 2 }?
-inspector["x"].SetValue(5);     // grava 5 nos dois
-// scrubbing com delta +3: a.x == 4 e b.x == 5, a edição relativa do original
-```
-
-Origem: 3.3.
-
-### 2.5 Tirar o último objeto
-
-Tirar o último objeto do bind equivale ao `Unbind()`, com o mesmo evento?
+A 2.4 decidiu o que a linha mostra. Falta o que o nó devolve para quem chama.
 
 ```csharp
 inspector.Bind(a);
-inspector.RemoveBind(a);        // o mesmo que inspector.Unbind()?
+inspector.AddBind(b);           // a.X == 1, b.X == 2
+
+inspector["X"].GetValue();      // 1, o da primeira instância
+inspector["X"].IsMixed;         // true: é o que a linha usa para o indicativo
+inspector["X"].GetValues();     // { 1, 2 }, um por objeto
 ```
 
-Sugestão: sim. Origem: conversa de 27/09.
+Sugestão: assim.
 
-### 2.6 Objeto → UI (antes das views)
+### 2.11 Cultura padrão e mecanismo
 
-`INotifyPropertyChanged` para quem implementa, e um `Refresh()` manual para o resto? No
-OverlayApplication, arrastar o objeto no overlay atualizava o inspector.
+A cultura vai para as opções do inspector (P2.7). Falta o valor padrão e o jeito de converter.
 
 ```csharp
-class Component : INotifyPropertyChanged { ... }
-component.X = 10;               // o objeto avisa, e a view atualiza a linha sozinha
-
-class Plain { public int X; }
-plain.X = 10;                   // ninguém avisa
-inspector.Refresh();            // a view relê tudo
+inspector.Options.Culture = CultureInfo.InvariantCulture;   // para quem quiser
+// padrão: a cultura atual, como no original (Convert.ToDouble)?
+// conversão: IParsable<T> quando o tipo implementa (números, DateTime, Guid...),
+// e TypeConverter para o resto (enums, Color...)
 ```
 
-Origem: 3.3.
+Sugestão: a cultura atual como padrão, e os dois mecanismos, nessa ordem.
 
-### 2.7 Texto → valor (antes das views)
+### 2.12 Quando a view grava (a sugestão que você pediu na 2.7.1)
 
-`TypeConverter` ou `IParsable<T>`, e com a cultura invariante ou a atual? Hoje não há conversão
-nenhuma.
+Gravar a cada tecla briga com quem está digitando: `-`, `1,` e o campo vazio não convertem, e cada
+um viraria uma falha na linha. O que eu sugiro:
+
+- texto e número: grava no Enter e quando o controle perde o foco; o Esc volta ao valor do objeto;
+- toggle e escolha: grava na hora, porque não há estado intermediário;
+- slider e scrubbing: grava enquanto arrasta, como no original, para o objeto acompanhar;
+- conversão que falha: a linha mostra a falha, o texto fica como foi digitado, e o objeto mantém o
+  valor que tinha.
+
+Confirma?
+
+### 2.13 Sanitizadores: uma lista ou duas
+
+A 2.9 decidiu a lista ordenada por campo. No original, texto e número se misturavam na mesma
+cadeia, e uma regra de número recebia texto e não fazia nada. Numa lista só, uma regra de valor
+antes de uma de texto não faria sentido.
 
 ```csharp
-inspector["x"].SetValue("5");   // hoje: ArgumentException, a string não vira int
+// (a) uma lista: a conversão acontece entre a última regra de texto e a primeira de valor
+node.Sanitizers.Add(TextRule.Digits);
+node.Sanitizers.Add(ValueRule.Min(0));
 
-// testado com double.Parse
-// pt-BR:     "1,5" → 1.5    "1.5" → 15    (o ponto é separador de milhar)
-// invariant: "1.5" → 1.5    "1,5" → 15    (a vírgula é separador de milhar)
+// (b) duas listas, cada uma na sua ordem: texto → conversão → valor
+node.TextRules.Add(TextRule.Digits);
+node.ValueRules.Add(ValueRule.Min(0));
 ```
 
-O original usava `Convert.ToDouble` com a cultura atual, e o `ONLY_NUMBERS` aceitava tanto `.`
-quanto `,`. Origem: seção 5, item 3; 3.3.
-
-### 2.8 A faixa no `SetValue`
-
-O `SetValue` deve limitar, ou recusar, valores fora do `[InspectorRange]`?
-
-```csharp
-[InspectorRange(0, 255)] public int Opacity { get; set; }
-
-inspector["Opacity"].SetValue(999);   // hoje: grava 999 (testado)
-// limitar: grava 255
-// recusar: lança ArgumentOutOfRangeException
-```
-
-Origem: relatório.
-
-### 2.9 Sanitizadores e gancho de conversão
-
-Os sanitizadores ficam separados em texto e valor, numa lista ordenada? E o gancho de conversão
-(o "TheBrute") é por campo, global ou os dois?
-
-```csharp
-node.TextRules.Add(TextRule.Digits);        // antes de converter: o que dá para digitar
-node.TextRules.Add(TextRule.MaxLength(4));
-node.ValueRules.Add(ValueRule.Min(0));      // depois de converter
-
-node.Converter = text => ParseHex(text);    // gancho por campo
-GlobalOptions.Converter = ...;              // ou global
-```
-
-No original, o `MAX_SIZE` e o `CONTAINS` liam o mesmo array de parâmetros por posição, e a mesma
-combinação que funcionava no OverlayApplication quebraria no 0.7.1a. Origem: 3.3; 1.2.
+Sugestão: (b), porque a ordem entre texto e valor fica garantida pela estrutura.
 
 ## 3. O objeto do grupo
 
-### 3.1 Quais grupos
+### 3.2 Structs (explicada de novo)
 
-A regra vale para todo membro com filhos ou só para o grupo aberto?
-
-```csharp
-public Moo Details { get; set; }        // grupo aberto: o inspector não troca o Moo
-
-public Font Caption { get; set; }       // class mostrada fechada, com o diálogo de fonte
-inspector["Caption"].Expandable = false;
-inspector["Caption"].SetValue(new Font("Arial", 12));   // aqui trocar o objeto é a edição
-```
-
-Sugestão: só o grupo aberto. Origem: 3.10.
-
-### 3.2 Structs
-
-Struct não tem identidade, então a detecção de troca não se aplica a ela. Fica assim?
+Para saber se o objeto de um grupo foi trocado por fora, o grupo guarda o objeto que viu no bind e
+depois compara a referência. Com class isso funciona, porque o objeto tem identidade. Com struct,
+não: cada leitura devolve uma cópia nova, e não há referência para comparar.
 
 ```csharp
-public PxPoint Pos { get; set; }
-inspector["Pos.X"].SetValue(5);   // já regrava o Pos inteiro no dono
-host.Pos = new PxPoint(1, 2);     // troca por fora: comparar valores não separa isso de uma edição
+public Moo Details { get; set; }   // class
+foo.Details = new Moo();           // outra referência: dá para saber que foi trocado
+
+public PxPoint Pos { get; set; }   // struct
+foo.Pos = new PxPoint(1, 2);       // troca por fora
+inspector["Pos.X"].SetValue(5);    // edição pelo inspector: também regrava o Pos inteiro no dono
+// nos dois casos, o inspector só vê que o valor de Pos mudou, e não separa um do outro
 ```
 
-Origem: 3.10.
+A pergunta: o grupo de uma struct fica fora da detecção, mostrando sempre o valor atual, sem ramo
+comprometido? Gravar no grupo fica proibido do mesmo jeito (9.2): `inspector["Pos"].SetValue(...)`
+lança, e a struct muda pelos filhos.
 
-### 3.3 Quando detectar
+Sugestão: sim.
 
-A cada leitura pela cadeia de pais, só no `Refresh()`, ou nos dois?
+### 3.6 O raio da invalidação e o religar automático
+
+Do seu comentário sobre a seção 8 do relatório, com o exemplo:
 
 ```csharp
-inspector.Bind(foo);                // cada grupo guarda o objeto que viu (o foo.Moo)
-foo.Moo = new Moo();                // troca por fora
+class Foo
+{
+    public Moo Moo { get; set; } = new();
+    public void Work() => Moo = new Moo();
+}
 
-inspector["Moo.MooX"].GetValue();   // (a) detecta aqui, na próxima leitura
-inspector.Refresh();                // (b) ou só aqui
+inspector.Bind(foo);
+foo.Work();                        // troca por fora
 ```
 
-Origem: proposta da 3.10.
+Um detalhe antes: nada lança no .NET quando isso acontece. Hoje a cadeia de pais simplesmente lê o
+`Moo` novo; com a detecção, o grupo guarda o `Moo` que viu no bind, e ele continua vivo. É a
+comparação entre os dois que acusa a troca, o que combina com a premissa: nenhuma exceção no
+caminho.
 
-### 3.4 O que "desativada" faz
+O que falta decidir:
 
-Os filhos recusam gravação e a view desabilita a branch. E o resto?
+- **Raio**: (a) só o ramo trocado (o `Moo` e o que está abaixo dele), e o resto do `Foo` continua
+  funcionando; ou (b) o dono inteiro, como no seu exemplo: o `Foo` todo, que no topo é o inspector
+  inteiro.
+- **Reação**: (a) desativa o ramo, e ele fica assim até alguém religar (a 3.4); (b) religa sozinho
+  a partir da raiz; (c) desativa e avisa, e quem assina o evento pode aceitar o objeto novo na
+  hora, que é o fallback semiautomático da premissa.
+
+Sugestão: raio (a), porque o `Foo` continua sendo o mesmo objeto e os outros membros dele seguem
+certos; reação (c). A sua ideia de separar, no nó, as opções do estado (comprometido, erros) em
+duas regiões do arquivo fica anotada para quando esse estado existir.
+
+## 4. ReadOnly
+
+### 4.5 Quais membros a reflection esconde
+
+Do seu comentário sobre a seção 3.6 do relatório: o setter privado some, e o `[InspectorReadOnly]`
+traz o membro de volta. Há casos parecidos:
 
 ```csharp
-foo.Moo = new Moo();                  // troca detectada: o grupo Moo fica comprometido
-inspector["Moo.MooX"].SetValue(1);    // lança (proposta)
-inspector["Moo.MooX"].GetValue();     // lê o objeto novo, o antigo, ou devolve null?
-inspector.Rebind(foo);                // limpa o estado?
+public string Secret { get; private set; }    // setter privado: some (decidido)
+public string Code { get; protected set; }    // protected ou internal: some também?
+public string Key { get; init; }              // init: só no construtor
+public readonly int Seed;                     // campo readonly
+public Guid Id { get; }                       // só getter, auto-propriedade
+public int Area => W * H;                     // só getter, calculada: aparece (P5.3)
 ```
 
-Origem: proposta da 3.10.
+Com isso, o `Secret` do `Boo` sai da saída do TuxHost.
 
-### 3.5 A raiz
+Sugestão: some todo setter não público (private, protected, internal), que é o caso em que a
+classe escolheu esconder a escrita; `init`, `readonly` e só getter continuam aparecendo, somente
+leitura.
 
-A raiz entra na mesma regra, e o objeto ligado só muda pelo bind?
+### 4.6 O `ReadOnly` herdado e a camada manual
 
-```csharp
-inspector.SetValue(outroFoo);   // hoje: troca o objeto ligado sem passar pelo bind
-// proposta: lança; com a composição de 1.1, o método nem existe no Inspector
-```
-
-Origem: proposta da 3.10.
-
-## 4. ReadOnly e expansão
-
-### 4.1 ReadOnly num objeto aninhado (class)
-
-Um `[InspectorReadOnly]` explícito num objeto aninhado passa para os filhos?
+Para o `ReadOnly` passar para os filhos (P4.1, P4.2) sem um segundo valor, o nó pode consultar os
+pais na hora da leitura: o `ReadOnly` dele é o próprio ou o de algum pai. Assim, uma mudança na
+camada manual vale na hora para o ramo todo.
 
 ```csharp
 [InspectorReadOnly] public Moo Details { get; set; }
 
-inspector["Details"].SetValue(new Moo());   // recusa: o membro é somente leitura
-inspector["Details.MooX"].SetValue(5);      // hoje grava. Deveria recusar também?
+inspector["Details.MooX"].ReadOnly;           // true, pelo pai
+inspector["Details.MooX"].ReadOnly = false;   // não reabre enquanto o Details for somente leitura
+inspector["Details"].ReadOnly = false;        // aí o ramo inteiro reabre
 ```
 
-Origem: seção 5, item 6.
+A outra saída é copiar para os filhos no `Create`: a camada manual consegue reabrir um filho, mas
+uma mudança no pai depois do `Create` não chega aos filhos.
 
-### 4.2 ReadOnly efetivo (antes das views)
-
-Como o nó expõe o valor efetivo, para a view desabilitar o editor?
-
-```csharp
-public PxPoint Pos { get; private set; }
-
-inspector["Pos"].ReadOnly;                  // true
-inspector["Pos.X"].ReadOnly;                // false: a view mostraria o editor habilitado
-inspector["Pos.X"].SetValue(5);             // mas lança 'Pos' is read-only. (testado)
-inspector["Pos.X"].IsEffectivelyReadOnly;   // proposta: true
-```
-
-Origem: checklist.
-
-### 4.3 Expandir com a flag global
-
-Com a flag ligada, a permissão vale só para o membro ou tipo marcado, como hoje e como no
-`TypeSafeLock`, ou passa para os níveis de baixo?
-
-```csharp
-GlobalOptions.RequireExpandableAttribute = true;
-
-[InspectorExpandable] public Moo Details { get; set; }   // Details abre
-// dentro do Moo: public Doo Doo { get; set; }           // hoje Details.Doo fica fechado. Abre?
-```
-
-Origem: seção 5, item 5; seção 7.
-
-### 4.4 `GlobalOptions` ao vivo
-
-A flag é lida só no `Create`. Fica assim?
-
-```csharp
-var before = Inspector.Create<Foo>();
-GlobalOptions.RequireExpandableAttribute = true;
-
-before["Moo"].IsGroup;                    // hoje: continua true
-Inspector.Create<Foo>()["Moo"].IsGroup;   // false
-```
-
-Origem: relatório.
+Sugestão: a consulta na hora da leitura. É o que faz o "se tentar forçar, lança" da 4.1 valer
+sempre.
 
 ## 5. Descoberta
 
-### 5.1 Ordem dos irmãos
+### 5.7 O nome composto e o ponto do caminho
 
-A reflection devolve as propriedades antes dos campos, e os membros próprios antes dos herdados.
-Fica assim, com `[InspectorOrder]` para quem quiser outra ordem, ou a descoberta tenta recuperar a
-ordem de declaração?
-
-```csharp
-class Mixed
-{
-    public int FieldA;
-    public int PropB { get; set; }
-    public int FieldC;
-    public int PropD { get; set; }
-}
-// hoje sai:   PropB, PropD, FieldA, FieldC   (testado)
-// declarado:  FieldA, PropB, FieldC, PropD
-```
-
-Origem: relatório; seção 7.
-
-### 5.2 Coleções e arrays
-
-Como devem aparecer?
-
-```csharp
-public List<int> Items { get; set; } = [1, 2];
-// hoje (testado):
-//   Items        grupo
-//     Capacity   Number, editável
-//     Count      Number, somente leitura
-// opções: uma linha só com a contagem; os itens como filhos (Items[0], Items[1]);
-// ou um editor de lista
-```
-
-Um `int[]` mostra `Length`, `LongLength`, `Rank`, `SyncRoot`, `IsReadOnly`, `IsFixedSize` e
-`IsSynchronized`. Origem: relatório.
-
-### 5.3 Propriedades calculadas
-
-A descoberta esconde propriedades calculadas só de leitura, ou isso fica para o
-`[InspectorIgnore]`?
-
-```csharp
-public PxPoint Pos { get; set; }
-// hoje: Pos.X, Pos.Y e Pos.IsEmpty (Toggle, somente leitura)
-```
-
-Origem: relatório.
-
-### 5.4 Membro escondido com `new` (antes das views)
-
-Quando o tipo muda, os dois aparecem. Fica só o do tipo derivado?
+Na 5.4, o nome composto (`Derived.Value`) pode ser o padrão. Só que o ponto é o separador do
+caminho: `inspector["Derived.Value"]` procuraria um filho `Derived` com um filho `Value`.
 
 ```csharp
 class Base { public int Value { get; set; } }
 class Derived : Base { public new string Value { get; set; } = ""; }
-// hoje (testado): duas linhas Value, a string e a int; inspector["Value"] acha a string
-// com o mesmo tipo (public new int Value) aparece uma só
+
+inspector["Value"];                  // hoje: acha o do Derived, que vem primeiro
+inspector["Derived.Value"];          // KeyNotFoundException: o ponto separa o caminho
+inspector["Value", typeof(Base)];    // uma saída: o escondido, pelo tipo que o declara
 ```
 
-Origem: checklist.
+Sugestão: o nome composto só no rótulo (`Derived.Value` e `Base.Value`); no caminho, `Value`
+continua sendo o do tipo derivado, como no C#, e o escondido é achado pelo tipo que o declara.
 
-### 5.5 Tipos com editor próprio
+Uma dúvida sobre a sua resposta: no `"Base.Derived" - expandível`, o que seria expandível?
 
-Como a descoberta reconhece os tipos que deveriam ter um editor, em vez de virar grupo?
+### 5.8 `Color` sem escolha explícita
+
+A 5.5 pede que o comportamento de tipos como o `Color` seja escolhido explicitamente. Sem ninguém
+escolher, o que aparece?
 
 ```csharp
-public System.Drawing.Color Fill { get; set; }
-// hoje (testado): um grupo com R, G, B, A, IsKnownColor, IsEmpty, IsNamedColor, IsSystemColor e
-// Name, todos somente leitura. Nada ali edita a cor.
-// desejado: uma linha só, com o editor Color (o seletor ARGB do OverlayApplication)
+public System.Drawing.Color Fill { get; set; }   // ninguém escolheu o editor
+// (a) grupo, como hoje: R, G, B, A, IsKnownColor, IsEmpty... todos somente leitura
+// (b) uma linha Display, só leitura, até alguém escolher
+// (c) não aparece, e um evento avisa
 ```
 
-Origem: 3.2.
-
-### 5.6 Cache
-
-Só a lista de membros pode ser cacheada por tipo, porque os nós guardam as opções de cada
-inspector. Confirma?
-
-```csharp
-var a = Inspector.Create<Foo>();
-var b = Inspector.Create<Foo>();
-a["x"].Label = "PosX";          // não pode mudar b["x"]: os nós são de cada inspector
-// por tipo, dá para guardar só o que o GetMembers devolve para Foo
-```
-
-Origem: 3.1 e 3.10.
+Sugestão: (b), com um aviso de diagnóstico.
 
 ## 6. Opções e editores
 
-### 6.1 `Visible`
+### 6.6 O filtro por nome: por tipo ou por instância
 
-Está sem uso: ninguém escreve nem lê. Sai, ou fica para a visibilidade condicional? E qual a
-diferença para o `Ignored`?
-
-```csharp
-node.Ignored = true;    // hoje: sai da enumeração, com a subárvore
-node.Visible = false;   // hoje: nada acontece
-
-// uma divisão possível:
-// Ignored: não faz parte deste inspector
-// Visible: faz parte, mas está escondido agora (a regra de 6.2 liga e desliga)
-```
-
-Origem: seção 7; relatório.
-
-### 6.2 Visibilidade condicional
-
-O formato é algo como o `VisibleWhen`, o sucessor do `VariablePool`?
+A 6.4 põe o filtro na precedência dos atributos, o que o aplica no `Create`, por tipo. O caso do
+OverlayApplication era por instância: um editor só para retângulo, elipse e texto, e cada objeto
+escondia os campos que não usava.
 
 ```csharp
-component["Text"].VisibleWhen = c => ((ComponentPreset)c).IsText;
-
-// no original: VariablePool = { "blacklist", "Text", "FontName", "IsBold", ... }
-// e Modify.ToggleFieldVisible(b, "Color order") no editor de efeitos
+var component = Inspector.Create<ComponentPreset>();
+component.Bind(rectangle);    // esconde Text, FontName e IsBold
+component.Rebind(label);      // mostra de novo
 ```
 
-Origem: 3.2; 1.2.
+Sugestão: por tipo, como na 6.4; o caso por instância vai junto com a visibilidade condicional
+(6.2), que ficou para o final.
 
-### 6.3 Editores do `EditField()`
+## 9. O que depende de você para aplicar
 
-Como declarar o que o OverlayApplication fazia pelo `EditField()`: itens de escolha, seletores e a
-ação de um botão?
+### 9.3 O inspector guardando a raiz (explicada de novo)
+
+É a aplicação da 1.1, a composição, que você já decidiu. Hoje o `Inspector` herda de
+`InspectorNode`, então tudo o que um nó tem aparece também no inspector, mesmo sem sentido na raiz:
 
 ```csharp
-inspector["ColorOrder"].Choices = ["rgba", "argb", "bgra"];   // lista de strings
-inspector["Mode"].Choices = Enum.GetValues<Mode>();           // enum: precisa, ou é automático?
-inspector["Fill"].Editor = EditorKind.Color;                   // abre o seletor ARGB
-inspector["Opacity"].Range = new NumericRange(0, 255, 5);     // faixa e passo (já existe)
+inspector.Label = "x";            // compila, e ninguém lê: a raiz não é um membro
+inspector.Range = ...;            // idem
+inspector.ReadOnly = true;        // idem
+inspector.GetValue();             // devolve o objeto ligado
+inspector.SetValue(outroFoo);     // com a 9.2, lança
 ```
 
-Origem: 1.2; checklist.
+Com a composição, o `Inspector` deixa de ser um nó: ele guarda a raiz num campo interno e expõe só
+o que é dele (o indexador, a enumeração, as linhas, o bind e, depois, eventos e opções). As linhas
+acima deixam de compilar, e as opções continuam nos nós: `inspector["x"].Label`.
 
-### 6.4 Filtro pelo objeto
+Posso aplicar?
 
-Existe um sucessor tipado do `IVarProvider`, uma interface que o próprio objeto implementa para
-esconder campos?
+## Para o final
 
-```csharp
-class Rectangle : ComponentPreset, IInspectorFilter
-{
-    public bool Shows(string path) => path is not ("Text" or "FontName" or "IsBold");
-}
-```
+### 6.2 Visibilidade condicional e 6.3 Editores do `EditField()`
 
-Origem: 3.2; checklist.
-
-### 6.5 Seletor por expressão
-
-Um seletor que o compilador checa e que acompanha renomeações: entra quando? Com o `Inspector`
-não genérico, o tipo vai na chamada.
-
-```csharp
-inspector["Moo.MooX"].Label = "X";                    // hoje: erro de digitação só em execução
-inspector.Node((Foo f) => f.Moo.MooX).Label = "X";    // proposta
-```
-
-Origem: 3.2.
-
-## 7. Views e estrutura
-
-### 7.1 Alvo da biblioteca (antes das views; a primeira decisão)
-
-Com as views, a biblioteca volta a precisar do Windows. Qual das três?
-
-```xml
-<!-- (a) só Windows: uma DLL, e o TuxHost deixa de rodar fora do Windows -->
-<TargetFramework>net10.0-windows</TargetFramework>
-
-<!-- (b) dois alvos num projeto: o código das views só no -windows, com o bloco condicional -->
-<TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
-
-<!-- (c) projeto à parte: InteractiveEditor (net10.0) e InteractiveEditor.Views
-     (net10.0-windows), duas DLLs -->
-```
-
-Origem: 3.7; conversa de 27/09.
-
-### 7.2 Fábricas
-
-Nomes distintos por plataforma, para um projeto só WinForms não precisar referenciar o WPF?
-
-```csharp
-// overloads: um projeto só WinForms não compila (CS0012, pede PresentationFramework)
-InspectorView.Create(inspector, panel);     // Control do WinForms
-InspectorView.Create(inspector, grid);      // Control do WPF
-
-// nomes distintos: compila (testado)
-inspector.CreateWinFormsView(panel);
-inspector.CreateWpfView(grid);
-```
-
-Origem: 3.5.
-
-### 7.3 Lista ou árvore
-
-A view monta as linhas a partir de uma lista plana ou percorre a árvore pelos filhos?
-
-```csharp
-// (a) lista plana, como a enumeração de hoje: recuo pela profundidade
-foreach (var node in inspector.Rows)
-    AddRow(node, depth: node.Path.Count(c => c == '.'));
-
-// (b) árvore: um painel por grupo, que recolhe junto
-void Build(InspectorNode node, Panel parent)
-{
-    foreach (var child in node.Children) ...
-}
-```
-
-Origem: conversa de 27/09.
-
-### 7.4 Válvula de escape
-
-Um callback por plataforma, para o que a configuração agnóstica não cobrir?
-
-```csharp
-view.ControlCreated += (path, control) =>
-{
-    if (path == "Opacity" && control is TrackBar bar)
-        bar.TickFrequency = 5;
-};
-```
-
-Origem: 3.5.
-
-### 7.5 Passo de layout (antes das views)
-
-Fica no núcleo, agnóstico, e devolve os retângulos de cada linha?
-
-```csharp
-var rows = Layout.Compute(inspector);   // sem nenhum controle de UI
-// cada linha: PxRect Row, PxRect Label e PxRect Editor
-view.Apply(rows);                       // a view só posiciona
-```
-
-Depende de 8.1 e 8.2. Origem: 3.4.
-
-## 8. Primitivos e PixieLib
-
-### 8.1 Precisão (antes das views)
-
-Manter as variantes int e float, como o `System.Drawing`, ou um tipo só em double, como o WPF?
-
-```csharp
-// (a) hoje: int e float
-PxPoint p = new(10, 20);
-PxPointF f = new(10.5f, 20f);
-
-// (b) um tipo só, em double
-PxPoint d = new(10.5, 20.0);
-```
-
-Origem: seção 5, item 1.
-
-### 8.2 Primitivos novos (antes das views)
-
-Criar `PxRect`, `PxPadding` e `PxDock`?
-
-```csharp
-PxRect label = new(0, 23, 120, 23);     // x, y, largura, altura: o resultado do layout
-PxPadding margin = new(4, 2, 4, 2);     // o Padding do WinForms, o Thickness do WPF
-PxDock dock = PxDock.Top;               // no lugar do DockStyle nas opções
-```
-
-Origem: seção 5, item 1.
-
-### 8.3 Cores
-
-Ganham o prefixo ou continuam com o espaço de cor no nome?
-
-```csharp
-ArgbColor fill;  HslColor tone;       // hoje
-PxColor fill;    PxHslColor tone;     // com o prefixo
-```
-
-Origem: seção 5, item 1.
-
-### 8.4 CS0457
-
-A conversão `ArgbColor → HslColor` está declarada nas duas structs. Em qual das duas ela fica?
-
-```csharp
-// ArgbColor.cs: public static implicit operator HslColor(ArgbColor color)
-// HslColor.cs:  public static implicit operator HslColor(ArgbColor color)
-HslColor hsl = argb;    // CS0457: conversão ambígua
-```
-
-Origem: 3.4.
-
-### 8.5 Regras de conversão
-
-Confirma as de 3.4?
-
-```csharp
-System.Drawing.Point sd = pxPoint;       // implícita (hoje só existe esse sentido)
-PxPoint back = sd;                       // implícita (proposta: o outro sentido)
-System.Windows.Point wp = pxPoint;       // implícita: o double comporta tudo
-var ws = (System.Windows.Size)pxSize;    // explícita: o Size do WPF lança com negativo
-PxPoint fromWpf = (PxPoint)wp;           // explícita: perde precisão
-```
-
-As conversões do WPF só voltam junto com o alvo Windows (7.1). Origem: 3.4.
-
-### 8.6 PixieLib: precisão padrão
-
-`float`, que repassa para o `System.Numerics`, ou `double`, como o `Vec2` do C++?
-
-```csharp
-PxVec2f a;   // float: o Add vira o Vector2.Add, com o mesmo vaddps (testado no JIT)
-PxVec2d b;   // double: implementação própria, como o pxVec2 do C++
-// qual das duas o inspector usa, e qual o nome sem sufixo, se ele existir?
-```
-
-Origem: 3.9.
-
-### 8.7 PixieLib: segunda DLL
-
-Quando o layout usar os primitivos, o inspector passa a depender da PixieLib. Aceita essa exceção
-à regra de uma DLL?
-
-```text
-TuxHost → InteractiveEditor.dll → PixieLib.dll
-```
-
-Origem: 3.9.
-
-### 8.8 PixieLib: onde e como
-
-Confirma as propostas de 3.9?
-
-```text
-Sakamoto0110/PixieLib
-├── cpp/      existe, de 2023, com o pxVec2 em double
-└── dotnet/   proposta: a PixieLib em C#, com o gerador de precisões
-```
-
-```csharp
-PxPoint q = p + s;          // ponto + tamanho → ponto
-PxVec2 d = q - p;           // ponto − ponto → vetor
-PxVec2 v = p;               // implícita para PxVec2: a matemática vem dele
-PxPoint back = (PxPoint)v;  // explícita de volta
-```
-
-Origem: 3.9.
-
-### 8.9 Sufixo de precisão
-
-Qual fica?
-
-```csharp
-PxPointF a;   // hoje: o F do System.Drawing
-PxPointf b;   // o sufixo do gerador, como em PxVec2f, PxVec2d e PxVec2i
-```
-
-Origem: 3.9.
-
-## 9. O que eu posso aplicar assim que você responder
-
-### 9.1 Ligar que lança, `Unbind()` e religar, ainda sem o multi-bind
-
-```csharp
-inspector.bind(foo);
-inspector.bind(bar);    // passa a lançar: já há um objeto ligado
-inspector.Unbind();     // e a troca fica explícita
-inspector.bind(bar);
-```
-
-Posso?
-
-### 9.2 A regra do objeto do grupo
-
-```csharp
-inspector["Moo"].SetValue(new Moo());   // passa a lançar
-inspector["Pos.X"].SetValue(5);         // a struct continua voltando ao dono, por dentro
-```
-
-Depende de 3.1.
-
-### 9.3 O inspector guardando a raiz
-
-```csharp
-inspector.Label = "x";                  // deixa de compilar
-```
-
-Depende de 1.1.
-
-### 9.4 Sem `IEnumerable`, com nome nos percursos
-
-```csharp
-foreach (var node in inspector)         // deixa de compilar
-foreach (var node in inspector.Rows)    // no lugar dele
-```
-
-Depende de 1.3.
+Você pediu que eu explique com calma: por que isso existia, como funcionava, se é necessário, a
+importância e o estrago se sair. Para isso vou reler o código original
+(`Sakamoto0110/InteractiveEditor`, branch `InspectorVariant0.7.1a`) e o OverlayApplication, que não
+estão nesta sessão.
