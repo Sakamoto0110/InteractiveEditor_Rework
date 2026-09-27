@@ -55,6 +55,10 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
   ou sem filhos, e `Inspector` é a raiz (por enquanto só o objeto, o `Create` e o `bind`; ver
   3.10). As duas políticas viram classes estáticas, sem interface nem instâncias, chamadas em ordem
   no `Create`. Aplicado nos commits `5560223` e `6622a41`.
+- **`Inspector` não genérico**: um `Inspector<T>` prenderia o inspector a um tipo de raiz, e ele
+  precisa poder trocar de tipo. Por isso a classe não é genérica e só o `Create<T>` é. Eventos:
+  alguns no inspector, a maior parte nos nós. Como a troca de tipo acontece ainda está em aberto
+  (3.10).
 
 ---
 
@@ -462,15 +466,17 @@ vez.
 
 O `Inspector` tem 45 linhas: `Create<T>()`, `bind(object)`, o `GetValue`/`SetValue` da raiz e o
 `Name`; o `Target` só serve para o nome. Deveria ser uma das peças mais completas, porque é o que o
-host e a view usam. Levantamento para o desenho, sem nada decidido.
+host e a view usam. Levantamento para o desenho, com as primeiras decisões no fim.
 
 **Buracos no que já existe** (testado)
 
-- O `bind` aceita objeto de outro tipo: `Inspector.Create<Foo>().bind(new Bar())` passa, e o erro só
-  aparece depois, no `GetValue` de um nó, como `ArgumentException` do reflection.
+- Trocar o tipo da raiz ainda não funciona: `Inspector.Create<Foo>().bind(new Bar())` passa, mas a
+  árvore continua a de `Foo`, e o erro só aparece depois, no `GetValue` de um nó, como
+  `ArgumentException` do reflection. Aceitar outro tipo é o desejado (seção 0); o que falta é a
+  troca levar junto a árvore do tipo novo.
 - O `SetValue` da raiz aceita null e objeto de outro tipo sem reclamar; com null, o inspector fica
   sem objeto, um unbind silencioso. Ele precisa aceitar valor novo, porque a cópia de uma struct na
-  raiz volta por ele (3.3), mas só do tipo do alvo.
+  raiz volta por ele (3.3), mas só do tipo atual da raiz.
 - A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
   inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
 
@@ -487,11 +493,19 @@ host e a view usam. Levantamento para o desenho, sem nada decidido.
   objeto ligado (3.2).
 - Aplicar sob demanda (Apply e Reload), previsto e nunca terminado no original (1.1); sem decisão.
 
+**Decidido**
+
+- Sem `Inspector<T>`: prenderia o inspector a um tipo de raiz. A classe não é genérica, e só o
+  `Create<T>` é (seção 0).
+- Eventos: alguns no inspector, a maior parte nos nós.
+
 **Em aberto**
 
-- `Inspector<T>`, com `bind(T)` checado pelo compilador, ou a checagem do tipo no próprio `bind`, em
-  tempo de execução?
-- O que fica no inspector e o que fica nos nós (eventos por nó ou só na raiz, por exemplo).
+- Como a troca de tipo acontece: o `bind` com um objeto de outro tipo refaz a árvore, e o
+  `Inspector` continua sendo a raiz; ou o `Create<T>` devolve só a árvore (`InspectorNode`), e o
+  inspector guarda a raiz atual e troca de árvore. Na primeira, a configuração feita na árvore
+  anterior se perde na troca; na segunda, cada árvore guarda a sua.
+- Quais eventos ficam no inspector e quais ficam nos nós.
 
 ---
 
@@ -517,7 +531,7 @@ host e a view usam. Levantamento para o desenho, sem nada decidido.
 
 Já resolvidas (seção 0): um binário, prefixo dos primitivos, atributos próprios, paginação, modo
 principal e precedência, service locator, camadas de opções, descrições, chaves, configuração no
-inspector, exceções e binding pela cadeia de pais.
+inspector, exceções, binding pela cadeia de pais e `Inspector` não genérico.
 
 1. **Primitivos**: manter as variantes int e float (como o `System.Drawing`) ou um tipo só em double
    (como o WPF)? E criar os novos `PxRect`, `PxPadding` e `PxDock`? A proposta de 3.9 gera as três
@@ -533,8 +547,9 @@ inspector, exceções e binding pela cadeia de pais.
 6. **ReadOnly num objeto aninhado (class)**: hoje vale só para o próprio membro: não dá para trocar
    o objeto, mas os filhos continuam editáveis. Um `[InspectorReadOnly]` explícito num objeto
    aninhado deveria passar para os filhos?
-7. **O `Inspector`** (3.10): o que ele concentra (opções, ciclo do bind, eventos, nós manuais) e se
-   vira `Inspector<T>`. Vem antes das views, porque é o que elas observam.
+7. **O `Inspector`** (3.10): o que ele concentra (opções, ciclo do bind, eventos, nós manuais) e
+   como troca o tipo da raiz (sem `Inspector<T>`, decidido). Vem antes das views, porque é o que
+   elas observam.
 
 ---
 
@@ -574,8 +589,8 @@ Núcleo (portar a essência)
 - [x] Um membro, um nó: a descoberta monta a árvore direto; saem `FieldDescriptor`, `Fieldset`, o
       `Inspector` aninhado e a lista plana, e as políticas perdem a interface e as instâncias
       (commits `5560223` e `6622a41`).
-- [ ] `Inspector` completo: hoje só `Create<T>`, `bind` e o valor da raiz; o `bind` e o `SetValue`
-      da raiz aceitam objeto de outro tipo (3.10).
+- [ ] `Inspector` completo: hoje só `Create<T>`, `bind` e o valor da raiz, e trocar o tipo da raiz
+      ainda não funciona (3.10).
 - [ ] `InspectorOptions` (por inspector), podendo sobrescrever o global.
 - [ ] Nós manuais: botão, campo só de exibição e cabeçalho, direto no inspector.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
