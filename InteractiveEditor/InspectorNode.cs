@@ -22,6 +22,9 @@ public abstract class InspectorNode
 
     public virtual void SetValue(object? value)
     {
+        if (Options?.ReadOnly == true)
+            throw new InvalidOperationException($"'{Name}' is read-only.");
+
         var owner = Parent?.GetValue()
             ?? throw new InvalidOperationException($"Cannot set '{Name}': '{Parent?.Name}' is null.");
 
