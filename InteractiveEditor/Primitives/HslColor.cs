@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public partial struct HslColor : IEquatable<HslColor>
+public struct HslColor : IEquatable<HslColor>
 {
     private byte a;
     private float h;

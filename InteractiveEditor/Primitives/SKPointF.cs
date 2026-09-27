@@ -2,7 +2,7 @@
 
 namespace InteractiveEditor.Primitives;
 
-public partial struct SKPointF : IEquatable<SKPointF>
+public struct SKPointF : IEquatable<SKPointF>
 {
     public static readonly SKPointF Empty = new SKPointF(0f, 0f);
 

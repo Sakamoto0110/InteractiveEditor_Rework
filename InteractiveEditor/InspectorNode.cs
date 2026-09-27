@@ -1,14 +1,33 @@
-﻿using InteractiveEditor.Model;
+﻿using System.Collections;
+using System.Reflection;
 using InteractiveEditor.Options;
 
 namespace InteractiveEditor;
 
-public abstract class InspectorNode
+public class InspectorNode : IEnumerable<InspectorNode>
 {
-    public virtual string Name => Descriptor?.Name ?? " -- ";
-    public string Path => Descriptor?.FullPath ?? string.Empty;
-    public FieldDescriptor?  Descriptor { get; init; }
-    public Inspector? Parent { get; internal set; }
+    private readonly List<InspectorNode> Children = [];
+
+    internal InspectorNode(InspectorNode? parent, MemberInfo? member)
+    {
+        Parent = parent;
+        Member = member;
+        Path = member == null ? string.Empty
+            : parent?.Member == null ? member.Name
+            : $"{parent.Path}.{member.Name}";
+    }
+
+    public InspectorNode? Parent { get; }
+    public MemberInfo? Member { get; }
+    public string Path { get; }
+    public virtual string Name => Member?.Name ?? " -- ";
+
+    public Type? ValueType => Member switch
+    {
+        FieldInfo fi => fi.FieldType,
+        PropertyInfo pi => pi.PropertyType,
+        _ => null
+    };
 
     // Options, in layers: reflection < attributes < whatever the caller sets afterwards.
     public string Label { get; set; } = string.Empty;
@@ -24,18 +43,19 @@ public abstract class InspectorNode
     public bool Expandable { get; set; }
     public bool Collapsed { get; set; }
 
-    public virtual bool IsGroup => false;
+    public bool HasMembers => Children.Count > 0;
+    public bool IsGroup => HasMembers && Expandable;
 
     // A path relative to this node ("Moo.MooY"); chaining works too: node["Moo"]["MooY"].
     public InspectorNode this[string path]
     {
         get
         {
-            InspectorNode node = this;
+            var node = this;
 
             foreach (var name in path.Split('.'))
             {
-                node = (node as Inspector)?.Child(name)
+                node = node.Children.FirstOrDefault(c => c.Name == name)
                     ?? throw new KeyNotFoundException($"'{Name}' has no field at path '{path}'.");
             }
 
@@ -50,7 +70,12 @@ public abstract class InspectorNode
         if (owner == null)
             return null;
 
-        return Descriptor?.Accessors.Getter?.Invoke(owner);
+        return Member switch
+        {
+            FieldInfo fi => fi.GetValue(owner),
+            PropertyInfo { CanRead: true } pi => pi.GetValue(owner),
+            _ => null
+        };
     }
 
     public virtual void SetValue(object? value)
@@ -61,14 +86,59 @@ public abstract class InspectorNode
         var owner = Parent?.GetValue()
             ?? throw new InvalidOperationException($"Cannot set '{Name}': '{Parent?.Name}' is null.");
 
-        var setter = Descriptor?.Accessors.Setter
-            ?? throw new InvalidOperationException($"'{Name}' is read-only.");
-
-        setter(owner, value);
+        switch (Member)
+        {
+            case FieldInfo fi:
+                fi.SetValue(owner, value);
+                break;
+            case PropertyInfo { CanWrite: true } pi:
+                pi.SetValue(owner, value);
+                break;
+            default:
+                throw new InvalidOperationException($"'{Name}' is read-only.");
+        }
 
         // A struct owner is a boxed copy, so it has to be written back into its own owner.
         if (owner.GetType().IsValueType)
             Parent!.SetValue(owner);
+    }
+
+    // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
+    public IEnumerator<InspectorNode> GetEnumerator()
+    {
+        foreach (var child in Children.Where(c => !c.Ignored).OrderBy(c => c.Order))
+        {
+            yield return child;
+
+            if (child.IsGroup)
+            {
+                foreach (var node in child)
+                    yield return node;
+            }
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    internal InspectorNode Add(MemberInfo member)
+    {
+        var child = new InspectorNode(this, member);
+        Children.Add(child);
+        return child;
+    }
+
+    internal IEnumerable<InspectorNode> Descendants()
+    {
+        foreach (var child in Children)
+        {
+            yield return child;
+
+            foreach (var node in child.Descendants())
+                yield return node;
+        }
     }
 }
 
