@@ -67,13 +67,16 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   motivo trocar a raiz por um objeto de outro tipo (3.10).
 - **Composição** (P1.1): o `Inspector` deixa de herdar de `InspectorNode`, guarda a raiz como um nó
   interno e expõe só o que é dele (indexador, enumeração, bind, eventos e opções). O `SetValue` da
-  raiz nem existe (P3.5). Liberado na P9.3 (29/09).
+  raiz nem existe (P3.5). Liberado na P9.3 (29/09) e aplicado no commit `0bc2f9d`.
 - **Id único** (P1.9): cada inspector tem um id, para relacionar um evento ao inspector que o
-  disparou. É também o que a trava das opções globais guarda (P1.11).
+  disparou. É também o que a trava das opções globais guarda (P1.11). Aplicado no commit
+  `0bc2f9d`: um `int` sequencial, dado no construtor.
 - **Setter abstrato de volta** (P1.2), como no main: o getter é comum, e cada tipo de nó decide o
   setter, com um tipo de nó por comportamento fixo na criação (membro e, depois, botão). Grupo ou
   folha continua decidido em tempo de execução dentro do nó de membro, porque o `Expandable` pode
-  mudar depois do `Create`. A ver como fica no código.
+  mudar depois do `Create`. A ver como fica no código. Aplicado no commit `0bc2f9d`: `InspectorNode`
+  é abstrato, o `GetValue` é o mesmo para todos (resolve o nó contra o objeto ligado), o `SetValue`
+  é abstrato, e os tipos são `MemberNode` (campo ou propriedade) e `RootNode` (interno).
 - **Enumeração** (P1.3): o inspector continua enumerável e entrega todos os nós, inclusive os
   ignorados e os de dentro de grupos fechados; as linhas da view saem de um percurso à parte,
   `Rows`. Aplicado no commit `b456398`, no nó, e com ele no inspector.
@@ -175,8 +178,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   aberto (P3.1); uma class mostrada fechada, com editor próprio, é editada trocando o objeto. No
   main isso vinha do `Inspector.SetValue`, que lançava exceção; o commit `2a1cf94` tirou essa
   proteção sem registrar (3.10), e o commit `a2d8ffe` a trouxe de volta.
-- **A raiz também** (P3.5): o objeto ligado só muda pelo bind. Com a composição, o `SetValue` da
-  raiz nem existe; até lá, ele lança (commit `a2d8ffe`).
+- **A raiz também** (P3.5): o objeto ligado só muda pelo bind. Desde o commit `0bc2f9d`, o
+  `Inspector` nem tem `SetValue`; o `RootNode` interno lança se alguém chegar nele pelo `Parent`.
 - **Troca por fora compromete o ramo** (P3.3, P3.4): uma troca (`foo.Moo = new Moo()` depois do
   bind) não pode derrubar o inspector. Ela é detectada no `Refresh()`, o caminho natural, e também
   numa leitura. No ramo comprometido, `GetValue` e `SetValue` lançam, e religar restaura o objeto
@@ -186,8 +189,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 
 ### Descoberta
 
-- **Um membro, um nó**: a descoberta monta a árvore direto; `InspectorNode` é qualquer membro, com
-  ou sem filhos, e `Inspector` é a raiz (por enquanto só o objeto, o `Create` e o bind; ver 3.10).
+- **Um membro, um nó**: a descoberta monta a árvore direto; um `MemberNode` é qualquer membro, com
+  ou sem filhos, e o `Inspector` guarda a raiz (um `RootNode` interno, desde o commit `0bc2f9d`).
   As duas políticas viram classes estáticas, sem interface nem instâncias, chamadas em ordem no
   `Create`. Aplicado nos commits `5560223` e `6622a41`.
 - **Ordem dos irmãos** (P5.1): a de declaração é a preferida, se der para recuperar sem muito
@@ -471,10 +474,10 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   gravada de volta no dono dela, subindo até a primeira class ou até a raiz; vale para qualquer
   aninhamento de class e struct. Pai null: `GetValue` devolve null e `SetValue` lança
   `InvalidOperationException` dizendo qual pai é null. Struct na raiz: o inspector edita a própria
-  cópia, e o host lê o resultado com `GetValue()`. Revisto: a troca do objeto de um grupo não deve
-  ser seguida em silêncio, e sim comprometer o ramo (seção 0; 3.10). Desde o commit `a2d8ffe`, a
-  gravação de volta passa por um caminho interno (`Write`), porque o `SetValue` público recusa o
-  grupo aberto e a raiz; o `ReadOnly` continua sendo conferido na subida.
+  cópia, e o host lê o resultado com `inspector.Instance`. Revisto: a troca do objeto de um grupo
+  não deve ser seguida em silêncio, e sim comprometer o ramo (seção 0; 3.10). Desde o commit
+  `a2d8ffe`, a gravação de volta passa por um caminho interno (hoje `WriteTo`), porque o `SetValue`
+  público recusa o grupo aberto e a raiz; o `ReadOnly` continua sendo conferido na subida.
 - **Ligar, desligar e religar** (aplicado, commit `4dec125`): o `bind(obj)` de novo trocando o
   objeto (commit `2a1cf94`, que tirou o `IsTypeBound` do main) foi desfeito. `Bind` lança
   `InvalidOperationException` se já houver objeto ligado, e a troca é explícita: `Rebind`, que é
@@ -681,11 +684,11 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 79 linhas: `Create<T>()`, `Bind`, `Unbind()` e `Rebind` (commit `4dec125`), o
-`GetValue` da raiz, um `SetValue` que só lança e o caminho interno da gravação de volta (commit
-`a2d8ffe`), e o `Name`; o `Target` serve para o nome e para conferir o tipo no bind. Deveria ser
-uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho, com
-as decisões de 27/09 no fim.
+O `Inspector` tem 96 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+`RootNode` interno e expõe o `Create<T>()`, o `Id`, o `Name`, o objeto ligado (`Instance`), o
+indexador, a enumeração, as `Rows` e o `Bind`, o `Unbind()` e o `Rebind` (commit `4dec125`). Deveria
+ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho,
+com as decisões de 27/09 e 29/09 no fim.
 
 **Buracos no que já existe** (testado)
 
@@ -695,7 +698,7 @@ as decisões de 27/09 no fim.
   lança na hora, sem mexer na árvore nem no que já está ligado (P2.2).
 - Resolvido no commit `a2d8ffe`: o `SetValue` da raiz aceitava null e objeto de outro tipo sem
   reclamar, e com null o inspector ficava sem objeto, um unbind silencioso. Agora ele lança (P3.5),
-  e com a composição nem vai existir.
+  e desde o commit `0bc2f9d` nem existe no `Inspector`.
 - Resolvido no commit `a2d8ffe`: o objeto de um grupo podia ser trocado
   (`inspector["Moo"].SetValue(new Moo())` trocava o `Moo` do objeto ligado). No main, o
   `Inspector.SetValue` (raiz e grupos aninhados) lançava exceção; o commit `2a1cf94` trocou isso
@@ -712,11 +715,11 @@ as decisões de 27/09 no fim.
   classe não é genérica porque nem todo inspector vai ser tipado (P1.7); o motivo anterior, trocar
   a raiz por um objeto de outro tipo, caiu junto com a troca.
 - Composição (P1.1): o inspector guarda a raiz como um nó interno e expõe só o que é dele.
-  Liberada na P9.3. Cada inspector tem um id único, que os eventos e a trava global usam (P1.9,
-  P1.11).
+  Liberada na P9.3 e aplicada no commit `0bc2f9d`. Cada inspector tem um id único, que os eventos e
+  a trava global usam (P1.9, P1.11).
 - Setter abstrato de volta, com um tipo de nó por comportamento fixo na criação (P1.2). Dentro do nó
   de membro, grupo ou folha continua decidido em tempo de execução, porque o `Expandable` pode mudar
-  depois do `Create`.
+  depois do `Create`. Aplicado no commit `0bc2f9d` (`MemberNode` e `RootNode`).
 - Enumerável, entregando todos os nós; as linhas da view saem de um percurso à parte, `Rows` (P1.3;
   commit `b456398`).
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó, sobrescrevendo
@@ -892,8 +895,10 @@ Núcleo (portar a essência)
       (commits `5560223` e `6622a41`).
 - [ ] Premissa de erros: captura nos pontos fracos, fallbacks automático e semiautomático e eventos
       com severidade (3.11; P0.1, P0.2).
-- [ ] `Inspector` completo (3.10): composição (P1.1; liberada na P9.3), setter abstrato com
-      um tipo de nó por comportamento (P1.2), `IDisposable` (P1.5) e `TypeBinderMode` (P1.7).
+- [x] Composição e tipos de nó: o `Inspector` guarda a raiz, `InspectorNode` abstrato com o getter
+      comum e o setter abstrato, `MemberNode` e `RootNode`, e um id por inspector (P1.1, P1.2, P1.9;
+      P9.3; commit `0bc2f9d`).
+- [ ] `Inspector`: `IDisposable` (P1.5) e `TypeBinderMode` (P1.7, P1.12).
 - [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).

@@ -106,8 +106,10 @@ Pegadinhas já vistas:
 - `Inspector.Create<T>()`: a descoberta (`ReflectionDiscovery.AddMembers`) monta a árvore, e cada
   nó passa por `ReflectionPolicy.Apply` e depois `AttributePolicy.Apply`. A camada manual vem
   depois, no próprio inspector (`inspector["Moo.MooX"].Label = ...`).
-- `Inspector` herda de `InspectorNode` e é só a raiz. `InspectorNode` é concreto, um por membro,
-  com as opções como propriedades e indexador por caminho relativo (encadeável). A enumeração
+- `Inspector` não é mais um nó (commit `0bc2f9d`): guarda a raiz num `RootNode` interno e expõe o
+  `Id`, o `Name`, o objeto ligado (`Instance`), o indexador, a enumeração e `Rows`. `InspectorNode`
+  é abstrato, com as opções como propriedades, o indexador por caminho relativo (encadeável), o
+  `GetValue` comum e o `SetValue` abstrato; `MemberNode` é um campo ou propriedade. A enumeração
   entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
 - Bind (commit `4dec125`): `Bind` lança se já houver objeto ligado ou se o objeto não servir para a
   árvore (um tipo derivado serve); `Unbind()` solta; `Rebind` confere e depois desliga e liga.
