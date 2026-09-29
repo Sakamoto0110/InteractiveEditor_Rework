@@ -2,15 +2,50 @@
 
 Estado de 29 de setembro de 2026, depois das respostas de 27/09 e de 29/09. As respondidas saíram
 daqui e estão na seção 0 de `notas-modernizacao.md`, citadas com um `P` na frente do número
-(`P2.2`). O que ficou: os desdobramentos das últimas respostas e as duas que ficaram para o final.
+(`P2.2`). O que ficou: os desdobramentos das últimas respostas, as duas que ficaram para o final e
+uma que apareceu no código (1.14).
 
 Os números antigos continuam valendo, e os novos seguem a numeração de cada seção, sem reaproveitar
 número. Os nomes que ainda não existem no código são só ilustração, e a sugestão, quando há, vem no
 fim de cada pergunta.
 
-Dá para responder pelo número, como antes: "5.9: sim" ou "6.7: b".
+Dá para responder pelo número, como antes: "5.9: sim", "6.7: b" ou "1.14: a e a".
 
 ---
+
+## 1. O Inspector
+
+### 1.14 O inspector sem tipo
+
+A P1.12 decidiu que o `Inspector.Create()` sem tipo é manual e que o `Add("X")` só procura o membro
+pelo nome no bind. O tipado e manual entrou no commit `f12ebf9`; o sem tipo tem duas coisas a
+decidir antes do código.
+
+```csharp
+var editor = Inspector.Create();        // sem tipo: manual
+editor.Add("X").Label = "PosX";         // o X ainda não existe em tipo nenhum
+editor.Bind(rectangle);                 // aqui o X é procurado no tipo do retângulo
+```
+
+- **As camadas de reflection e de atributos.** No tipado, elas entram no `Add`, antes da camada
+  manual. Sem tipo, o membro só aparece no bind, depois do `Label = "PosX"`, e aplicar as camadas
+  ali apagaria o que foi configurado à mão.
+  - (a) Sem essas camadas: só a manual, e o bind completa o que ficou sem escolha. O editor, se
+    ainda for `Auto`, sai do tipo do membro, e um membro sem setter público fica somente leitura.
+  - (b) As camadas no bind, só no que a camada manual não tocou; cada opção passa a saber se foi
+    definida à mão.
+- **O tipo depois do bind.**
+  - (a) O primeiro bind fixa o tipo, como no tipado (P2.2): um objeto de outro tipo lança, até o
+    `Unbind()` soltar tudo e deixar o próximo bind escolher de novo.
+  - (b) Cada objeto é procurado pelo nome, e objetos de tipos diferentes com os mesmos nomes
+    convivem no multi-bind.
+
+Nos dois casos, um nome que o objeto não tem lança no bind: é o erro de digitação que só aparece lá
+(P1.12).
+
+Sugestão: (a) nas duas. Sem tipo é manual, e as camadas de baixo dependem de um tipo; o tipo fixo
+no primeiro bind segue a regra do tipado, e o `Unbind()` libera para outro tipo, o que cobre o
+editor que troca de objeto a cada seleção.
 
 ## 5. Descoberta
 
