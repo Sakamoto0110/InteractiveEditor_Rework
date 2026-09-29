@@ -21,6 +21,7 @@ internal static class ReflectionPolicy
             node.Label = node.Member.Name;
             node.Editor = EditorFor(node.ValueType);
             node.ReadOnly = !IsPubliclyWritable(node.Member);
+            node.Ignored = HasHiddenSetter(node.Member);
             node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute;
         }
         catch (Exception e)
@@ -60,6 +61,13 @@ internal static class ReflectionPolicy
             PropertyInfo pi => pi.SetMethod is { IsPublic: true } setter && !IsInitOnly(setter),
             _ => false
         };
+    }
+
+    // A setter the type keeps to itself (private, protected, internal) hides the member; init, get-only
+    // and readonly members stay, read-only.
+    private static bool HasHiddenSetter(MemberInfo member)
+    {
+        return member is PropertyInfo { SetMethod: { IsPublic: false } };
     }
 
     // init accessors are public setters marked with the IsExternalInit modifier

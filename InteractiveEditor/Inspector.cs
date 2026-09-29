@@ -74,7 +74,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // A path from the root ("Moo.MooY"); chaining works too: inspector["Moo"]["MooY"].
     public InspectorNode this[string path] => Root[path];
 
-    // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
+    // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
 
     // One object at a time for now (multi-bind comes later), so swapping it is explicit.
