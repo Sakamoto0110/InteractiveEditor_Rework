@@ -96,6 +96,16 @@ internal static class ValueConverter
         return System.Convert.ChangeType(value, type, culture);
     }
 
+    // What an empty view shows for a type: zero, false or an empty struct, an empty text, and null for
+    // a nullable value or any other class.
+    public static object? Empty(Type type)
+    {
+        if (type == typeof(string))
+            return string.Empty;
+
+        return type.IsValueType && Nullable.GetUnderlyingType(type) == null ? Activator.CreateInstance(type) : null;
+    }
+
     // A number outside [min, max] comes back to its edge, in its own type; anything else passes.
     public static object? Clamp(object? value, double min, double max)
     {

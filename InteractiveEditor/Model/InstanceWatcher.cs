@@ -62,6 +62,10 @@ internal sealed class InstanceWatcher(RootNode root)
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Without InstanceToView, the view reads the objects only by Reload().
+        if (!root.Owner.Options.InstanceToView)
+            return;
+
         if (sender is not INotifyPropertyChanged watched || !Owners.TryGetValue(watched, out var owners))
             return;
 

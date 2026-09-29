@@ -9,5 +9,12 @@ public sealed class InspectorOptions
     // culture at the time of each conversion.
     public CultureInfo? Culture { get; set; }
 
+    // Which way values move on their own between the view and the objects.
+    public BinderControlMode BinderControl { get; set; } = BinderControlMode.Automatic;
+
     internal CultureInfo CultureInUse => Culture ?? CultureInfo.CurrentCulture;
+
+    internal bool ViewToInstance => BinderControl.HasFlag(BinderControlMode.ViewToInstance);
+
+    internal bool InstanceToView => BinderControl.HasFlag(BinderControlMode.InstanceToView);
 }
