@@ -15,7 +15,9 @@ internal static class ReflectionPolicy
             node.Editor = EditorFor(node.ValueType);
             node.ReadOnly = !IsPubliclyWritable(node.Member);
             node.Ignored = HasHiddenSetter(node.Member);
-            node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute;
+            // A type with more than one editor stays closed until one is chosen (P5.5).
+            node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute
+                && !ReflectionDiscovery.HasManyEditors(node.ValueType);
         }
         catch (Exception e)
         {
