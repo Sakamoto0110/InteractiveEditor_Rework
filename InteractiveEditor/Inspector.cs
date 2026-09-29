@@ -95,7 +95,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         if (Root.Instances.Count > 0)
             throw new InvalidOperationException($"'{Name}' is already bound; call Unbind(), Rebind() or AddBind().");
 
-        CheckBindable([instance]);
+        CheckBindable([instance], Root.Instances);
         Register([instance]);
     }
 
@@ -103,7 +103,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     public void AddBind(params object[] instances)
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instances);
+        CheckBindable(instances, Root.Instances);
         Register(instances);
     }
 
@@ -140,19 +140,28 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // Unbind and bind again, with one object or several.
     public void Rebind(params object[] instances)
     {
-        // Checked before unbinding, so a refused instance leaves the current ones bound.
+        // Checked before unbinding, so a refused instance leaves the current ones bound; the current
+        // ones are about to leave, so binding one of them again is fine.
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instances);
+        CheckBindable(instances, []);
 
         Unbind();
         Register(instances);
     }
 
     // Reads every node again and raises ValueChanged (Refresh) where something changed since the last
-    // read: the natural way to catch changes in objects that do not report them.
+    // read: the natural way to catch changes in objects that do not report them. Groups whose object
+    // was replaced outside are found first, and their branches are left out.
     public void Refresh()
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
+
+        // The tree comes in pre-order, so a parent is checked before its children.
+        foreach (var node in Root)
+        {
+            if (!node.IsCompromised)
+                node.CheckReplaced();
+        }
 
         foreach (var node in Root)
             node.Update(ValueSource.Refresh);
@@ -224,7 +233,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
     // and an object is bound once.
-    private void CheckBindable(object[] instances)
+    private void CheckBindable(object[] instances, IEnumerable<object> alreadyBound)
     {
         if (instances == null)
             throw new ArgumentNullException(nameof(instances));
@@ -237,7 +246,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
             if (!Root.Target.IsInstanceOfType(instance))
                 throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
 
-            if (Root.Instances.Concat(instances).Count(bound => ReferenceEquals(bound, instance)) > 1)
+            if (alreadyBound.Concat(instances).Count(bound => ReferenceEquals(bound, instance)) > 1)
                 throw new ArgumentException($"'{Name}' already has this object bound.", nameof(instance));
         }
     }

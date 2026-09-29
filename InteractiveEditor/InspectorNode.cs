@@ -72,12 +72,20 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // Whether the failure on the node came from a write: a read that works does not clear it.
     private bool FailedOnWrite;
 
+    // Set when this group's object was replaced outside the inspector and nobody accepted it.
+    private protected bool Replaced;
+
     // The last failure reading or writing this node, or null once it works again; the view shows it
     // on the row.
     public InspectorFailureEventArgs? Failure { get; private set; }
 
+    // True when this node, or a group above it, had its object replaced outside the inspector and
+    // nobody accepted the new one: the branch is disabled until a Rebind.
+    public bool IsCompromised => Replaced || Parent?.IsCompromised == true;
+
     public event EventHandler<ValueChangedEventArgs>? ValueChanged;
     public event EventHandler<InspectorFailureEventArgs>? BindFailed;
+    public event EventHandler<ObjectReplacedEventArgs>? ObjectReplaced;
 
     #endregion
 
@@ -101,18 +109,31 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         }
     }
 
-    // The value in the first bound object, or null when nothing is bound.
+    // The value in the first bound object, or null when nothing is bound. A disabled branch throws.
     public object? GetValue()
     {
+        ThrowIfCompromised();
+
         var values = ReadValues();
         return values.Length > 0 ? values[0] : null;
     }
 
-    // One value per bound object, in the order they were bound.
-    public IReadOnlyList<object?> GetValues() => ReadValues();
+    // One value per bound object, in the order they were bound. A disabled branch throws.
+    public IReadOnlyList<object?> GetValues()
+    {
+        ThrowIfCompromised();
+        return ReadValues();
+    }
 
-    // True when the bound objects do not all hold the same value here.
-    public bool IsMixed => ReadValues().Distinct().Skip(1).Any();
+    // True when the bound objects do not all hold the same value here; never on a disabled branch.
+    public bool IsMixed
+    {
+        get
+        {
+            DetectReplacements();
+            return !IsCompromised && ReadValues().Distinct().Skip(1).Any();
+        }
+    }
 
     public abstract void SetValue(object? value);
 
@@ -145,9 +166,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return GetEnumerator();
     }
 
-    // Reads the node again and reports a change against the last read.
+    // Reads the node again and reports a change against the last read; a disabled branch is left
+    // alone.
     internal void Update(ValueSource source)
     {
+        if (IsCompromised)
+            return;
+
         var values = ReadValues();
 
         if (values.SequenceEqual(Known))
@@ -157,12 +182,68 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
     }
 
-    // The objects changed (bind, unbind): the node starts over from what they hold, without an event.
+    // The objects changed (bind, unbind): the node starts over from what they hold, without an event,
+    // and a disabled branch is enabled again.
     internal void Reset()
     {
         Failure = null;
         FailedOnWrite = false;
+        Replaced = false;
+        Record();
         Known = ReadValues();
+    }
+
+    // Groups remember the object they hold in every bound object; the others have nothing to keep.
+    internal virtual void Record()
+    {
+    }
+
+    // Groups compare the object they hold with the one they saw; the others have nothing to check.
+    internal virtual void CheckReplaced()
+    {
+    }
+
+    private protected void OnObjectReplaced(ObjectReplacedEventArgs e)
+    {
+        ObjectReplaced?.Invoke(this, e);
+    }
+
+    // The public reads and writes first look for a replaced group on the way down to this node.
+    private protected void ThrowIfCompromised()
+    {
+        DetectReplacements();
+
+        if (!IsCompromised)
+            return;
+
+        var replaced = this;
+
+        while (!replaced.Replaced)
+            replaced = replaced.Parent!;
+
+        throw new InvalidOperationException(
+            $"'{Path}' cannot be used: the object of '{replaced.Path}' was replaced outside the inspector. Call Rebind() to restore it.");
+    }
+
+    // From the top down, so a replaced parent is caught before its children are compared with
+    // objects that are no longer theirs.
+    private void DetectReplacements()
+    {
+        var chain = new Stack<InspectorNode>();
+
+        for (var node = this; node != null; node = node.Parent)
+            chain.Push(node);
+
+        foreach (var node in chain)
+        {
+            if (node.Replaced)
+                return;
+
+            node.CheckReplaced();
+
+            if (node.Replaced)
+                return;
+        }
     }
 
     private protected void OnWritten()
