@@ -100,6 +100,12 @@ Pegadinhas já vistas:
   no fim, às vezes com um espaço sobrando. Ao editar, manter o BOM e o final como estão.
 - `git add NoHost/Program.cs` reclama que a pasta está no `.gitignore` e sai com erro, o que corta
   um `&& git commit` encadeado. O arquivo é versionado, então `git add -u` resolve.
+- Reflection preguiçosa: `GetMembers` funciona mesmo quando uma assembly usada por um membro está
+  ausente; quem lança é a leitura da assinatura (`PropertyType`, `FieldType` e também
+  `GetIndexParameters()`). Para testar, uma biblioteca com uma dependência apagada da pasta de saída
+  depois do build, rodando com `dotnet X.dll` (o `dotnet run` copiaria a DLL de volta).
+- Os eventos da criação são estáticos: um console de teste precisa tirar a assinatura no fim, senão
+  ela vale para os testes seguintes.
 
 ## 5. O código hoje, em resumo
 
@@ -111,6 +117,9 @@ Pegadinhas já vistas:
   é abstrato, com as opções como propriedades, o indexador por caminho relativo (encadeável), o
   `GetValue` comum e o `SetValue` abstrato; `MemberNode` é um campo ou propriedade. A enumeração
   entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
+- Falhas no `Create` (commit `1535874`): viram eventos estáticos (`DiscoveryFailed`, com a
+  severidade) e ficam em `inspector.Report`; um membro ilegível sai da árvore, um atributo inválido
+  é pulado, e só o fatal sobe. Os tipos ficam em `InteractiveEditor.Diagnostics`.
 - `Dispose` (commit `ffee3a7`): o inspector e os nós são descartáveis, e o `GlobalOptions` fica
   travado enquanto houver um inspector vivo (mudar a flag lança). Programas de teste precisam
   descartar os inspectors antes de mexer na flag; o TuxHost faz isso no fim do `Print`.
