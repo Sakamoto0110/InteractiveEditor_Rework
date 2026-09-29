@@ -147,16 +147,19 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   exceção se já houver objeto ligado; `Unbind()`, sem parâmetro, solta tudo; religar é desligar e
   ligar; e o multi-bind põe e tira objetos. O ligar que lança é o `IsTypeBound` do main, que o
   commit `2a1cf94` também tirou (3.3). `Bind`, `Unbind()` e `Rebind` aplicados no commit `4dec125`;
-  `AddBind` e `RemoveBind` vêm com o multi-bind.
+  `AddBind` e `RemoveBind` aplicados no commit `c201877`, com o multi-bind; o `Rebind` passou a
+  aceitar um objeto ou vários.
 - **Um tipo só** (P2.2, P2.3): ligar, religar ou pôr no multi-bind um objeto de outro tipo lança.
   Os tipos derivados ficam para uma conversa própria, se aparecer motivo. No `Bind` e no `Rebind`
   (commit `4dec125`), um objeto de um tipo derivado passa, porque a árvore do tipo base serve para
   ele; é o caso do editor de `ComponentPreset` do OverlayApplication, ligado a retângulos e elipses.
-- **Tirar o último objeto** equivale ao `Unbind()`, com o mesmo evento (P2.5).
+  O `AddBind` segue a mesma regra (commit `c201877`), e o mesmo objeto duas vezes lança.
+- **Tirar o último objeto** equivale ao `Unbind()`, com o mesmo evento (P2.5; commit `c201877`).
 - **Valores mistos** (P2.4): sem scrubbing, a linha indica que as instâncias têm valores
   diferentes; com scrubbing, ela mostra o valor da primeira, e o delta vale para cada uma. O
   `GetValue` devolve o valor da primeira instância, `IsMixed` diz se elas diferem, e `GetValues`
-  devolve um valor por objeto (P2.10).
+  devolve um valor por objeto (P2.10). Aplicado no commit `c201877`; o indicativo e o scrubbing
+  ficam com a view.
 - **Objeto → UI** (P2.6): `INotifyPropertyChanged` para quem implementa, e o `Refresh()` do
   inspector para o resto.
 - **Texto → valor** (P2.7): a cultura é configurável no inspector inteiro, e toda entrada de texto
@@ -506,12 +509,14 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   (private, protected, internal) passa a esconder o membro (relatório, 3.6; P4.5). Aplicado no
   commit `13534b0`: o filho de uma struct somente leitura agora recusa a gravação pelo próprio
   `ReadOnly` (`'X' is read-only.`), antes da subida.
-- **Multi-bind**: `AddBind` e `RemoveBind`, só com objetos do mesmo tipo (P2.3); tirar o último é
-  o mesmo que o `Unbind()` (P2.5). Com vários objetos, cada nó passa a ter um valor por objeto, e a
-  cadeia de pais resolve cada um. Valores diferentes (P2.4): sem scrubbing, a linha indica que as
-  instâncias diferem; com scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como
-  no original. O `GetValue` devolve o valor da primeira instância, `IsMixed` diz se elas diferem, e
-  `GetValues` devolve um valor por objeto (P2.10).
+- **Multi-bind** (aplicado, commit `c201877`): a raiz guarda uma lista de objetos. `AddBind` põe um
+  ou mais (sem nada ligado, liga), `RemoveBind` tira um, e tirar o último é o mesmo que o
+  `Unbind()` (P2.5); todo objeto tem que servir para a árvore (P2.3), e o mesmo objeto duas vezes
+  lança. `GetValue` lê o primeiro, `GetValues` lê um valor por objeto, e `IsMixed` diz quando eles
+  diferem (P2.10). `SetValue` grava em todos, e um dono null em qualquer um deles interrompe antes
+  de algum mudar. Na view (P2.4): sem scrubbing, a linha indica que as instâncias diferem; com
+  scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como no original. O
+  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
   O objeto deixa de guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
@@ -695,11 +700,12 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 96 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
-`RootNode` interno e expõe o `Create<T>()`, o `Id`, o `Name`, o objeto ligado (`Instance`), o
-indexador, a enumeração, as `Rows` e o `Bind`, o `Unbind()` e o `Rebind` (commit `4dec125`). Deveria
-ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho,
-com as decisões de 27/09 e 29/09 no fim.
+O `Inspector` tem 239 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+`RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o `Name`,
+os objetos ligados (`Instance` e `Instances`), o indexador, a enumeração, as `Rows`, o `Dispose` e o
+bind inteiro (`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos). Deveria ser
+uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho, com
+as decisões de 27/09 e 29/09 no fim.
 
 **Buracos no que já existe** (testado)
 
@@ -755,9 +761,9 @@ com as decisões de 27/09 e 29/09 no fim.
   | inspector, estático | `Created` | a criação terminou, com as contagens | `1535874` |
   | inspector, estático | `DiscoveryFinished` | a árvore está montada | `1535874` |
   | inspector, estático | `DiscoveryFailed` | uma falha no `Create`, com a severidade | `1535874` |
-  | inspector | `BindRegistered` | um ou mais objetos entraram no bind | a fazer |
-  | inspector | `BindRemoved` | um objeto saiu do bind | a fazer |
-  | inspector | `Unbound` | o último objeto saiu | a fazer |
+  | inspector | `BindRegistered` | um ou mais objetos entraram no bind | `c201877` |
+  | inspector | `BindRemoved` | objetos saíram do bind | `c201877` |
+  | inspector | `Unbound` | o último objeto saiu | `c201877` |
   | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | a fazer |
   | nó | objeto trocado | o objeto do grupo foi trocado por fora | a fazer |
   | nó | falha de bind | com mensagem, motivo, sugestão e caminho | a fazer |
@@ -951,7 +957,8 @@ Núcleo (portar a essência)
       volta a lançar se já houver objeto ligado (seção 0).
 - [x] Binding: ligar que lança se já houver objeto ligado ou se o tipo for outro (P2.2), `Unbind()`
       e `Rebind` (P9.1; commit `4dec125`).
-- [ ] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10).
+- [x] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10;
+      commit `c201877`). O scrubbing por delta fica com a view.
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual (P2.6).
 - [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
       força, cada um com o seu evento (P1.8; P1.13).
@@ -964,7 +971,9 @@ Núcleo (portar a essência)
       dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
 - [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
       `1535874`).
-- [ ] Eventos do bind e dos nós, com o `ValueChanged` dizendo a origem (P1.4, P1.10).
+- [x] Eventos do bind no inspector: `BindRegistered`, `BindRemoved` e `Unbound` (P1.4; commit
+      `c201877`).
+- [ ] Eventos dos nós, com o `ValueChanged` dizendo a origem (P1.4, P1.10).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
