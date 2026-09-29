@@ -129,7 +129,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   commit `ffee3a7`; um `Create` que falha solta a trava antes de lançar.
 - **Chaves em string**: caminho relativo ao nó em que o indexador é chamado (`"Moo.MooX"`), que
   também pode ser encadeado (`inspector["Moo"]["MooX"]`); sem atalho pelo nome do tipo. O seletor
-  por expressão também vai existir, ao lado do caminho em string (P6.5).
+  por expressão também vai existir, ao lado do caminho em string (P6.5). Aplicado no commit
+  `e06b6f7`: `inspector.Node<Foo>(f => f.Moo.MooX)`, e o mesmo em qualquer nó.
 - **Sem configurador**: as opções são propriedades do próprio nó, e a configuração é feita no
   inspector depois do `Create` (`inspector["x"].Label = ...`). Nada de `map`, `Modify`, provider ou
   callback. Aplicado no commit `bf6f74f` (seção 7).
@@ -450,6 +451,11 @@ DataAnnotations; aplicados no commit `5319247`)
   membros com o mesmo nome em níveis diferentes fazem o segundo sumir sem aviso.
 - Seletor por expressão (por exemplo `inspector[f => f.Moo.MooX]`), que o compilador checa e que
   acompanha renomeações. Decidido (P6.5): os dois convivem, o caminho em string e o seletor.
+  Aplicado no commit `e06b6f7` como método genérico, `Node<T>`, porque o `Inspector` não é genérico
+  e um indexador não pode ser: `inspector.Node<Foo>(f => f.Moo.MooX)` é o nó de `"Moo.MooX"`, e
+  `inspector["Moo"].Node<Moo>(m => m.MooX)` vale a partir de um nó. O tipo tem que ser o que o nó
+  guarda, ou um de que ele deriva; outro tipo, ou qualquer coisa além de uma cadeia de membros do
+  parâmetro, lança `ArgumentException`.
 - Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (`EditorKind`: `Text`,
   `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator`). Cada
   view decide o controle.
@@ -1080,6 +1086,7 @@ Núcleo (portar a essência)
 - [x] `SetValue` limitando o valor à faixa do `[InspectorRange]` (P2.8; commit `e136f82`).
 - [x] Sanitizadores tipados (sucessores das `CapFunction`), por campo, em lista ordenada (P2.9;
       P2.13; commit `e136f82`).
+- [x] Seletor por expressão ao lado do caminho em string (P6.5; commit `e06b6f7`).
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
       dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
 - [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
@@ -1166,7 +1173,8 @@ então a camada manual pode trazê-lo de volta (`Ignored = false`), mesmo quando
 
 **Configuração**: o `Create` já aplica as duas políticas, e o que se define depois, no próprio
 inspector, tem a palavra final. O indexador recebe um caminho relativo ao nó em que é chamado e pode
-ser encadeado. Não há `map`, `Modify`, provider nem callback.
+ser encadeado; o seletor por expressão chega ao mesmo nó (`inspector.Node<Foo>(f => f.Moo.MooX)`,
+commit `e06b6f7`). Não há `map`, `Modify`, provider nem callback.
 
 ```csharp
 var inspector = Inspector.Create<Foo>();
