@@ -18,9 +18,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 
 ## 0. Decisões tomadas
 
-As respostas de 27/09 às perguntas em aberto entraram aqui, com o número da pergunta: `P2.2` é a
-pergunta 2.2 de `perguntas-em-aberto.md`, e um número sem o `P` é uma seção destas notas. O que
-ainda depende de resposta continua naquele arquivo.
+As respostas de 27/09 e de 29/09 às perguntas em aberto entraram aqui, com o número da pergunta:
+`P2.2` é a pergunta 2.2 de `perguntas-em-aberto.md`, e um número sem o `P` é uma seção destas
+notas. O que ainda depende de resposta continua naquele arquivo.
 
 ### Premissa
 
@@ -32,7 +32,15 @@ ainda depende de resposta continua naquele arquivo.
   o estado no meio do caminho. Só o que for grave demais sobe para quem usa a biblioteca. Os
   eventos podem ser muitos, alguns só para consumo interno, porque a verbosidade ajuda no
   diagnóstico. Substitui o "exceções explodem" anterior, que deixava subir as exceções das
-  políticas. Detalhes e propostas na 3.11.
+  políticas. Detalhes na 3.11.
+- **Severidade** (P0.1, 29/09): recuperado (fallback automático, sem ambiguidade), contornado
+  (fallback semiautomático: não caiu, mas pode não ser o certo), crítico (sem resolução: o nó que
+  falhou sai, e o resto continua) e fatal (o inspector não tem como continuar). Só o fatal sobe
+  para quem chamou.
+- **Lançar ou avisar** (P0.2): o uso errado da API por quem chama lança na hora, sem mudar o estado
+  do inspector: ligar duas vezes, ligar outro tipo, gravar num grupo ou num ramo comprometido, um
+  caminho desconhecido, mudar uma opção global com um inspector vivo. Um ponto fraco avisa por
+  evento e segue com um fallback. O atributo inválido é ponto fraco: o `Create` segue sem ele.
 
 ### Estrutura
 
@@ -59,7 +67,9 @@ ainda depende de resposta continua naquele arquivo.
   motivo trocar a raiz por um objeto de outro tipo (3.10).
 - **Composição** (P1.1): o `Inspector` deixa de herdar de `InspectorNode`, guarda a raiz como um nó
   interno e expõe só o que é dele (indexador, enumeração, bind, eventos e opções). O `SetValue` da
-  raiz nem existe (P3.5). Aplicar depende da P9.3.
+  raiz nem existe (P3.5). Liberado na P9.3 (29/09).
+- **Id único** (P1.9): cada inspector tem um id, para relacionar um evento ao inspector que o
+  disparou. É também o que a trava das opções globais guarda (P1.11).
 - **Setter abstrato de volta** (P1.2), como no main: o getter é comum, e cada tipo de nó decide o
   setter, com um tipo de nó por comportamento fixo na criação (membro e, depois, botão). Grupo ou
   folha continua decidido em tempo de execução dentro do nó de membro, porque o `Expandable` pode
@@ -69,17 +79,25 @@ ainda depende de resposta continua naquele arquivo.
   `Rows`. Aplicado no commit `b456398`, no nó, e com ele no inspector.
 - **Eventos** (P1.4), sem economia: no inspector, a criação, a descoberta e o ciclo do bind; nos
   nós, `ValueChanged` (no lugar do `ValueApplied`), o objeto do grupo trocado por fora e a falha de
-  bind. A lista está na 3.10, e os nomes são exemplos.
+  bind. A lista está na 3.10, e os nomes são exemplos. Os da criação são estáticos, para dar para
+  assinar antes do `Create`, e o resultado da criação fica guardado no inspector (P1.9). O
+  `ValueChanged` vale nos dois sentidos e diz de onde veio a mudança, e os nomes seguem a convenção
+  do .NET: o evento é `Created`, e `OnCreated` é o método que o dispara (P1.10).
 - **Descartável** (P1.5): o `Inspector` e os nós implementam `IDisposable`, já pensando em campos de
   imagem e de recursos. O `Dispose` também solta a trava das opções globais (abaixo).
-- **`TypeBinderMode` continua** (P1.7), porque nem todo inspector vai ser tipado.
+- **`TypeBinderMode` continua** (P1.7), porque nem todo inspector vai ser tipado. O modo sai do
+  jeito de criar: tipado é automático, e sem tipo é manual; o modo explícito continua para o
+  inspector tipado e manual (P1.12).
 - **Nós manuais** (P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá para
-  resolver de outro jeito. O campo só de exibição continua em aberto.
+  resolver de outro jeito. O campo só de exibição também entra, com um getter (29/09).
 - **Controle do binder** (P1.8): no lugar de uma flag `AutoApply`, um enum de controle (manual, ou
   automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores no objeto,
   recarregar do objeto e limpar a view (tudo vazio ou zero), que também podem ser disparados por um
   evento quando algo sai do normal. Não se confundem com o `Refresh()` (P2.6), que é o fluxo
-  normal: os de força são override ou fallback, mesmo quando fazem a mesma coisa.
+  normal: os de força são override ou fallback, mesmo quando fazem a mesma coisa. Formato (P1.13):
+  um enum de flags sem combinação inválida (`Manual = 0`, `ViewToInstance`, `InstanceToView` e
+  `Automatic`, os dois sentidos), mais um fluxo normal para ler e gravar à mão; os de força ficam
+  só para quando o fluxo normal falhou ou não se encaixa, cada um com o seu evento.
 
 ### Opções e configuração
 
@@ -94,7 +112,8 @@ ainda depende de resposta continua naquele arquivo.
   corte aplicado no commit `5319247` (seção 7). As opções por inspector sobrescrevem as globais
   (P1.5).
 - **Opções globais travadas** (P1.5, P4.4): o `Create` congela o `GlobalOptions`. Enquanto houver um
-  inspector vivo, mudar uma opção global lança exceção; a trava cai no `Dispose`.
+  inspector vivo, mudar uma opção global lança exceção; a trava cai no `Dispose` do último. Ela
+  guarda os ids dos inspectors vivos (P1.11).
 - **Chaves em string**: caminho relativo ao nó em que o indexador é chamado (`"Moo.MooX"`), que
   também pode ser encadeado (`inspector["Moo"]["MooX"]`); sem atalho pelo nome do tipo. O seletor
   por expressão também vai existir, ao lado do caminho em string (P6.5).
@@ -104,7 +123,7 @@ ainda depende de resposta continua naquele arquivo.
 - **`Ignored` é da árvore, `Visible` é da view** (P6.1): um nó ignorado não faz parte deste
   inspector; um nó invisível faz parte, mas está escondido agora, e os filhos vão junto.
 - **Filtro por nome** (P6.4): pode ser injetado, e é resolvido com a mesma precedência dos
-  atributos.
+  atributos. Vale por tipo, no `Create` (P6.6); onde ele é injetado está em aberto (P6.7).
 - **Expandir com a flag global** (P4.3): a permissão vale só para o membro ou tipo marcado, e os
   níveis de baixo continuam fechados, porque a flag existe justamente para não propagar. Um
   atributo que propague fica como ideia (seção 7).
@@ -125,21 +144,30 @@ ainda depende de resposta continua naquele arquivo.
   ele; é o caso do editor de `ComponentPreset` do OverlayApplication, ligado a retângulos e elipses.
 - **Tirar o último objeto** equivale ao `Unbind()`, com o mesmo evento (P2.5).
 - **Valores mistos** (P2.4): sem scrubbing, a linha indica que as instâncias têm valores
-  diferentes; com scrubbing, ela mostra o valor da primeira, e o delta vale para cada uma.
+  diferentes; com scrubbing, ela mostra o valor da primeira, e o delta vale para cada uma. O
+  `GetValue` devolve o valor da primeira instância, `IsMixed` diz se elas diferem, e `GetValues`
+  devolve um valor por objeto (P2.10).
 - **Objeto → UI** (P2.6): `INotifyPropertyChanged` para quem implementa, e o `Refresh()` do
   inspector para o resto.
 - **Texto → valor** (P2.7): a cultura é configurável no inspector inteiro, e toda entrada de texto
   cru tenta virar o tipo do membro; quando não dá, a linha mostra a falha. O `SetValue("5")` num
-  `int` também tenta converter antes de gravar (relatório, seção 6).
+  `int` também tenta converter antes de gravar (relatório, seção 6). A cultura padrão é a atual, e
+  a conversão usa o `IParsable<T>` quando o tipo implementa, e o `TypeConverter` no resto (P2.11).
+- **Quando a view grava** (P2.12): texto e número no Enter e quando o controle perde o foco, com o
+  Esc voltando ao valor do objeto; toggle e escolha na hora; slider e scrubbing enquanto arrastam.
+  Uma conversão que falha deixa o texto como foi digitado, e o objeto mantém o valor.
 - **Faixa** (P2.8): o `SetValue` limita o valor ao `[InspectorRange]`: com (0, 255), 999 grava 255.
 - **Sanitizadores** (P2.9): por campo, numa lista ordenada, e executados sempre nessa ordem. O
-  gancho de conversão (o "TheBrute") não volta.
+  gancho de conversão (o "TheBrute") não volta. São duas listas, as regras de texto antes da
+  conversão e as de valor depois, então a ordem entre as duas vem da estrutura (P2.13).
 - **`ReadOnly` passa para os filhos** (P4.1, P4.2): um objeto aninhado somente leitura, por atributo
   ou por acessor privado, deixa os filhos somente leitura, e forçar a gravação num filho lança. O
   `ReadOnly` do próprio nó basta para a view, sem um segundo valor como `IsEffectivelyReadOnly`.
-- **Setter privado some na reflection** (relatório, 3.6): o membro com setter privado deixa de
-  aparecer, e o `[InspectorReadOnly]` o traz de volta, somente leitura. Os casos parecidos estão em
-  aberto (P4.5).
+  O nó consulta os pais na hora da leitura (P4.6): uma mudança na camada manual vale na hora para o
+  ramo todo, e um filho não reabre enquanto o pai for somente leitura.
+- **Setter não público some na reflection** (relatório, 3.6; P4.5): o membro com setter private,
+  protected ou internal deixa de aparecer, e o `[InspectorReadOnly]` o traz de volta, somente
+  leitura. `init`, campo `readonly` e só getter continuam aparecendo, somente leitura.
 
 ### O objeto do grupo
 
@@ -152,7 +180,9 @@ ainda depende de resposta continua naquele arquivo.
 - **Troca por fora compromete o ramo** (P3.3, P3.4): uma troca (`foo.Moo = new Moo()` depois do
   bind) não pode derrubar o inspector. Ela é detectada no `Refresh()`, o caminho natural, e também
   numa leitura. No ramo comprometido, `GetValue` e `SetValue` lançam, e religar restaura o objeto
-  inteiro. O raio e um religar automático estão em aberto (P3.6).
+  inteiro. O raio é só o ramo trocado, e o resto do dono continua funcionando; o ramo fica
+  desativado, e um evento deixa quem assina aceitar o objeto novo na hora (P3.6). O grupo de uma
+  struct fica fora da detecção, porque a struct não tem identidade para comparar (P3.2).
 
 ### Descoberta
 
@@ -164,17 +194,20 @@ ainda depende de resposta continua naquele arquivo.
   custo; se não der, fica a da reflection, e o `[InspectorOrder]` resolve o resto.
 - **Coleções** (P5.2; relatório, seção 2): em vez dos membros do tipo da coleção (`Capacity`,
   `Count`, `Length`...), o conteúdo. O editor padrão é um seletor, que vira combo box, e vale
-  tentar um editor de lista. Pode precisar de configuração a mais.
+  tentar um editor de lista. Pode precisar de configuração a mais; o que o seletor faz com o item
+  escolhido está em aberto (P5.10).
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
 - **Membro escondido com `new`** (P5.4): os dois aparecem, e nesses casos o nome composto pode ser o
-  padrão (`Derived.Value` em vez de `Value`). Como isso convive com o ponto do caminho está em
-  aberto (P5.7).
+  padrão (`Derived.Value` em vez de `Value`). Na P5.7: o nome composto expande nos campos do tipo
+  derivado, e no exemplo `Derived.Value` é o `string Value`, não o `int Value`. Como fica a árvore
+  está em aberto (P5.9).
 - **Tipos com mais de um editor** (P5.5), como o `Color`: são casos de borda, e o comportamento tem
   que ser escolhido explicitamente (expandir em campos int, texto hex ou um seletor aberto por um
   botão). Também é um motivo para usar os primitivos próprios, sem o excesso de propriedades do
-  `System.Drawing.Color`.
+  `System.Drawing.Color`. Sem escolha, o membro aparece numa linha `Display`, só leitura, até
+  alguém escolher, com um aviso de diagnóstico (P5.8).
 - **Cache** (P5.6): por enquanto, só a lista de membros por tipo; o desenho do cache fica para uma
   sessão própria.
 
@@ -363,8 +396,8 @@ As camadas 1 e 2 são `ReflectionPolicy` e `AttributePolicy`, classes estáticas
 no `Create`; uma camada nova é mais uma classe e uma linha ali. Os filtros por nome e por tipo
 (blacklist/whitelist, opt-in de tipos) saem com uma regra em massa depois do `Create` (seção 7); o
 filtro por instância fica com a visibilidade condicional. Um filtro por nome também pode ser
-injetado, resolvido com a mesma precedência dos atributos (P6.4); se ele vale por tipo ou por
-instância está em aberto (P6.6).
+injetado, resolvido com a mesma precedência dos atributos (P6.4). Ele vale por tipo, no `Create`
+(P6.6); onde ele é injetado está em aberto (P6.7).
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
 DataAnnotations; aplicados no commit `5319247`)
@@ -400,10 +433,10 @@ DataAnnotations; aplicados no commit `5319247`)
   inspector (`[InspectorExpandable]` na tabela acima).
 - O `TypeBinderMode` do original (`Automatic` / `Manual`, declarado e nunca usado lá) continua
   existindo para quando se quer só os campos declarados, porque nem todo inspector vai ser tipado
-  (decidido, P1.7). Se o modo sai do jeito de criar (tipado → automático, sem tipo → manual) está em
-  aberto (P1.12).
+  (decidido, P1.7). O modo sai do jeito de criar: tipado é automático, sem tipo é manual, e o modo
+  explícito continua para o inspector tipado e manual (P1.12).
 - Nós manuais (decidido, P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá
-  para resolver de outro jeito. O campo só de exibição está em aberto.
+  para resolver de outro jeito. O campo só de exibição também entra, com um getter.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
 são de cortes seguintes, com nomes provisórios:
@@ -421,7 +454,7 @@ component["FillColor"].Label = "Color1";
 // cor: o editor é escolhido explicitamente (P5.5); hoje System.Drawing.Color vira um grupo
 // component["Text"].VisibleWhen = c => ((ComponentPreset)c).IsText;   // sucessor do VariablePool
 // component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
-// component.AddDisplay("Layer", () => tree.SelectedIndex);    // em aberto (P1.6)
+// component.AddDisplay("Layer", () => tree.SelectedIndex);    // decidido (P1.6)
 
 component.Rebind(selected);  // a cada seleção: Unbind + Bind (commit 4dec125)
 component.AddBind(other);    // cortes seguintes: multi-bind
@@ -457,33 +490,37 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   recusado; já os membros de uma class somente leitura continuam editáveis, porque a edição é no
   próprio objeto (seção 5, item 6). Decidido em 27/09 (P4.1, P4.2): o `ReadOnly` passa para os
   filhos, também numa class, e forçar a gravação num filho lança; o `ReadOnly` do próprio nó passa
-  a bastar para a view. Como o nó calcula isso está em aberto (P4.6). E o setter privado passa a
-  esconder o membro (relatório, 3.6), com os casos parecidos em aberto (P4.5).
+  a bastar para a view. O nó consulta os pais na hora da leitura (P4.6). E o setter não público
+  (private, protected, internal) passa a esconder o membro (relatório, 3.6; P4.5).
 - **Multi-bind**: `AddBind` e `RemoveBind`, só com objetos do mesmo tipo (P2.3); tirar o último é
   o mesmo que o `Unbind()` (P2.5). Com vários objetos, cada nó passa a ter um valor por objeto, e a
   cadeia de pais resolve cada um. Valores diferentes (P2.4): sem scrubbing, a linha indica que as
   instâncias diferem; com scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como
-  no original. O que o `GetValue` devolve nesse caso está em aberto (P2.10).
+  no original. O `GetValue` devolve o valor da primeira instância, `IsMixed` diz se elas diferem, e
+  `GetValues` devolve um valor por objeto (P2.10).
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
   O objeto deixa de guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
   e não se confunde com os métodos de força (abaixo).
 - **Controle do binder** (decidido, P1.8): um enum de controle no lugar de uma flag `AutoApply`
-  (manual, ou automático num sentido ou nos dois; o formato está em aberto, P1.13) e métodos
-  auxiliares de força: gravar os valores no objeto, recarregar do objeto e limpar a view, deixando
-  tudo vazio ou zero. Eles também podem ser disparados por um evento, quando algo sai do normal.
+  (manual, ou automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores
+  no objeto, recarregar do objeto e limpar a view, deixando tudo vazio ou zero. Eles também podem
+  ser disparados por um evento, quando algo sai do normal. O enum é de flags, sem combinação
+  inválida, e o modo manual tem um fluxo normal para ler e gravar à mão; os de força ficam para
+  quando esse fluxo falhou ou não se encaixa, cada um com o seu evento (P1.13).
 - **UI → objeto** (decidido, P2.7): toda entrada de texto cru tenta virar o tipo do membro, com a
   cultura configurada no inspector; se não der, a linha mostra a falha. O `SetValue("5")` num `int`
   também tenta converter antes de gravar. O original usa `Convert.ToDouble` com a cultura atual, e o
-  `ONLY_NUMBERS` aceita tanto `.` quanto `,`. Em aberto: a cultura padrão e o mecanismo (P2.11), e
-  o momento em que a view grava (P2.12).
+  `ONLY_NUMBERS` aceita tanto `.` quanto `,`. A cultura padrão é a atual, e a conversão usa o
+  `IParsable<T>` quando o tipo implementa, e o `TypeConverter` no resto (P2.11). A view grava o
+  texto no Enter e ao perder o foco, e toggle, escolha, slider e scrubbing na hora (P2.12).
 - **Faixa** (decidido, P2.8): o `SetValue` limita o valor ao `[InspectorRange]`; com (0, 255), 999
   grava 255. Hoje grava 999.
 - **Sanitizadores** (decidido, P2.9): por campo, numa lista ordenada, executados sempre nessa
   ordem. No original eles misturam texto e número: no caminho do `TextBox` o `POSITIVE_NUMBERS`
   recebe `string` e não faz nada; no scrubbing, o delegate multicast devolve só o resultado do
   último; e com três ou mais funções encadeadas o `GetTextboxData` reaplica funções anteriores.
-  Texto e valor numa lista só ou em duas está em aberto (P2.13).
+  São duas listas: as regras de texto antes da conversão, e as de valor depois (P2.13).
 - **Sem gancho de conversão** (decidido, P2.9): o "TheBrute" não volta.
 - `ApplyFunction` vira o evento `ValueChanged` do nó (P1.4).
 - **Eventos de ciclo de vida**: a lista decidida está na 3.10 (P1.4), com um payload de falha
@@ -674,8 +711,9 @@ as decisões de 27/09 no fim.
 - Sem `Inspector<T>`, e com o tipo da raiz fixo: ligar um objeto de outro tipo lança (P2.2). A
   classe não é genérica porque nem todo inspector vai ser tipado (P1.7); o motivo anterior, trocar
   a raiz por um objeto de outro tipo, caiu junto com a troca.
-- Composição (P1.1): o inspector guarda a raiz como um nó interno e expõe só o que é dele. Aplicar
-  depende da P9.3.
+- Composição (P1.1): o inspector guarda a raiz como um nó interno e expõe só o que é dele.
+  Liberada na P9.3. Cada inspector tem um id único, que os eventos e a trava global usam (P1.9,
+  P1.11).
 - Setter abstrato de volta, com um tipo de nó por comportamento fixo na criação (P1.2). Dentro do nó
   de membro, grupo ou folha continua decidido em tempo de execução, porque o `Expandable` pode mudar
   depois do `Create`.
@@ -683,15 +721,17 @@ as decisões de 27/09 no fim.
   commit `b456398`).
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó, sobrescrevendo
   o global (P1.5): as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2) e
-  a cultura (P2.7). O `Create` trava o `GlobalOptions` até o `Dispose` (P1.5, P4.4).
+  a cultura (P2.7). O `Create` trava o `GlobalOptions` até o `Dispose` do último inspector vivo
+  (P1.5, P4.4, P1.11).
 - `IDisposable` no inspector e nos nós (P1.5).
 - Ciclo do bind: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (P2.1), os valores mistos do
   multi-bind (P2.4) e o `Refresh()` (P2.6).
-- Controle do binder (P1.8): um enum de controle e os métodos de força, que não se confundem com o
-  `Refresh()`.
-- `TypeBinderMode` continua (P1.7). Nós manuais: botão com ação, sim; cabeçalho, não (P1.6).
-- Filtro por nome injetável, com a precedência dos atributos (P6.4); a visibilidade condicional
-  ficou para o final (P6.2).
+- Controle do binder (P1.8, P1.13): um enum de flags e um fluxo normal para ler e gravar à mão; os
+  métodos de força, cada um com o seu evento, não se confundem com esse fluxo nem com o `Refresh()`.
+- `TypeBinderMode` continua (P1.7), e sai do jeito de criar (P1.12). Nós manuais: botão com ação e
+  campo só de exibição com getter, sim; cabeçalho, não (P1.6).
+- Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
+  injetado está em aberto (P6.7). A visibilidade condicional ficou para o final (P6.2).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
   pelo próprio inspector. Os nomes são os de exemplo da resposta:
 
@@ -710,7 +750,9 @@ as decisões de 27/09 no fim.
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
   caíram em fallback automático) e `CriticalErrorCount` (os graves, sem resolução, que não
   derrubaram; provavelmente o nó que falhou sai). Os eventos da criação acontecem antes de alguém
-  conseguir assinar (3.11; P1.9), e o `ValueChanged` pode precisar da origem da mudança (P1.10).
+  conseguir assinar no inspector, então eles são estáticos, e o resultado da criação fica guardado
+  no inspector (P1.9). O `ValueChanged` diz de onde veio a mudança, e os nomes seguem a convenção
+  do .NET: `Created` é o evento, e `OnCreated` o método que o dispara (P1.10).
 
 **O objeto do grupo** (decidido, P3.1 a P3.5; seção 0)
 
@@ -728,36 +770,34 @@ as decisões de 27/09 no fim.
   próprio objeto troca um filho (`void Work() { moo = new Moo(); }`) e alguém chama `foo.Work()`
   depois do bind. Detectar não precisa de exceção: ler o objeto antigo não falha no .NET, porque o
   grupo o guarda e ele continua vivo; é a comparação que acusa a troca.
-- Em aberto (P3.6): o raio (só o ramo trocado ou o dono dele, que no topo é o inspector inteiro) e
-  a reação (só desativar, religar sozinho a partir da raiz, ou desativar e deixar quem assina o
-  evento aceitar o objeto novo). E a struct, que não tem identidade para a detecção (P3.2).
+- Decidido em 29/09 (P3.6): o raio é só o ramo trocado (o dono continua o mesmo objeto, e os
+  outros membros dele seguem certos), e a reação é desativar o ramo e avisar por evento, em que
+  quem assina pode aceitar o objeto novo na hora. O grupo de uma struct fica fora da detecção
+  (P3.2).
 
-**Em aberto** (em `perguntas-em-aberto.md`)
-
-- O campo só de exibição (P1.6), a assinatura dos eventos da criação (P1.9), a origem no
-  `ValueChanged` (P1.10), a trava com vários inspectors (P1.11), o modo pelo jeito de criar (P1.12)
-  e o formato do enum de controle (P1.13).
-- Aplicar a composição (P9.3).
+**Em aberto** (em `perguntas-em-aberto.md`): onde o filtro por nome é injetado (P6.7).
 
 ### 3.11 Erros: o inspector não cai
 
-A premissa está na seção 0: uma exceção num ponto fraco não derruba o inspector. O que ela muda, e
-as propostas que ainda dependem de resposta (P0.1, P0.2, P1.9):
+A premissa está na seção 0: uma exceção num ponto fraco não derruba o inspector. O que ela muda,
+com as respostas de 29/09 (P0.1, P0.2, P1.9):
 
 - **Os pontos fracos**: a descoberta (tipos de terceiros, tipos que não carregam, atributos
   inválidos), o binding e o acesso ao objeto ligado (getters e setters que lançam, objetos trocados
   por fora, pais null) e as views (controles que falham ao ser criados).
 - **Automático e semiautomático**: o automático resolve sem ambiguidade; o semiautomático só garante
   que nada caia, e o evento dá a quem assina a chance de corrigir o estado no meio do caminho.
-  Proposta: os args levam um `Handled`, como no WinForms; quem corrige marca, e o fallback só vale
-  quando ninguém marcou. É daí que sai a contagem dos que caíram em fallback.
-- **Severidade** (proposta, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
+  Os args levam um `Handled`, como no WinForms; quem corrige marca, e o fallback só vale quando
+  ninguém marcou. É daí que sai a contagem dos que caíram em fallback.
+- **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
-- **O que continua lançando** (proposta, P0.2): o uso errado da API por quem chama (ligar duas
+- **O que continua lançando** (decidido, P0.2): o uso errado da API por quem chama (ligar duas
   vezes, outro tipo, gravar num grupo ou num ramo comprometido, um caminho desconhecido, mudar uma
-  opção global com um inspector vivo). É bug de quem chamou, e o estado do inspector não muda.
-- **Eventos da criação** (P1.9): a descoberta roda dentro do `Create`, antes de alguém conseguir
-  assinar um evento no inspector.
+  opção global com um inspector vivo). É bug de quem chamou, e o estado do inspector não muda. O
+  atributo inválido é ponto fraco: evento, fallback, e o `Create` segue.
+- **Eventos da criação** (decidido, P1.9): a descoberta roda dentro do `Create`, antes de alguém
+  conseguir assinar um evento no inspector. Por isso eles são estáticos, com o inspector (e o id
+  dele) nos args, e o resultado da criação fica guardado no inspector para conferir depois.
 - **Estado no nó**: com o ramo comprometido e os erros, o nó passa a ter estado além das opções.
   Sugestão sua (relatório, seção 8): separar no arquivo o que é informação do nó (as opções) do que
   é estado, em duas regiões.
@@ -789,7 +829,7 @@ as propostas que ainda dependem de resposta (P0.1, P0.2, P1.9):
 Já resolvidas (seção 0): um binário, prefixo dos primitivos, atributos próprios, paginação, modo
 principal e precedência, service locator, camadas de opções, descrições, chaves, configuração no
 inspector, exceções, binding pela cadeia de pais, `Inspector` não genérico, objeto do grupo e
-capacidades do binding. As respostas de 27/09 resolveram quase toda a lista abaixo e reviram duas
+capacidades do binding. As respostas de 27/09 e de 29/09 resolveram a lista abaixo e reviram duas
 dessas decisões (as exceções, pela premissa, e o motivo do `Inspector` não genérico); o que sobrou
 está numerado em `perguntas-em-aberto.md`.
 
@@ -797,16 +837,17 @@ está numerado em `perguntas-em-aberto.md`.
    `PxDock` entram (P8.2); as cores viram `PxColorArgb` e `PxColorHsl` (P8.3).
 2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
    qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
-3. **Cultura** (resolvida em 27/09): configurável no inspector inteiro (P2.7). O padrão está em
-   aberto (P2.11).
-4. **Nós manuais** (resolvida em 27/09): o botão entra, com uma ação no clique; o cabeçalho não
-   (P1.6). O campo só de exibição está em aberto.
+3. **Cultura** (resolvida em 27/09 e 29/09): configurável no inspector inteiro (P2.7), com a atual
+   como padrão (P2.11).
+4. **Nós manuais** (resolvida em 27/09 e 29/09): o botão entra, com uma ação no clique, e o campo
+   só de exibição, com um getter; o cabeçalho não (P1.6).
 5. **Permissão de expandir** (resolvida em 27/09): vale só para o membro ou tipo marcado, como hoje
    e como no `TypeSafeLock` (P4.3).
 6. **ReadOnly num objeto aninhado (class)** (resolvida em 27/09): passa para os filhos, e forçar a
    gravação num filho lança (P4.1).
-7. **O `Inspector`** (3.10; resolvida em boa parte em 27/09, P1.1 a P1.8): o que sobrou está nas
-   P1.6 e P1.9 a P1.13, e aplicar a composição depende da P9.3.
+7. **O `Inspector`** (3.10; resolvida em 27/09 e 29/09, P1.1 a P1.13), com a composição liberada
+   na P9.3.
+
 ---
 
 ## 6. Lista de coisas pra fazer (`[x]` = aplicado)
@@ -851,18 +892,18 @@ Núcleo (portar a essência)
       (commits `5560223` e `6622a41`).
 - [ ] Premissa de erros: captura nos pontos fracos, fallbacks automático e semiautomático e eventos
       com severidade (3.11; P0.1, P0.2).
-- [ ] `Inspector` completo (3.10): composição (P1.1; aplicar depende da P9.3), setter abstrato com
+- [ ] `Inspector` completo (3.10): composição (P1.1; liberada na P9.3), setter abstrato com
       um tipo de nó por comportamento (P1.2), `IDisposable` (P1.5) e `TypeBinderMode` (P1.7).
 - [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
       A proteção do main tinha se perdido no commit `2a1cf94`.
 - [ ] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
-      `SetValue` lançando até religar (P3.3, P3.4); o raio e a reação estão em aberto (P3.6).
+      `SetValue` lançando até religar (P3.3, P3.4); só o ramo trocado, com um evento que aceita o
+      objeto novo (P3.6), e sem struct (P3.2).
 - [ ] `InspectorOptions` (por inspector), sobrescrevendo o global (P1.5), com a cultura (P2.7).
 - [ ] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4).
-- [ ] Nós manuais: botão com ação (P1.6); o campo só de exibição está em aberto, e o cabeçalho não
-      entra.
+- [ ] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem; P6.3, para o final).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`; P6.2, para o
@@ -879,19 +920,22 @@ Núcleo (portar a essência)
       e `Rebind` (P9.1; commit `4dec125`).
 - [ ] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10).
 - [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual (P2.6).
-- [ ] Controle do binder: o enum de controle e os métodos de força (P1.8; P1.13).
+- [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
+      força, cada um com o seu evento (P1.8; P1.13).
 - [ ] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o
       `SetValue("5")` também converte (P2.7; P2.11, P2.12).
 - [ ] `SetValue` limitando o valor à faixa do `[InspectorRange]` (P2.8).
 - [ ] Sanitizadores tipados (sucessores das `CapFunction`), por campo, em lista ordenada (P2.9;
       P2.13).
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
-      dos atributos (P6.4; P6.6).
-- [ ] Eventos (P1.4) com payload de falha tipado (P1.9, P1.10).
+      dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
+- [ ] Eventos (P1.4) com payload de falha tipado: os da criação estáticos, o resultado dela guardado
+      no inspector, um id por inspector (P1.9) e o `ValueChanged` com a origem (P1.10).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
-- [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2).
-- [ ] Tipos com mais de um editor, como o `Color`: escolha explícita (P5.5; P5.8).
+- [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
+- [ ] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
+      `Display` com aviso (P5.5; P5.8).
 
 Apresentação
 
@@ -912,7 +956,7 @@ Pendências da primeira revisão (já conhecidas)
 - [ ] Membro escondido com `new`: não quebra mais o `Create`, mas aparece duas vezes, e o indexador
       acha o do tipo derivado, que vem primeiro. Só quando o tipo muda: com o mesmo tipo
       (`public new int Value`), aparece uma vez só (testado). Decidido (P5.4): os dois aparecem,
-      com o nome composto; falta como ele convive com o ponto do caminho (P5.7).
+      com o nome composto, que expande nos campos do tipo derivado (P5.7); falta a árvore (P5.9).
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
@@ -944,7 +988,7 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
    `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
    público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
    flag global exija o atributo. Decidido (relatório, 3.6): o setter privado passa a esconder o
-   membro, e o `[InspectorReadOnly]` o traz de volta; os casos parecidos estão em aberto (P4.5).
+   membro, e o `[InspectorReadOnly]` o traz de volta; vale para todo setter não público (P4.5).
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
    no membro ou no tipo.
 3. Manual: o que for definido no inspector depois do `Create`.
@@ -987,7 +1031,7 @@ percorrer só o que a view mostra, `inspector.Rows`.
 começou e o caminho (`'Foo' has no field at path 'Moo.Nope'.`). Exceções das políticas e de
 atributos inválidos (por exemplo `[InspectorRange(10, 1)]`) sobem sem tratamento. Revisto pela
 premissa (seção 0; 3.11): uma exceção dentro da descoberta vira evento e fallback, e só o uso errado
-da API continua lançando; se o atributo inválido é uso errado ou ponto fraco está em aberto (P0.2).
+da API continua lançando; o atributo inválido é ponto fraco, e o `Create` segue sem ele (P0.2).
 
 **Verificado**
 
@@ -1009,5 +1053,5 @@ atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que prop
 ideia.
 
 **Próximos cortes**: itens de escolha, sanitizadores, visibilidade condicional, `ValueChanged`, nós
-manuais (botão; o campo só de exibição está em aberto) e `InspectorOptions` com o layout. O gancho
-de conversão saiu da lista (P2.9).
+manuais (botão e campo só de exibição) e `InspectorOptions` com o layout. O gancho de conversão saiu
+da lista (P2.9).

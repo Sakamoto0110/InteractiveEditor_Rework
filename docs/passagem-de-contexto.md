@@ -1,7 +1,7 @@
 # Passagem de contexto
 
-Para retomar o trabalho num contexto novo. Estado de 27 de setembro de 2026, na branch
-`rework-claude`, depois das respostas do Rafael às perguntas em aberto e do commit `b456398`. Ler
+Para retomar o trabalho num contexto novo. Estado de 29 de setembro de 2026, na branch
+`rework-claude`, depois da segunda rodada de respostas do Rafael (29/09) e do commit `b456398`. Ler
 isto inteiro antes de mexer em qualquer coisa.
 
 ---
@@ -47,9 +47,9 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: as 22 perguntas que continuam em aberto depois das respostas de
-  27/09, cada uma com exemplo e sugestão. Os números antigos valem, os novos seguem a numeração de
-  cada seção, e a seção 0 é a da premissa de erros. 6.2 e 6.3 ficaram para o final, a pedido dele.
+- `docs/perguntas-em-aberto.md`: o que continua em aberto depois das respostas de 29/09 (5.9, 5.10
+  e 6.7), cada uma com exemplo e sugestão, mais 6.2 e 6.3, que ficaram para o final, a pedido dele.
+  Os números antigos valem, e os novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa`: as partes de bind (seções 1 e
@@ -148,14 +148,11 @@ volta os dois alvos, no lugar de um alvo só.
 
 ## 7. Próximo passo
 
-1. O Rafael responde as perguntas de `perguntas-em-aberto.md` pelo número. As que destravam
-   código: 9.3 (composição), 3.2 e 3.6 (detecção da troca), 0.1 e 0.2 (premissa) e 4.5 e 4.6
-   (`ReadOnly`).
-2. Com as respostas, registrar as decisões nas notas (seção 0 e as seções citadas) e tirar as
-   respondidas do arquivo.
-3. Aplicar o que ele liberar. A composição (9.3) é a próxima peça natural, antes dos eventos e da
-   premissa de erros.
-4. 6.2 e 6.3 ficaram para o final: explicar o `VariablePool` e o `EditField()` (por que existiam,
-   como funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar
-   à sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+1. Em 29/09 o Rafael respondeu a segunda rodada e pediu para "matar a parte de código antes das
+   explicações do final": aplicar o que está decidido na seção 0 das notas, um conceito por commit,
+   começando pela composição (P9.3). O checklist (seção 6) diz o que já foi aplicado.
+2. Quando ele responder 5.9, 5.10 e 6.7, registrar nas notas e aplicar.
+3. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
+   funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
+   sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`.
