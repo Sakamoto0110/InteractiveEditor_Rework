@@ -15,13 +15,26 @@ public sealed class MemberNode : InspectorNode
 
     public override Type ValueType => Member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)Member).PropertyType;
 
+    // Every bound object takes the value.
     public override void SetValue(object? value)
     {
         // A group is edited through its fields; the object behind it is never replaced from here.
         if (IsGroup)
             throw new InvalidOperationException($"'{Name}' is a group; set its fields instead.");
 
-        WriteTo(Root.Instance, value);
+        // With nothing bound, the write fails like any other null owner.
+        if (Root.Instances.Count == 0)
+            WriteTo(null, value);
+
+        // A null owner in any of the objects stops the write before any of them changes.
+        foreach (var instance in Root.Instances)
+        {
+            if (Parent!.Resolve(instance) == null)
+                throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
+        }
+
+        foreach (var instance in Root.Instances)
+            WriteTo(instance, value);
     }
 
     internal override object? Resolve(object? instance)

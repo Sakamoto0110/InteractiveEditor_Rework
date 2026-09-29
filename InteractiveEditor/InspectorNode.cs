@@ -73,7 +73,14 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         }
     }
 
-    public object? GetValue() => Resolve(Root.Instance);
+    // The value in the first bound object, or null when nothing is bound.
+    public object? GetValue() => Resolve(Root.Instances.FirstOrDefault());
+
+    // One value per bound object, in the order they were bound.
+    public IReadOnlyList<object?> GetValues() => Root.Instances.Select(Resolve).ToList();
+
+    // True when the bound objects do not all hold the same value here.
+    public bool IsMixed => GetValues().Distinct().Skip(1).Any();
 
     public abstract void SetValue(object? value);
 

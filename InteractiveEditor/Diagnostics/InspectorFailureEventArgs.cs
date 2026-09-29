@@ -1,4 +1,6 @@
-﻿namespace InteractiveEditor.Diagnostics;
+﻿using InteractiveEditor.Events;
+
+namespace InteractiveEditor.Diagnostics;
 
 // A failure at a weak spot: what happened, why, what to do about it, and where.
 public sealed class InspectorFailureEventArgs(

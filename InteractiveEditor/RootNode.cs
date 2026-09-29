@@ -11,7 +11,8 @@ internal sealed class RootNode : InspectorNode
 
     public Type Target { get; }
 
-    public object? Instance { get; set; }
+    // The bound objects, in the order they were bound. GetValue shows the first one.
+    public List<object> Instances { get; } = [];
 
     public override Type ValueType => Target;
 

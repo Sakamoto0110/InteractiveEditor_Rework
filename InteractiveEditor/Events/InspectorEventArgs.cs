@@ -1,4 +1,4 @@
-﻿namespace InteractiveEditor.Diagnostics;
+﻿namespace InteractiveEditor.Events;
 
 public class InspectorEventArgs(Inspector inspector) : EventArgs
 {
