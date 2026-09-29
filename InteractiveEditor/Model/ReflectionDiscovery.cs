@@ -21,11 +21,8 @@ internal static class ReflectionDiscovery
 
         try
         {
-            foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var member in MembersOf(type, parent, inspector))
             {
-                if (member is not (FieldInfo or PropertyInfo))
-                    continue;
-
                 var node = new MemberNode(parent, member);
 
                 try
@@ -53,6 +50,27 @@ internal static class ReflectionDiscovery
         finally
         {
             ancestry.Remove(type);
+        }
+    }
+
+    // The public fields and properties, in the order they were declared. When that order cannot be
+    // read, the reflection's own order stays, and it is reported.
+    private static List<MemberInfo> MembersOf(Type type, InspectorNode parent, Inspector inspector)
+    {
+        var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance)
+            .Where(member => member is FieldInfo or PropertyInfo)
+            .ToList();
+
+        try
+        {
+            return DeclarationOrder.Sort(members);
+        }
+        catch (Exception e)
+        {
+            inspector.OnDiscoveryFailed(parent.Path, FailureSeverity.WorkedAround, e,
+                $"The members of '{type.Name}' keep the reflection's order: the declaration order could not be read.",
+                "Use [InspectorOrder] to put them in order.");
+            return members;
         }
     }
 
