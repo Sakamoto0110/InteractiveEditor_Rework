@@ -286,7 +286,9 @@ tinha deixado para ele confirmar.
 - **Passo de layout** (P7.5, 29/09): no núcleo, agnóstico. Ele devolve os retângulos de cada linha
   (a linha, o rótulo e o editor), e a view só os aplica; as opções de layout (altura da linha,
   espaçamento, recuo por nível) ficam no `InspectorOptions`. Assim ele é testado no Linux, sem
-  WinForms nem WPF.
+  WinForms nem WPF. Aplicado no commit `166ec4a` (3.4): `inspector.Layout(largura)`, com o
+  resultado em árvore, um painel por grupo, como a view vai percorrer (P7.3). O alinhamento dos
+  editores e os valores padrão ficaram para ele confirmar, na pergunta 7.6.
 
 ### Primitivos e PixieLib
 
@@ -755,6 +757,27 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   quando uma some e rola a lista movendo painel por painel. Decidido (P7.5): um passo de layout no
   núcleo, agnóstico, que produz os retângulos de cada linha (linha, rótulo, editor) a partir das
   opções, da profundidade, da visibilidade e do recolhimento. A view só aplica.
+- Aplicado no commit `166ec4a`: `inspector.Layout(largura)` devolve um `InspectorLayout`, com as
+  linhas de cima (`Rows`) e a área que elas ocupam (`Size`, a largura dada e a altura que precisam,
+  com o espaço em volta). Cada `LayoutRow` tem o nó, a profundidade e os retângulos da linha, do
+  rótulo e do editor, nas coordenadas de onde a linha está: a área do inspector para as de cima, o
+  painel do grupo para as de dentro. Um grupo tem o painel logo abaixo da linha dele, um recuo para
+  dentro, com as linhas dele, que começam do canto do painel; é o que a view vai percorrer, um
+  painel por grupo (P7.3). As linhas são as mesmas de `Rows`: sem as ignoradas e as escondidas, e
+  os irmãos por `Order`. O passo não lê os objetos ligados.
+- O rótulo de cada nível perde o recuo, então os editores ficam numa coluna só, com a mesma largura
+  em qualquer profundidade. Um cabeçalho (o grupo de um tipo, P5.9) ocupa a linha inteira com o
+  rótulo, e o editor fica sem largura no fim dela. O editor de lista tem uma linha para cada item
+  que mostra, até `ListRows`, e mais uma para os botões; o rótulo fica na primeira. Um grupo
+  recolhido mantém as linhas dele, e o painel fica sem altura, então as de baixo sobem; assim a
+  view monta os controles uma vez e só recolhe o painel. Numa área estreita demais, o rótulo fica
+  com o que houver, e o editor, sem largura.
+- As opções, no `InspectorOptions`, na unidade da view (pixel no WinForms, a unidade independente
+  do WPF): `RowHeight` (23, o `FieldHeight` do OverlayApplication), `RowSpacing` (2), `Indent`
+  (16), `LabelWidth` (120, no nível de cima), `LabelSpacing` (4), `Padding` (4 em volta) e
+  `ListRows` (5). Uma altura que não é maior que zero, ou um comprimento que não é um número de
+  zero para cima, lança. A largura é do `Layout`, e não uma opção, porque é a da view na hora.
+  Escolhas minhas, a confirmar (7.6): os editores numa coluna só e os valores padrão.
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
@@ -912,15 +935,15 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 459 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
-`RootNode` interno e expõe o `Create<T>()` com o modo (`Mode`) e o `Create()` sem tipo, os eventos
-e o relatório da criação, o `Id`, o `Name`, as opções (`Options`), os objetos ligados (`Instance` e
-`Instances`), o indexador e o seletor por expressão (`Node<T>`), a enumeração, as `Rows`, os nós
-postos à mão (`Add`, `AddButton` e `AddDisplay`), o `Refresh()`, o `Dispose`, o bind inteiro
-(`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos) e o controle do binder
-(`Apply()`, `Reload()`, `HasPendingValues` e os três métodos de força, com os eventos).
-Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
-desenho, com as decisões de 27/09 e 29/09 no fim.
+O `Inspector` tem 463 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+`RootNode` interno e expõe o `Create<T>()` com o modo (`Mode`) e o `Create()` sem tipo, os eventos e
+o relatório da criação, o `Id`, o `Name`, as opções (`Options`), os objetos ligados (`Instance` e
+`Instances`), o indexador e o seletor por expressão (`Node<T>`), a enumeração, as `Rows` e o
+`Layout(largura)` delas (commit `166ec4a`), os nós postos à mão (`Add`, `AddButton` e `AddDisplay`),
+o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`,
+com os eventos) e o controle do binder (`Apply()`, `Reload()`, `HasPendingValues` e os três métodos
+de força, com os eventos). Deveria ser uma das peças mais completas, porque é o que o host e a view
+usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
 
 **Buracos no que já existe** (testado)
 
@@ -1248,8 +1271,8 @@ Núcleo (portar a essência)
 
 Apresentação
 
-- [ ] Passo de layout agnóstico, no núcleo, que gera os retângulos de cada linha, com as opções de
-      layout no `InspectorOptions` (P7.5).
+- [x] Passo de layout agnóstico, no núcleo, que gera os retângulos de cada linha, com as opções de
+      layout no `InspectorOptions` (P7.5; commit `166ec4a`).
 - [ ] Views WinForms e WPF: editores por tipo, scrubbing, grupos recolhíveis, cabeçalho e scroll
       (sem paginação), percorrendo a árvore (P7.3).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
@@ -1289,8 +1312,10 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   do último. O TuxHost descarta cada inspector depois de imprimir, para poder ligar a flag.
 - `InspectorOptions` (`inspector.Options`): existe desde o commit `e136f82`, com a cultura
   (`Culture`; null é a atual, na hora de cada conversão), e desde o commit `18dc069` com o modo de
-  controle do binder (`BinderControl`, `Automatic` por padrão). As de layout (altura de campo,
-  espaçamento, recuo...) chegam com o passo de layout e sobrescrevem o global por inspector (P1.5).
+  controle do binder (`BinderControl`, `Automatic` por padrão). As de layout entraram com o passo
+  de layout, no commit `166ec4a` (3.4): `RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`,
+  `LabelSpacing`, `Padding` e `ListRows`. Ainda não há um padrão global de layout para elas
+  sobrescreverem (P1.5); os valores padrão ficam no próprio `InspectorOptions`.
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
   (`NumericRange`), `ScrubMultiplier`, `Expandable`, `Collapsed` e as listas `TextRules` e

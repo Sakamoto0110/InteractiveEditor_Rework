@@ -3,10 +3,10 @@
 Estado de 29 de setembro de 2026, depois das respostas de 27/09 e de 29/09. As respondidas saíram
 daqui e estão na seção 0 de `notas-modernizacao.md`, citadas com um `P` na frente do número
 (`P2.2`). Na última rodada de 29/09, as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5)
-foram aceitas. Ao aplicar a 5.10 (o seletor e o editor de lista), sobraram quatro escolhas que são
-suas: 4.7, 5.11, 5.12 e 5.13. Na 5.12 e na 5.13, o código já está como a sugestão; na 4.7 e na
-5.11, ele está como o "hoje" do exemplo, e a sugestão é mudar. As duas que você deixou para o final
-continuam no fim.
+foram aceitas. Ao aplicar a 5.10 (o seletor e o editor de lista) e a 7.5 (o passo de layout),
+sobraram cinco escolhas que são suas: 4.7, 5.11, 5.12, 5.13 e 7.6. Na 5.12, na 5.13 e na 7.6, o
+código já está como a sugestão; na 4.7 e na 5.11, ele está como o "hoje" do exemplo, e a sugestão
+é mudar. As duas que você deixou para o final continuam no fim.
 
 Os números antigos continuam valendo, e os novos seguem a numeração de cada seção, sem reaproveitar
 número. Os nomes que ainda não existem no código são só ilustração, e a sugestão, quando há, vem no
@@ -100,6 +100,32 @@ inspector.Options.BinderControl = BinderControlMode.InstanceToView;
 Sugestão: (a). A (b) deixa o editor de lista sem uso no modo manual, e a (c) pede um valor
 pendente para a coleção inteira, com as operações refeitas no `Apply()`. A edição de um item
 continua seguindo o controle do binder, pela linha do item.
+
+## 7. Views
+
+### 7.6 O passo de layout: a coluna dos editores e os valores padrão
+
+O passo de layout entrou no commit `166ec4a` (P7.5), com duas escolhas minhas. A primeira é a
+coluna dos editores:
+
+```text
+A            [ editor            ]      rótulo com 120 (LabelWidth)
+▾ Box
+    X        [ editor            ]      rótulo com 104 (120 menos um recuo)
+    ▾ Down
+        Z    [ editor            ]      rótulo com 88
+```
+
+- (a) os editores numa coluna só: o rótulo de cada nível perde o recuo, e o editor tem a mesma
+  largura em qualquer profundidade
+- (b) o rótulo sempre com 120, e o editor andando para a direita a cada nível
+
+A segunda são os valores padrão: `RowHeight` 23 (o `FieldHeight` do OverlayApplication),
+`RowSpacing` 2, `Indent` 16, `LabelWidth` 120, `LabelSpacing` 4, `Padding` 4 e `ListRows` 5 (as
+linhas de item que o editor de lista mostra antes de rolar).
+
+Sugestão: (a), como o PropertyGrid do WinForms, que alinha os valores numa coluna, e os valores
+padrão como estão, como ponto de partida; cada inspector muda os seus pelo `inspector.Options`.
 
 ---
 

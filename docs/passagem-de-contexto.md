@@ -87,12 +87,13 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 405 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 598 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
-  `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor,
-  ordem de declaração, nós manuais, modo manual, coleções e cores. Um segundo console testa a
-  assembly ausente. Os dois ficam no scratchpad da sessão e não passam para a próxima; a lista
-  acima serve de roteiro para refazer o que for preciso.
+  `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
+  expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
+  lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo e layout. Um
+  segundo console testa a assembly ausente. Os dois ficam no scratchpad da sessão e não passam para
+  a próxima; a lista acima serve de roteiro para refazer o que for preciso.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -193,20 +194,26 @@ Pegadinhas já vistas:
   de volta passa pelo `WriteTo` interno (commit `a2d8ffe`).
 - Primitivos em `InteractiveEditor/Primitives` (commits `2951ce3`, `3544a8e` e `f1de920`):
   `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxDock`, `PxColorArgb` e `PxColorHsl`,
-  sem conversão implícita entre as cores. Ainda sem uso na biblioteca.
+  sem conversão implícita entre as cores. O `PxRect`, o `PxSize` e o `PxPadding` são usados pelo
+  passo de layout.
+- Passo de layout (commit `166ec4a`): `inspector.Layout(largura)` devolve as linhas de cima e o
+  tamanho; cada `LayoutRow` tem os retângulos da linha, do rótulo e do editor nas coordenadas de
+  onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As
+  opções (`RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`, `LabelSpacing`, `Padding` e `ListRows`)
+  ficam no `InspectorOptions`. Não lê os objetos, e roda no Linux.
 - Um alvo só, `net10.0`: uma DLL, sem código de Windows na biblioteca.
 
 ## 6. O que falta
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar: o passo de layout no núcleo (P7.5). A árvore do membro escondido
-  com `new` (P5.9, commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem
-  tipo (P1.14, commit `4e6b3d0`), o seletor das coleções e o editor de lista (P5.10, commits
-  `eb58a3e`, `a5abdad` e `5395dea`) já entraram.
-- Esperando resposta: 4.7, 5.11, 5.12 e 5.13 (`perguntas-em-aberto.md`), as escolhas que sobraram
-  da 5.10. Na 5.12 e na 5.13, o código já está como a sugestão; na 4.7 (coleção só com getter) e na
-  5.11 (faixa e scrubbing do membro no item), aplicar a resposta.
+- O que foi decidido em 29/09 já entrou: a árvore do membro escondido com `new` (P5.9, commit
+  `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem tipo (P1.14, commit
+  `4e6b3d0`), o seletor das coleções e o editor de lista (P5.10, commits `eb58a3e`, `a5abdad` e
+  `5395dea`) e o passo de layout (P7.5, commit `166ec4a`).
+- Esperando resposta: 4.7, 5.11, 5.12, 5.13 e 7.6 (`perguntas-em-aberto.md`), as escolhas que
+  sobraram da 5.10 e da 7.5. Na 5.12, na 5.13 e na 7.6, o código já está como a sugestão; na 4.7
+  (coleção só com getter) e na 5.11 (faixa e scrubbing do membro no item), aplicar a resposta.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
@@ -215,7 +222,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. Aplicar o que foi decidido em 29/09 (seção 6 acima), cada conceito com o seu commit de notas.
+1. Aplicar as respostas da 4.7, da 5.11, da 5.12, da 5.13 e da 7.6 quando vierem, cada conceito com
+   o seu commit de notas.
 2. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
    funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
    sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
