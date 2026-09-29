@@ -4,12 +4,16 @@
 // resolves its owner from it.
 internal sealed class RootNode : InspectorNode
 {
-    internal RootNode(Type target) : base(null, target.Name)
+    internal RootNode(Type target, Inspector inspector) : base(null, target.Name)
     {
         Target = target;
+        Owner = inspector;
     }
 
     public Type Target { get; }
+
+    // The inspector that keeps this root; every node reaches it from here.
+    public Inspector Owner { get; }
 
     // The bound objects, in the order they were bound. GetValue shows the first one.
     public List<object> Instances { get; } = [];

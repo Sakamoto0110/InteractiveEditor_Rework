@@ -1,4 +1,6 @@
 ﻿using System.Reflection;
+using InteractiveEditor.Diagnostics;
+using InteractiveEditor.Events;
 
 namespace InteractiveEditor;
 
@@ -33,8 +35,21 @@ public sealed class MemberNode : InspectorNode
                 throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
         }
 
-        foreach (var instance in Root.Instances)
-            WriteTo(instance, value);
+        try
+        {
+            foreach (var instance in Root.Instances)
+                WriteTo(instance, value);
+
+            OnWritten();
+        }
+        catch (TargetInvocationException e)
+        {
+            // The setter itself threw: the objects keep whatever it left, and the row shows why.
+            OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"'{Path}' could not be written.",
+                "Check the member's setter.", onWrite: true);
+        }
+
+        Update(ValueSource.Write);
     }
 
     internal override object? Resolve(object? instance)
