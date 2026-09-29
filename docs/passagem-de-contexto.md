@@ -126,8 +126,11 @@ Pegadinhas já vistas:
 - `Dispose` (commit `ffee3a7`): o inspector e os nós são descartáveis, e o `GlobalOptions` fica
   travado enquanto houver um inspector vivo (mudar a flag lança). Programas de teste precisam
   descartar os inspectors antes de mexer na flag; o TuxHost faz isso no fim do `Print`.
-- Bind (commit `4dec125`): `Bind` lança se já houver objeto ligado ou se o objeto não servir para a
-  árvore (um tipo derivado serve); `Unbind()` solta; `Rebind` confere e depois desliga e liga.
+- Bind (commits `4dec125` e `c201877`): `Bind` lança se já houver objeto ligado ou se o objeto não
+  servir para a árvore (um tipo derivado serve); `AddBind` põe mais objetos, `RemoveBind` tira um,
+  `Unbind()` solta todos, e `Rebind` confere e depois desliga e liga. `GetValue` lê o primeiro
+  objeto, `GetValues` todos, `IsMixed` diz se diferem, e `SetValue` grava em todos. O inspector
+  avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa por um `Write` interno (commit `a2d8ffe`). Uma troca feita por fora
