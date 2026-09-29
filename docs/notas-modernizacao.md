@@ -36,11 +36,12 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Severidade** (P0.1, 29/09): recuperado (fallback automático, sem ambiguidade), contornado
   (fallback semiautomático: não caiu, mas pode não ser o certo), crítico (sem resolução: o nó que
   falhou sai, e o resto continua) e fatal (o inspector não tem como continuar). Só o fatal sobe
-  para quem chamou.
+  para quem chamou. Aplicado no `Create` no commit `1535874` (`FailureSeverity`, 3.11).
 - **Lançar ou avisar** (P0.2): o uso errado da API por quem chama lança na hora, sem mudar o estado
   do inspector: ligar duas vezes, ligar outro tipo, gravar num grupo ou num ramo comprometido, um
   caminho desconhecido, mudar uma opção global com um inspector vivo. Um ponto fraco avisa por
-  evento e segue com um fallback. O atributo inválido é ponto fraco: o `Create` segue sem ele.
+  evento e segue com um fallback. O atributo inválido é ponto fraco: o `Create` segue sem ele
+  (commit `1535874`).
 
 ### Estrutura
 
@@ -83,7 +84,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Eventos** (P1.4), sem economia: no inspector, a criação, a descoberta e o ciclo do bind; nos
   nós, `ValueChanged` (no lugar do `ValueApplied`), o objeto do grupo trocado por fora e a falha de
   bind. A lista está na 3.10, e os nomes são exemplos. Os da criação são estáticos, para dar para
-  assinar antes do `Create`, e o resultado da criação fica guardado no inspector (P1.9). O
+  assinar antes do `Create`, e o resultado da criação fica guardado no inspector (P1.9; aplicado no
+  commit `1535874`: `DiscoveryFinished`, `DiscoveryFailed`, `Created` e `inspector.Report`). O
   `ValueChanged` vale nos dois sentidos e diz de onde veio a mudança, e os nomes seguem a convenção
   do .NET: o evento é `Created`, e `OnCreated` é o método que o dispara (P1.10).
 - **Descartável** (P1.5): o `Inspector` e os nós implementam `IDisposable`, já pensando em campos de
@@ -740,19 +742,20 @@ com as decisões de 27/09 e 29/09 no fim.
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
   injetado está em aberto (P6.7). A visibilidade condicional ficou para o final (P6.2).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
-  pelo próprio inspector. Os nomes são os de exemplo da resposta:
+  pelo próprio inspector. Os nomes seguem a convenção do .NET (P1.10): o evento sem o `On`, e o
+  `On` no método que o dispara. Os da criação são estáticos (P1.9):
 
-  | Onde | Evento | Quando |
-  |---|---|---|
-  | inspector | `OnCreated` | a criação terminou; args com a contagem de erros (abaixo) |
-  | inspector | `OnDiscoveryFinished` | a descoberta terminou |
-  | inspector | `OnDiscoveryFailure` | uma exceção dentro da descoberta |
-  | inspector | `OnBindRegistered` | um ou mais objetos entraram no bind |
-  | inspector | `OnBindRemoved` | um objeto saiu do bind |
-  | inspector | `OnUnbound` | o último objeto saiu |
-  | nó | `ValueChanged` | um valor mudou (no lugar do `ValueApplied`) |
-  | nó | objeto trocado | o objeto do grupo foi trocado por fora |
-  | nó | falha de bind | com mensagem, motivo, sugestão e caminho |
+  | Onde | Evento | Quando | Situação |
+  |---|---|---|---|
+  | inspector (estático) | `Created` | a criação terminou; args com a contagem de erros (abaixo) | commit `1535874` |
+  | inspector (estático) | `DiscoveryFinished` | a descoberta (a árvore) terminou | commit `1535874` |
+  | inspector (estático) | `DiscoveryFailed` | uma falha dentro do `Create`, com a severidade | commit `1535874` |
+  | inspector | `BindRegistered` | um ou mais objetos entraram no bind | a fazer |
+  | inspector | `BindRemoved` | um objeto saiu do bind | a fazer |
+  | inspector | `Unbound` | o último objeto saiu | a fazer |
+  | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | a fazer |
+  | nó | objeto trocado | o objeto do grupo foi trocado por fora | a fazer |
+  | nó | falha de bind | com mensagem, motivo, sugestão e caminho | a fazer |
 
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
   caíram em fallback automático) e `CriticalErrorCount` (os graves, sem resolução, que não
@@ -796,6 +799,18 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   que nada caia, e o evento dá a quem assina a chance de corrigir o estado no meio do caminho.
   Os args levam um `Handled`, como no WinForms; quem corrige marca, e o fallback só vale quando
   ninguém marcou. É daí que sai a contagem dos que caíram em fallback.
+- **Aplicado no `Create`** (commit `1535874`), com os tipos em `InteractiveEditor.Diagnostics`, um por
+  arquivo: `FailureSeverity`, `InspectorEventArgs`, `InspectorFailureEventArgs` (caminho, exceção,
+  mensagem, motivo, sugestão e `Handled`), `InspectorCreatedEventArgs` (as três contagens) e
+  `InspectorReport`, que fica em `inspector.Report`. Um membro cuja assinatura não dá para ler (uma
+  assembly que ele usa está ausente) sai da árvore, como crítico; o `GetIndexParameters()` também
+  lê a assinatura, então ele fica dentro da mesma proteção. Um atributo que não dá para ler ou
+  aplicar é pulado, e os outros do mesmo membro valem, como contornado. Os padrões da reflection
+  que falham deixam o nó com o nome como rótulo, também contornado. Só o fatal sobe, depois de
+  soltar a trava das opções globais; uma exceção de quem assina o evento também sobe por ele.
+  Testado com uma biblioteca cuja dependência é apagada antes de rodar.
+- **Falta**: a mesma proteção no binding (getters e setters que lançam, a leitura do objeto ligado)
+  e nas views, com os eventos do bind e dos nós.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
 - **O que continua lançando** (decidido, P0.2): o uso errado da API por quem chama (ligar duas
@@ -897,8 +912,10 @@ Núcleo (portar a essência)
 - [x] Um membro, um nó: a descoberta monta a árvore direto; saem `FieldDescriptor`, `Fieldset`, o
       `Inspector` aninhado e a lista plana, e as políticas perdem a interface e as instâncias
       (commits `5560223` e `6622a41`).
-- [ ] Premissa de erros: captura nos pontos fracos, fallbacks automático e semiautomático e eventos
-      com severidade (3.11; P0.1, P0.2).
+- [x] Premissa de erros no `Create`: severidade, falhas por evento com `Handled`, relatório no
+      inspector, membro ilegível fora da árvore e atributo inválido pulado (3.11; P0.1, P0.2; commit
+      `1535874`).
+- [ ] Premissa de erros no binding e nas views (3.11).
 - [x] Composição e tipos de nó: o `Inspector` guarda a raiz, `InspectorNode` abstrato com o getter
       comum e o setter abstrato, `MemberNode` e `RootNode`, e um id por inspector (P1.1, P1.2, P1.9;
       P9.3; commit `0bc2f9d`).
@@ -940,8 +957,9 @@ Núcleo (portar a essência)
       P2.13).
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
       dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
-- [ ] Eventos (P1.4) com payload de falha tipado: os da criação estáticos, o resultado dela guardado
-      no inspector, um id por inspector (P1.9) e o `ValueChanged` com a origem (P1.10).
+- [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
+      `1535874`).
+- [ ] Eventos do bind e dos nós, com o `ValueChanged` dizendo a origem (P1.4, P1.10).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
@@ -1044,6 +1062,7 @@ começou e o caminho (`'Foo' has no field at path 'Moo.Nope'.`). Exceções das 
 atributos inválidos (por exemplo `[InspectorRange(10, 1)]`) sobem sem tratamento. Revisto pela
 premissa (seção 0; 3.11): uma exceção dentro da descoberta vira evento e fallback, e só o uso errado
 da API continua lançando; o atributo inválido é ponto fraco, e o `Create` segue sem ele (P0.2).
+Aplicado no commit `1535874`.
 
 **Verificado**
 
