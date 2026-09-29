@@ -134,6 +134,9 @@ Pegadinhas já vistas:
 - Valores (commit `eb497c6`): cada nó guarda a última leitura e dispara `ValueChanged` com a origem
   quando ela muda; `inspector.Refresh()` relê tudo. Getter ou setter que lança vira `Failure` e
   `BindFailed` no nó, sem exceção; o uso errado continua lançando.
+- Troca por fora (commit `55e7173`): um grupo de tipo class cujo objeto foi trocado depois do bind
+  dispara `ObjectReplaced`; sem aceite, o ramo fica comprometido e lança na leitura e na gravação
+  até um `Rebind`. Struct fica de fora.
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa por um `Write` interno (commit `a2d8ffe`). Uma troca feita por fora
