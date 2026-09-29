@@ -226,7 +226,9 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Coleções** (P5.2; relatório, seção 2): em vez dos membros do tipo da coleção (`Capacity`,
   `Count`, `Length`...), o conteúdo. O editor padrão é um seletor, que vira combo box, e vale
   tentar um editor de lista. Pode precisar de configuração a mais; o que o seletor faz com o item
-  escolhido está em aberto (P5.10).
+  escolhido está em aberto (P5.10). A primeira parte entrou no commit `1b9fcf6`: a descoberta não
+  abre mais uma coleção (qualquer coisa enumerável que não seja string), o `Add` recusa os membros
+  dela, e ela fica numa linha `Display` até o seletor existir.
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
@@ -238,7 +240,13 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   que ser escolhido explicitamente (expandir em campos int, texto hex ou um seletor aberto por um
   botão). Também é um motivo para usar os primitivos próprios, sem o excesso de propriedades do
   `System.Drawing.Color`. Sem escolha, o membro aparece numa linha `Display`, só leitura, até
-  alguém escolher, com um aviso de diagnóstico (P5.8).
+  alguém escolher, com um aviso de diagnóstico (P5.8). Aplicado no commit `7482c5f` para o
+  `System.Drawing.Color`, o `PxColorArgb` e o `PxColorHsl`: sem escolha, a linha fica fechada, com
+  os campos ainda na árvore, e o `Create` avisa cada um como contornado. A escolha é o
+  `[InspectorEditor]` ou o `[InspectorExpandable]` no membro, o `Editor` ou o `Expandable` no nó,
+  ou quem assina o `DiscoveryFailed`, no meio do `Create`, marcando o aviso como tratado. Escolha
+  minha, a confirmar: o "só leitura" é o editor `Display`, que a view não edita, e o nó não fica
+  `ReadOnly`, para que expandir nos campos funcione sem mais um passo.
 - **Cache** (P5.6): por enquanto, só a lista de membros por tipo; o desenho do cache fica para uma
   sessão própria.
 
@@ -503,12 +511,12 @@ component["ScaleX"].ScrubMultiplier = 0.01;
 component["Opacity"].Editor = EditorKind.Slider;
 component["Opacity"].Range = new NumericRange(0, 255, 5);
 component["FillColor"].Label = "Color1";
+component["FillColor"].Editor = EditorKind.Color;   // sem escolha, Display (commit 7482c5f)
 
 component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());   // commit 0c97638
 component.AddDisplay("Layer", () => tree.SelectedIndex);
 
 // cortes seguintes:
-// cor: o editor é escolhido explicitamente (P5.5); hoje System.Drawing.Color vira um grupo
 // component["Text"].VisibleWhen = c => ((ComponentPreset)c).IsText;   // sucessor do VariablePool
 
 component.Rebind(selected);  // a cada seleção: Unbind + Bind (commit 4dec125)
@@ -1128,9 +1136,11 @@ Núcleo (portar a essência)
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [x] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1; commit
       `6c17a15`).
+- [x] Coleções sem os membros do tipo delas (`Capacity`, `Count`, `Length`...) (P5.2; commit
+      `1b9fcf6`).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
-- [ ] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
-      `Display` com aviso (P5.5; P5.8).
+- [x] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
+      `Display` com aviso (P5.5; P5.8; commit `7482c5f`).
 
 Apresentação
 
@@ -1189,9 +1199,12 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
    `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
    público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
    flag global exija o atributo. Um setter não público esconde o membro (relatório, 3.6; P4.5;
-   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta.
+   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta. Uma coleção não abre (P5.2;
+   commit `1b9fcf6`), e um tipo com mais de um editor fica fechado até a escolha (P5.5; commit
+   `7482c5f`).
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
-   no membro ou no tipo.
+   no membro ou no tipo. Para um tipo com mais de um editor, o `[InspectorEditor]` e o
+   `[InspectorExpandable]` são a escolha; sem nenhum dos dois, o `Create` avisa (P5.8).
 3. Manual: o que for definido no inspector depois do `Create`.
 
 `Ignored`, `Visible`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o
