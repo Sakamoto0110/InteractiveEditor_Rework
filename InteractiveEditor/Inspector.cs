@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Linq.Expressions;
+using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
@@ -18,11 +19,11 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private readonly InstanceWatcher Watcher;
     private bool Disposed;
 
-    private Inspector(Type target, TypeBinderMode mode)
+    private Inspector(Type target, TypeBinderMode mode, bool typed)
     {
         Id = Interlocked.Increment(ref LastId);
         Mode = mode;
-        Root = new RootNode(target, this);
+        Root = new RootNode(target, this, typed);
         Watcher = new InstanceWatcher(Root);
     }
 
@@ -75,7 +76,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         if (!Enum.IsDefined(mode))
             throw new ArgumentOutOfRangeException(nameof(mode), mode, "Not a TypeBinderMode.");
 
-        var inspector = new Inspector(typeof(T), mode);
+        var inspector = new Inspector(typeof(T), mode, typed: true);
 
         // The global options are read below, so they are frozen from here until the Dispose.
         GlobalOptions.Lock(inspector.Id);
@@ -106,6 +107,18 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         return inspector;
     }
 
+    // An inspector with no type (P1.12, P1.14): manual, and its members, added by name, are only found
+    // at the bind. The first bind fixes the type, as in a typed one, until the Unbind() lets the next
+    // bind choose again; a name the object does not have throws there.
+    public static Inspector Create()
+    {
+        var inspector = new Inspector(typeof(object), TypeBinderMode.Manual, typed: false);
+        GlobalOptions.Lock(inspector.Id);
+        OnDiscoveryFinished(inspector);
+        OnCreated(inspector);
+        return inspector;
+    }
+
     // A path from the root ("Moo.MooY"); chaining works too: inspector["Moo"]["MooY"].
     public InspectorNode this[string path] => Root[path];
 
@@ -132,16 +145,14 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         if (Root.Instances.Count > 0)
             throw new InvalidOperationException($"'{Name}' is already bound; call Unbind(), Rebind() or AddBind().");
 
-        CheckBindable([instance], Root.Instances);
-        Register([instance]);
+        Register([instance], CheckBindable([instance], Root.Instances));
     }
 
     // Puts more objects in the bind (multi-bind). With nothing bound, it binds them.
     public void AddBind(params object[] instances)
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instances, Root.Instances);
-        Register(instances);
+        Register(instances, CheckBindable(instances, Root.Instances));
     }
 
     // Takes one object out of the bind; taking the last one out is the same as Unbind().
@@ -180,10 +191,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         // Checked before unbinding, so a refused instance leaves the current ones bound; the current
         // ones are about to leave, so binding one of them again is fine.
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instances, []);
+        var found = CheckBindable(instances, []);
 
         Unbind();
-        Register(instances);
+        Register(instances, found);
     }
 
     // Reads every node again and raises ValueChanged (Refresh) where something changed since the last
@@ -319,8 +330,17 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         Created?.Invoke(inspector, new InspectorCreatedEventArgs(inspector));
     }
 
-    private void Register(object[] instances)
+    // The members an inspector with no type found for the new objects are taken before they come in.
+    private void Register(object[] instances, Found? found)
     {
+        if (found is { } members)
+        {
+            Root.Target = members.Target;
+
+            foreach (var (node, member) in members.Members)
+                node.Take(member);
+        }
+
         Root.Instances.AddRange(instances);
         ResetNodes();
         OnBindRegistered(instances);
@@ -358,8 +378,9 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
-    // and an object is bound once.
-    private void CheckBindable(object[] instances, IEnumerable<object> alreadyBound)
+    // and an object is bound once. Without a type, a bind into nothing fixes the type of its first
+    // object and finds every member by name in it, before anything changes (P1.14).
+    private Found? CheckBindable(object[] instances, IEnumerable<object> alreadyBound)
     {
         if (instances == null)
             throw new ArgumentNullException(nameof(instances));
@@ -368,14 +389,43 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         {
             if (instance == null)
                 throw new ArgumentNullException(nameof(instance));
+        }
 
-            if (!Root.Target.IsInstanceOfType(instance))
+        var fixing = !Root.Typed && !alreadyBound.Any() && instances.Length > 0;
+        var target = fixing ? instances[0].GetType() : Root.Target;
+
+        foreach (var instance in instances)
+        {
+            if (!target.IsInstanceOfType(instance))
                 throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
 
             if (alreadyBound.Concat(instances).Count(bound => ReferenceEquals(bound, instance)) > 1)
                 throw new ArgumentException($"'{Name}' already has this object bound.", nameof(instance));
         }
+
+        return fixing ? new Found(target, FindMembers(target)) : null;
     }
+
+    // Every member added by name, found in the type from the top down, so a member is found in the type
+    // of the one above it. A name the type does not have throws, and nothing was taken yet.
+    private Dictionary<MemberNode, MemberInfo> FindMembers(Type target)
+    {
+        var found = new Dictionary<MemberNode, MemberInfo>();
+
+        foreach (var node in Root.OfType<MemberNode>().Where(n => n.ByName))
+        {
+            var owner = node.Parent is MemberNode above && found.TryGetValue(above, out var member)
+                ? MemberNode.TypeOf(member)
+                : target;
+
+            found[node] = ReflectionDiscovery.MemberNamed(owner, node.Name, node.Parent!.Name);
+        }
+
+        return found;
+    }
+
+    // What a bind into an inspector with no type fixes: the type, and the member of each node.
+    private sealed record Found(Type Target, Dictionary<MemberNode, MemberInfo> Members);
 
     private void OnBindRegistered(IReadOnlyList<object> instances)
     {

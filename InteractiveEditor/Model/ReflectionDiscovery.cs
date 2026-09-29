@@ -124,6 +124,22 @@ internal static class ReflectionDiscovery
         return type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type);
     }
 
+    // The member a node added by name stands for (P1.12, P1.14). A type with no members to add throws,
+    // as the discovery never opens one, and so does a name the type does not have.
+    internal static MemberInfo MemberNamed(Type type, string name, string holder)
+    {
+        type = Nullable.GetUnderlyingType(type) ?? type;
+
+        if (IsTerminal(type))
+            throw new InvalidOperationException($"'{holder}' holds a {type.Name}, which has no members to add.");
+
+        if (IsCollection(type))
+            throw new InvalidOperationException($"'{holder}' holds a collection, which shows its content, not its members.");
+
+        return FindMember(type, name)
+            ?? throw new ArgumentException($"'{type.Name}' has no public field or property named '{name}'.", nameof(name));
+    }
+
     internal static bool IsTerminal(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
