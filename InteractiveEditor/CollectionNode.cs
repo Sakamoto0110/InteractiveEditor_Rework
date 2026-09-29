@@ -39,8 +39,7 @@ public sealed class CollectionNode : MemberNode
 
     // The place chosen in the collection, which the row of the item reads in every bound object; -1 for
     // none. Choosing drops what the rows below held and reads them again; a place past the items the
-    // selector lists throws. It also follows the items: a collection that gets items after having none
-    // starts at the first, and a place past the end goes to the last item.
+    // selector lists throws. It also follows the items (ContentChanged).
     public int SelectedIndex
     {
         get => Chosen;
@@ -122,10 +121,12 @@ public sealed class CollectionNode : MemberNode
             WriteTo(instance, collection);
     }
 
-    // The items are read along with the node, and a change in them is a change of the node. When the
-    // item chosen changes with them (another place, or another object in the same place), the rows
-    // below start over from it. A struct has no identity: a new value in the chosen place is the same
-    // item, as when one of its fields is written.
+    // The items are read along with the node, and a change in them is a change of the node. The choice
+    // follows the item chosen: an object that went to another place takes the choice with it, and a
+    // struct, a null or an object that left keeps only the place, which goes to the last item when it
+    // is past the end. A collection that gets items after having none starts at the first. When the
+    // item chosen is another one, the rows below start over from it; a struct has no identity, so a new
+    // value in its place is the same item, as when one of its fields is written.
     private protected override bool ContentChanged(ValueSource? source)
     {
         var items = ReadItems();
@@ -135,12 +136,23 @@ public sealed class CollectionNode : MemberNode
 
         var before = Chosen >= 0 ? KnownItems[Chosen] : null;
         var index = KnownItems.Length == 0 ? 0 : Math.Min(Chosen, items.Length - 1);
-        var moved = index != Chosen;
+
+        if (Chosen >= 0 && before != null && !ItemType.IsValueType && !(index >= 0 && ReferenceEquals(items[index], before)))
+        {
+            var found = Array.FindIndex(items, item => ReferenceEquals(item, before));
+
+            if (found >= 0)
+                index = found;
+        }
+
+        var another = Chosen < 0 || index < 0
+            ? index != Chosen
+            : ItemType.IsValueType ? index != Chosen : !ReferenceEquals(before, items[index]);
 
         KnownItems = items;
         Chosen = index;
 
-        if (moved || index >= 0 && !ItemType.IsValueType && !ReferenceEquals(before, items[index]))
+        if (another)
             ResetItem(source == null ? null : ValueSource.Selection);
 
         return true;
