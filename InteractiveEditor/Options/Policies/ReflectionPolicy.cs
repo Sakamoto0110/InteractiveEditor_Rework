@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
+using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Model;
 
 namespace InteractiveEditor.Options.Policies;
@@ -13,12 +14,23 @@ internal static class ReflectionPolicy
         typeof(float), typeof(double), typeof(decimal),
     ];
 
-    public static void Apply(MemberNode node)
+    public static void Apply(MemberNode node, Inspector inspector)
     {
-        node.Label = node.Member.Name;
-        node.Editor = EditorFor(node.ValueType);
-        node.ReadOnly = !IsPubliclyWritable(node.Member);
-        node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute;
+        try
+        {
+            node.Label = node.Member.Name;
+            node.Editor = EditorFor(node.ValueType);
+            node.ReadOnly = !IsPubliclyWritable(node.Member);
+            node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute;
+        }
+        catch (Exception e)
+        {
+            // The node stays, with its name as the label and the defaults for the rest.
+            node.Label = node.Name;
+            inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround, e,
+                $"The defaults of '{node.Path}' could not be read from the member.",
+                "Set the options of the node in the inspector after the Create.");
+        }
     }
 
     private static EditorKind EditorFor(Type type)

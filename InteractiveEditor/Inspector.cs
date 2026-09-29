@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Model;
 using InteractiveEditor.Options;
 using InteractiveEditor.Options.Policies;
@@ -20,14 +21,25 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         Root = new RootNode(target);
     }
 
+    // Raised inside the Create, before anyone can subscribe to the new inspector, so they are
+    // static; the inspector is the sender and comes in the args.
+    public static event EventHandler<InspectorEventArgs>? DiscoveryFinished;
+    public static event EventHandler<InspectorFailureEventArgs>? DiscoveryFailed;
+    public static event EventHandler<InspectorCreatedEventArgs>? Created;
+
     // Tells inspectors apart, so an event can be traced back to the one that raised it.
     public int Id { get; }
+
+    // What went wrong during the Create, for whoever checks after it.
+    public InspectorReport Report { get; } = new();
 
     public string Name => Root.Name;
 
     // The bound object, or null. A struct at the root is the inspector's own copy, read back here.
     public object? Instance => Root.Instance;
 
+    // A failure inside the Create does not stop it: the failed piece falls back or is left out, and
+    // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller.
     public static Inspector Create<T>()
     {
         var inspector = new Inspector(typeof(T));
@@ -37,21 +49,25 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
         try
         {
-            ReflectionDiscovery.AddMembers(inspector.Root, typeof(T));
+            ReflectionDiscovery.AddMembers(inspector.Root, typeof(T), inspector);
+            OnDiscoveryFinished(inspector);
 
             // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
             foreach (var node in inspector.Root.Descendants().OfType<MemberNode>())
             {
-                ReflectionPolicy.Apply(node);
-                AttributePolicy.Apply(node);
+                ReflectionPolicy.Apply(node, inspector);
+                AttributePolicy.Apply(node, inspector);
             }
         }
-        catch
+        catch (Exception e)
         {
             GlobalOptions.Unlock(inspector.Id);
+            inspector.OnDiscoveryFailed(string.Empty, FailureSeverity.Fatal, e,
+                $"'{inspector.Name}' could not be created.");
             throw;
         }
 
+        OnCreated(inspector);
         return inspector;
     }
 
@@ -116,6 +132,26 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         {
             GlobalOptions.Unlock(Id);
         }
+    }
+
+    // Keeps a failure of the Create in the report and raises DiscoveryFailed with it.
+    internal InspectorFailureEventArgs OnDiscoveryFailed(string path, FailureSeverity severity, Exception exception,
+        string message, string? suggestion = null)
+    {
+        var failure = new InspectorFailureEventArgs(this, path, severity, exception, message, suggestion);
+        Report.Add(failure);
+        DiscoveryFailed?.Invoke(this, failure);
+        return failure;
+    }
+
+    private static void OnDiscoveryFinished(Inspector inspector)
+    {
+        DiscoveryFinished?.Invoke(inspector, new InspectorEventArgs(inspector));
+    }
+
+    private static void OnCreated(Inspector inspector)
+    {
+        Created?.Invoke(inspector, new InspectorCreatedEventArgs(inspector));
     }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
