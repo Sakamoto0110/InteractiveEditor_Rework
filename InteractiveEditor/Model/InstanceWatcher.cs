@@ -81,7 +81,7 @@ internal sealed class InstanceWatcher(RootNode root)
                     groupChanged = true;
                 }
 
-                node.Update(ValueSource.Instance);
+                node.UpdateAffected(ValueSource.Instance);
             }
         }
 
