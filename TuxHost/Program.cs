@@ -29,9 +29,11 @@ internal class Program
 
         Console.WriteLine("== Foo: unknown path");
 
+        using var unknown = Inspector.Create<Foo>();
+
         try
         {
-            Inspector.Create<Foo>()["Moo.Nope"].Label = "?";
+            unknown["Moo.Nope"].Label = "?";
         }
         catch (KeyNotFoundException e)
         {
@@ -54,6 +56,9 @@ internal class Program
         }
 
         Console.WriteLine();
+
+        // Print owns the inspector: disposing it releases its lock on the global options.
+        inspector.Dispose();
     }
 
     static string Describe(InspectorNode node)

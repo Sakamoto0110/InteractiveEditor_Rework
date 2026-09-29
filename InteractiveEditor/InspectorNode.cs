@@ -5,7 +5,7 @@ namespace InteractiveEditor;
 
 // A node of the tree. The getter is the same for every kind of node, and each kind decides what
 // writing means: a member writes, the root refuses.
-public abstract class InspectorNode : IEnumerable<InspectorNode>
+public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 {
     private readonly List<InspectorNode> Children = [];
 
@@ -91,6 +91,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    // Nodes will hold resources later (images, files); disposing a node disposes its branch.
+    public virtual void Dispose()
+    {
+        foreach (var child in Children)
+            child.Dispose();
     }
 
     // This node's value inside a bound object; null when the object, or anything above the node, is null.
