@@ -158,6 +158,9 @@ Pegadinhas já vistas:
 - `TypeBinderMode` (commit `f12ebf9`): `Create<T>(TypeBinderMode.Manual)` começa sem membros, e o
   `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo foi
   decidido na P1.14.
+- Filtro por nome (commit `f2ec855`): `GlobalOptions.Hide<T>(nomes)` antes do `Create`, travado
+  como as outras opções globais; conta como um `[InspectorIgnore]`, e os testes precisam chamar
+  `Unhide<T>()` no fim, porque o registro é global.
 - Descoberta: ordem de declaração (commit `6c17a15`), coleções sem os membros do tipo delas
   (commit `1b9fcf6`) e cor numa linha `Display` fechada até escolherem o editor, com um aviso
   (commit `7482c5f`). O seletor por expressão é o `Node<T>` (commit `e06b6f7`).
@@ -181,10 +184,10 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar, um conceito por commit: o filtro por nome com
-  `GlobalOptions.Hide<T>` (P6.7), o inspector sem tipo (P1.14), o seletor das coleções e o editor
-  de lista (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new`
-  (P5.9) já entrou (commit `c9868a9`).
+- Decidido em 29/09, a aplicar, um conceito por commit: o inspector sem tipo (P1.14), o seletor
+  das coleções e o editor de lista (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro
+  escondido com `new` (P5.9, commit `c9868a9`) e o filtro por nome (P6.7, commit `f2ec855`) já
+  entraram.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a

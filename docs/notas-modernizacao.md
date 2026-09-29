@@ -152,7 +152,8 @@ tinha deixado para ele confirmar.
   atributos. Vale por tipo, no `Create` (P6.6). É injetado de fora da classe, por tipo, antes do
   `Create`, e fica travado como as opções globais (P6.7): `GlobalOptions.Hide<Rectangle>("Text")`.
   Serve também para tipos de terceiros, que não dá para anotar, e a camada manual ainda traz o
-  membro de volta (`Ignored = false`).
+  membro de volta (`Ignored = false`). Aplicado no commit `f2ec855`: vale para o tipo e os
+  derivados, em qualquer ponto da árvore, e `Unhide<T>` tira nomes.
 - **Expandir com a flag global** (P4.3): a permissão vale só para o membro ou tipo marcado, e os
   níveis de baixo continuam fechados, porque a flag existe justamente para não propagar. Um
   atributo que propague fica como ideia (seção 7).
@@ -462,7 +463,12 @@ no `Create`; uma camada nova é mais uma classe e uma linha ali. Os filtros por 
 filtro por instância fica com a visibilidade condicional. Um filtro por nome também pode ser
 injetado, resolvido com a mesma precedência dos atributos (P6.4). Ele vale por tipo, no `Create`
 (P6.6), e é injetado de fora da classe, antes do `Create`: `GlobalOptions.Hide<T>(nomes)`, travado
-como as opções globais (P6.7).
+como as opções globais (P6.7). Aplicado no commit `f2ec855`: cada nome conta como um
+`[InspectorIgnore]` no membro, logo depois do próprio atributo, então nem um membro que o
+`[InspectorReadOnly]` trouxe de volta aparece; só a camada manual o traz (`Ignored = false`), e um
+membro posto à mão (`Add`) aparece de qualquer jeito. O registro vale para o tipo e os derivados,
+em qualquer ponto da árvore, e um nome que o tipo não tem lança na hora; `Unhide<T>(nomes)` tira
+nomes, ou todos, sem nenhum.
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
 DataAnnotations; aplicados no commit `5319247`)
@@ -1150,8 +1156,11 @@ Núcleo (portar a essência)
 - [x] Sanitizadores tipados (sucessores das `CapFunction`), por campo, em lista ordenada (P2.9;
       P2.13; commit `e136f82`).
 - [x] Seletor por expressão ao lado do caminho em string (P6.5; commit `e06b6f7`).
-- [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
-      dos atributos, por tipo, registrado com `GlobalOptions.Hide<T>` (P6.4; P6.6; P6.7).
+- [x] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
+      dos atributos, por tipo, registrado com `GlobalOptions.Hide<T>` (P6.4; P6.6; P6.7; commit
+      `f2ec855`). A lista negra é o `Hide<T>`; a lista branca é o modo manual, com o `Add`
+      (commit `f12ebf9`); e o `TypeSafeLock` é o `[InspectorExpandable]` com a flag global (commit
+      `5319247`).
 - [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
       `1535874`).
 - [x] Eventos do bind no inspector: `BindRegistered`, `BindRemoved` e `Unbound` (P1.4; commit
@@ -1204,8 +1213,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 
 **Três camadas de opções**
 
-- `GlobalOptions` (estática): valem para o processo inteiro. Por enquanto só
-  `RequireExpandableAttribute`. Decidido (P1.5, P4.4) e aplicado no commit `ffee3a7`: o `Create`
+- `GlobalOptions` (estática): valem para o processo inteiro: `RequireExpandableAttribute` e, desde o
+  commit `f2ec855`, o filtro por nome (`Hide<T>` e `Unhide<T>`, P6.7). Decidido (P1.5, P4.4) e
+  aplicado no commit `ffee3a7`: o `Create`
   trava as opções globais, e mudar uma delas com um inspector vivo lança; a trava cai no `Dispose`
   do último. O TuxHost descarta cada inspector depois de imprimir, para poder ligar a flag.
 - `InspectorOptions` (`inspector.Options`): existe desde o commit `e136f82`, com a cultura
@@ -1230,7 +1240,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
    `7482c5f`).
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
    no membro ou no tipo. Para um tipo com mais de um editor, o `[InspectorEditor]` e o
-   `[InspectorExpandable]` são a escolha; sem nenhum dos dois, o `Create` avisa (P5.8).
+   `[InspectorExpandable]` são a escolha; sem nenhum dos dois, o `Create` avisa (P5.8). O filtro por
+   nome do `GlobalOptions.Hide<T>` entra aqui, logo depois do `[InspectorIgnore]` (P6.7; commit
+   `f2ec855`).
 3. Manual: o que for definido no inspector depois do `Create`.
 
 `Ignored`, `Visible`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o
