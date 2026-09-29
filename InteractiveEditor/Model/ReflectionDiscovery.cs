@@ -37,7 +37,7 @@ internal static class ReflectionDiscovery
                     else
                         _ = node.ValueType;
 
-                    parent.Add(node);
+                    parent.AddChild(node);
                 }
                 catch (Exception e)
                 {

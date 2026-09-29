@@ -173,6 +173,18 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     public abstract void SetValue(object? value);
 
+    // A button added by hand, with the action to run when it is pressed (P1.6).
+    public ButtonNode AddButton(string name, string text, Action press)
+    {
+        return Adopt(new ButtonNode(this, name, text, press));
+    }
+
+    // A value added by hand, shown read-only and read through the getter (P1.6).
+    public DisplayNode AddDisplay(string name, Func<object?> read)
+    {
+        return Adopt(new DisplayNode(this, name, read));
+    }
+
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows
     {
@@ -458,7 +470,29 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     internal IReadOnlyList<InspectorNode> ChildNodes => Children;
 
-    internal T Add<T>(T child) where T : InspectorNode
+    // A node added by hand goes after the ones already here, and its name has to be free: the indexer
+    // finds children by name. It reads the bound objects at once, and a member it goes into opens,
+    // since a child was added to it on purpose.
+    private protected T Adopt<T>(T child) where T : InspectorNode
+    {
+        if (Children.Any(c => c.Name == child.Name))
+            throw new ArgumentException($"'{Name}' already has a node named '{child.Name}'.", "name");
+
+        AddChild(child);
+
+        if (this is MemberNode)
+            Expandable = true;
+
+        if (Root.Instances.Count > 0)
+        {
+            child.Reset();
+            Root.Owner.Rewire();
+        }
+
+        return child;
+    }
+
+    internal T AddChild<T>(T child) where T : InspectorNode
     {
         Children.Add(child);
         return child;

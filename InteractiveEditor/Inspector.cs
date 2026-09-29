@@ -106,6 +106,12 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
 
+    // Nodes added by hand at the top of the tree (P1.6); inspector["Moo"].AddButton(...) puts one
+    // inside a group.
+    public ButtonNode AddButton(string name, string text, Action press) => Root.AddButton(name, text, press);
+
+    public DisplayNode AddDisplay(string name, Func<object?> read) => Root.AddDisplay(name, read);
+
     // Binding over a bound object throws: the swap is explicit (Rebind), and adding one is AddBind.
     public void Bind(object instance)
     {
