@@ -77,7 +77,8 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   dotnet build InteractiveEditorSolution.slnx -p:EnableWindowsTargeting=true
   ```
 
-- O TuxHost imprime 69 linhas. Salvar a saída antes da mudança e comparar depois com `cmp`:
+- O TuxHost imprime 67 linhas desde o commit `13534b0` (eram 69; o `Boo.Secret`, com setter
+  privado, deixou de aparecer). Salvar a saída antes da mudança e comparar depois com `cmp`:
 
   ```
   dotnet run --project TuxHost/TuxHost.csproj
@@ -117,6 +118,8 @@ Pegadinhas já vistas:
   é abstrato, com as opções como propriedades, o indexador por caminho relativo (encadeável), o
   `GetValue` comum e o `SetValue` abstrato; `MemberNode` é um campo ou propriedade. A enumeração
   entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
+- `ReadOnly` e `Visible` são lidos pelos pais (commit `13534b0`), e um setter não público esconde o
+  membro, que o `[InspectorReadOnly]` traz de volta.
 - Falhas no `Create` (commit `1535874`): viram eventos estáticos (`DiscoveryFailed`, com a
   severidade) e ficam em `inspector.Report`; um membro ilegível sai da árvore, um atributo inválido
   é pulado, e só o fatal sobe. Os tipos ficam em `InteractiveEditor.Diagnostics`.
