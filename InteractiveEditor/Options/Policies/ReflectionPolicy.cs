@@ -7,13 +7,6 @@ namespace InteractiveEditor.Options.Policies;
 
 internal static class ReflectionPolicy
 {
-    private static readonly HashSet<Type> NumberTypes =
-    [
-        typeof(byte), typeof(sbyte), typeof(short), typeof(ushort),
-        typeof(int), typeof(uint), typeof(long), typeof(ulong),
-        typeof(float), typeof(double), typeof(decimal),
-    ];
-
     public static void Apply(MemberNode node, Inspector inspector)
     {
         try
@@ -44,7 +37,7 @@ internal static class ReflectionPolicy
         if (type == typeof(bool))
             return EditorKind.Toggle;
 
-        if (NumberTypes.Contains(type))
+        if (ValueConverter.IsNumber(type))
             return EditorKind.Number;
 
         if (type == typeof(object) || !ReflectionDiscovery.IsTerminal(type))
