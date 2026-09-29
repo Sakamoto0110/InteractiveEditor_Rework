@@ -2,11 +2,13 @@
 using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
+using InteractiveEditor.Model;
 
 namespace InteractiveEditor;
 
 // A member that is a collection (P5.2, P5.10). It shows its content, not the members of its type: the
 // selector lists the items, and the row below it, Item, is the one chosen, with its members below it.
+// The list editor (EditorKind.List) shows one row per item, and adds, removes and moves them.
 public sealed class CollectionNode : MemberNode
 {
     // The place chosen in the collection, -1 for none.
@@ -61,6 +63,55 @@ public sealed class CollectionNode : MemberNode
             OnValueChanged(ValueSource.Selection);
             Root.Owner.Rewire();
         }
+    }
+
+    // Adds a new item at the end of the collection in every bound object, and chooses it: an object
+    // made with the item type's constructor without parameters, or the type's empty value (zero,
+    // false, an empty text, null). Like the other operations of the list editor, it writes at once,
+    // whatever the binder control, as a button does.
+    public void AddItem()
+    {
+        var lists = Editable(resizes: true);
+        var worked = Change(lists, list => list.Add(NewItem()));
+        Changed(worked, lists[0].Count - 1, another: true);
+    }
+
+    // Removes the item in this place of the collection in every bound object. The choice stays with
+    // the item chosen; when that is the one removed, the item that takes its place is chosen.
+    public void RemoveItem(int index)
+    {
+        var lists = Editable(resizes: true, (index, nameof(index)));
+        var worked = Change(lists, list => list.RemoveAt(index));
+        Changed(worked, index < Chosen ? Chosen - 1 : Chosen, another: index == Chosen);
+    }
+
+    // Moves the item in one place of the collection to another, in every bound object, the items
+    // between them making room; an array too, as its size does not change. The choice goes with the
+    // item chosen.
+    public void MoveItem(int from, int to)
+    {
+        var lists = Editable(resizes: false, (from, nameof(from)), (to, nameof(to)));
+
+        if (from == to)
+            return;
+
+        var follow = Chosen == from ? to
+            : from < Chosen && Chosen <= to ? Chosen - 1
+            : to <= Chosen && Chosen < from ? Chosen + 1
+            : Chosen;
+
+        var worked = Change(lists, list =>
+        {
+            var item = list[from];
+            var step = from < to ? 1 : -1;
+
+            for (var place = from; place != to; place += step)
+                list[place] = list[place + step];
+
+            list[to] = item;
+        });
+
+        Changed(worked, follow, another: false);
     }
 
     // The item in the chosen place of a bound object's collection, or null when there is none there.
@@ -156,6 +207,104 @@ public sealed class CollectionNode : MemberNode
             ResetItem(source == null ? null : ValueSource.Selection);
 
         return true;
+    }
+
+    // The lists an operation of the list editor changes: the bound objects' collections, each one once
+    // (two objects can hold the same one). What cannot take the operation throws before any of them
+    // changes: a read-only node, a disabled branch, a collection that is null or cannot change its
+    // items (nor grow and shrink, when the operation resizes), and a place past the items listed or
+    // past the items of one of the objects.
+    private List<IList> Editable(bool resizes, params (int Place, string Name)[] places)
+    {
+        ThrowIfCompromised();
+
+        if (ReadOnly)
+            throw new InvalidOperationException($"'{Name}' is read-only.");
+
+        foreach (var (place, name) in places)
+        {
+            if (place < 0 || place >= KnownItems.Length)
+                throw new ArgumentOutOfRangeException(name, place, $"'{Name}' lists {KnownItems.Length} items.");
+        }
+
+        if (Root.Instances.Count == 0)
+            throw new InvalidOperationException($"'{Name}' has no object bound.");
+
+        var lists = new List<IList>();
+
+        foreach (var instance in Root.Instances)
+        {
+            if (Resolve(instance) is not { } collection)
+                throw new InvalidOperationException($"'{Name}' is null.");
+
+            if (!TakesItems || AsList(collection) is not { IsReadOnly: false } list || resizes && list.IsFixedSize)
+                throw new InvalidOperationException($"'{Name}' cannot {(resizes ? "take or lose items" : "change its items")}.");
+
+            if (places.FirstOrDefault(place => place.Place >= list.Count) is { Name: not null } missing)
+                throw new InvalidOperationException($"'{Name}' has no item {missing.Place} in one of the objects.");
+
+            if (!lists.Any(known => ReferenceEquals(known, list)))
+                lists.Add(list);
+        }
+
+        return lists;
+    }
+
+    // Runs an operation of the list editor on every list, marked as the inspector's own change. What a
+    // list throws is reported on the node, and the lists keep what it did; false then.
+    private bool Change(List<IList> lists, Action<IList> operation)
+    {
+        Writing = true;
+
+        try
+        {
+            foreach (var list in lists)
+                operation(list);
+
+            OnWritten();
+            return true;
+        }
+        catch (Exception e)
+        {
+            OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"The items of '{Path}' could not be changed.",
+                "Check the collection; the objects keep what it did.", onWrite: true);
+            return false;
+        }
+        finally
+        {
+            Writing = false;
+        }
+    }
+
+    // The items are read again after an operation of the list editor. When it worked, the choice goes
+    // where the operation says (the item chosen, where it went; or a new one), and the rows below start
+    // over when it is another item; when it failed, the choice follows the items as after any change.
+    private void Changed(bool worked, int choose, bool another)
+    {
+        if (worked)
+        {
+            KnownItems = ReadItems();
+            Chosen = Math.Min(choose, KnownItems.Length - 1);
+
+            if (another)
+                ResetItem(ValueSource.Selection);
+        }
+
+        UpdateAffected(ValueSource.Write, changed: worked);
+        Root.Owner.Rewire();
+    }
+
+    // A new item: an object made with the item type's constructor without parameters, or the type's
+    // empty value.
+    private object? NewItem()
+    {
+        if (!ReflectionDiscovery.IsTerminal(ItemType) && ItemType is { IsValueType: false, IsAbstract: false }
+            && ItemType.GetConstructor(Type.EmptyTypes) != null)
+        {
+            return Activator.CreateInstance(ItemType);
+        }
+
+        return ValueConverter.Empty(ItemType);
     }
 
     // The items of the first bound object's collection, read now. A getter that throws is reported by
