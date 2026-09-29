@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Linq.Expressions;
 using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
@@ -131,6 +132,20 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
             return node;
         }
+    }
+
+    // The node at the end of a member chain, as in node.Node<Moo>(m => m.Doo.DooX): the same as the
+    // path "Doo.DooX", but checked by the compiler and kept up by a rename. T is the type this node
+    // holds, or one that type derives from.
+    public InspectorNode Node<T>(Expression<Func<T, object?>> selector)
+    {
+        if (ValueType is not { } type || !typeof(T).IsAssignableFrom(type))
+        {
+            throw new ArgumentException(
+                $"The selector starts from {typeof(T).Name}, but '{Name}' holds {ValueType?.Name ?? "nothing"}.", nameof(selector));
+        }
+
+        return this[MemberPath.Of(selector)];
     }
 
     // The value in the first bound object, or null when nothing is bound. A disabled branch throws.

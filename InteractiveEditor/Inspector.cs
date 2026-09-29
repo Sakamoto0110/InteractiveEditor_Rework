@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Linq.Expressions;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
@@ -97,6 +98,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // A path from the root ("Moo.MooY"); chaining works too: inspector["Moo"]["MooY"].
     public InspectorNode this[string path] => Root[path];
+
+    // The same with a member chain from the root, checked by the compiler:
+    // inspector.Node<Foo>(f => f.Moo.MooY).
+    public InspectorNode Node<T>(Expression<Func<T, object?>> selector) => Root.Node(selector);
 
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
