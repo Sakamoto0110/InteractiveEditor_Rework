@@ -1,16 +1,18 @@
 ﻿using System.Collections;
 using InteractiveEditor.Model;
+using InteractiveEditor.Options;
 using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
 // Holds the tree and the bound object. It is not a node itself: the options live on the nodes,
 // and the root stays inside.
-public sealed class Inspector : IEnumerable<InspectorNode>
+public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 {
     private static int LastId;
 
     private readonly RootNode Root;
+    private bool Disposed;
 
     private Inspector(Type target)
     {
@@ -30,13 +32,24 @@ public sealed class Inspector : IEnumerable<InspectorNode>
     {
         var inspector = new Inspector(typeof(T));
 
-        ReflectionDiscovery.AddMembers(inspector.Root, typeof(T));
+        // The global options are read below, so they are frozen from here until the Dispose.
+        GlobalOptions.Lock(inspector.Id);
 
-        // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
-        foreach (var node in inspector.Root.Descendants().OfType<MemberNode>())
+        try
         {
-            ReflectionPolicy.Apply(node);
-            AttributePolicy.Apply(node);
+            ReflectionDiscovery.AddMembers(inspector.Root, typeof(T));
+
+            // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
+            foreach (var node in inspector.Root.Descendants().OfType<MemberNode>())
+            {
+                ReflectionPolicy.Apply(node);
+                AttributePolicy.Apply(node);
+            }
+        }
+        catch
+        {
+            GlobalOptions.Unlock(inspector.Id);
+            throw;
         }
 
         return inspector;
@@ -51,6 +64,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>
     // One object at a time for now (multi-bind comes later), so swapping it is explicit.
     public void Bind(object instance)
     {
+        ObjectDisposedException.ThrowIf(Disposed, this);
         CheckBindable(instance);
 
         if (Root.Instance != null)
@@ -67,6 +81,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>
     public void Rebind(object instance)
     {
         // Checked before unbinding, so a refused instance leaves the current one bound.
+        ObjectDisposedException.ThrowIf(Disposed, this);
         CheckBindable(instance);
 
         Unbind();
@@ -82,6 +97,25 @@ public sealed class Inspector : IEnumerable<InspectorNode>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    // Unbinds, disposes the nodes and releases this inspector's hold on the global options.
+    public void Dispose()
+    {
+        if (Disposed)
+            return;
+
+        Disposed = true;
+
+        try
+        {
+            Unbind();
+            Root.Dispose();
+        }
+        finally
+        {
+            GlobalOptions.Unlock(Id);
+        }
     }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
