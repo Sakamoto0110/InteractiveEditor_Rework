@@ -1,10 +1,14 @@
 ﻿using System.Reflection;
 using InteractiveEditor.Diagnostics;
+using InteractiveEditor.Primitives;
 
 namespace InteractiveEditor.Model;
 
 internal static class ReflectionDiscovery
 {
+    // Types that fit more than one editor (P5.5): a color can be its fields, a hex text or a picker.
+    private static readonly HashSet<Type> ManyEditors = [typeof(System.Drawing.Color), typeof(PxColorArgb), typeof(PxColorHsl)];
+
     // A member whose type cannot be read is left out and reported; the root type failing to read
     // is fatal and propagates.
     public static void AddMembers(InspectorNode parent, Type type, Inspector inspector)
@@ -82,6 +86,12 @@ internal static class ReflectionDiscovery
             .Where(member => member is not PropertyInfo property || property.GetIndexParameters().Length == 0)
             .OrderByDescending(member => DeclarationOrder.Depth(member.DeclaringType!))
             .FirstOrDefault();
+    }
+
+    // The editor of these has to be chosen (P5.5); until then, they stay a closed Display row (P5.8).
+    internal static bool HasManyEditors(Type type)
+    {
+        return ManyEditors.Contains(Nullable.GetUnderlyingType(type) ?? type);
     }
 
     // A collection shows its content, not the members of its type (Capacity, Count, Length...), so the

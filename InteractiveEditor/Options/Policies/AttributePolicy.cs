@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using InteractiveEditor.Attributes;
 using InteractiveEditor.Diagnostics;
+using InteractiveEditor.Model;
 
 namespace InteractiveEditor.Options.Policies;
 
@@ -8,6 +9,9 @@ internal static class AttributePolicy
 {
     public static void Apply(MemberNode node, Inspector inspector)
     {
+        // Whether an attribute chose how the member is edited: a type with more than one editor needs it.
+        var chosen = false;
+
         // [InspectorReadOnly] brings back a member the reflection hid for its setter, so it goes
         // before [InspectorIgnore], which has the last word.
         Use<InspectorReadOnlyAttribute>(node, inspector, _ =>
@@ -19,7 +23,11 @@ internal static class AttributePolicy
         Use<InspectorLabelAttribute>(node, inspector, label => node.Label = label.Text);
         Use<InspectorTooltipAttribute>(node, inspector, tooltip => node.Tooltip = tooltip.Text);
         Use<InspectorHelpAttribute>(node, inspector, help => node.Help = help.Text);
-        Use<InspectorEditorAttribute>(node, inspector, editor => node.Editor = editor.Kind);
+        Use<InspectorEditorAttribute>(node, inspector, editor =>
+        {
+            node.Editor = editor.Kind;
+            chosen = true;
+        });
         Use<InspectorRangeAttribute>(node, inspector, range => node.Range = new NumericRange(range.Min, range.Max, range.Step));
         Use<InspectorScrubAttribute>(node, inspector, scrub => node.ScrubMultiplier = scrub.Multiplier);
         Use<InspectorOrderAttribute>(node, inspector, order => node.Order = order.Order);
@@ -35,7 +43,20 @@ internal static class AttributePolicy
 
                 node.Expandable = true;
                 node.Collapsed = expandable.Collapsed;
+                chosen = true;
             });
+
+        // Without a choice, a type with more than one editor stays a Display row, and the Create says
+        // so (P5.8); a subscriber can choose right there and mark it handled.
+        if (!chosen && ReflectionDiscovery.HasManyEditors(node.ValueType))
+        {
+            var type = Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType;
+
+            inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround,
+                new NotSupportedException($"{type.Name} fits more than one editor, and none was chosen."),
+                $"'{node.Path}' shows as Display until an editor is chosen.",
+                "Choose one with [InspectorEditor] or [InspectorExpandable], or set Editor or Expandable on the node.");
+        }
     }
 
     private static void Use<TAttribute>(MemberNode node, Inspector inspector, Action<TAttribute> apply)
