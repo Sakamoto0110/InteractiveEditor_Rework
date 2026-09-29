@@ -145,6 +145,9 @@ Pegadinhas já vistas:
 - `TypeBinderMode` (commit `f12ebf9`): `Create<T>(TypeBinderMode.Manual)` começa sem membros, e o
   `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo espera
   a 1.14 de `perguntas-em-aberto.md`.
+- Descoberta: ordem de declaração (commit `6c17a15`), coleções sem os membros do tipo delas
+  (commit `1b9fcf6`) e cor numa linha `Display` fechada até escolherem o editor, com um aviso
+  (commit `7482c5f`). O seletor por expressão é o `Node<T>` (commit `e06b6f7`).
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
