@@ -118,7 +118,7 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
   `[InspectorExpandable]` para expandir objetos aninhados), por inspector e por campo. Primeiro
   corte aplicado no commit `5319247` (seção 7). As opções por inspector sobrescrevem as globais
-  (P1.5).
+  (P1.5). O `InspectorOptions` existe desde o commit `e136f82`, por enquanto só com a cultura.
 - **Opções globais travadas** (P1.5, P4.4): o `Create` congela o `GlobalOptions`. Enquanto houver um
   inspector vivo, mudar uma opção global lança exceção; a trava cai no `Dispose` do último. Ela
   guarda os ids dos inspectors vivos (P1.11), e a mensagem da exceção diz quais são. Aplicado no
@@ -167,13 +167,16 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   cru tenta virar o tipo do membro; quando não dá, a linha mostra a falha. O `SetValue("5")` num
   `int` também tenta converter antes de gravar (relatório, seção 6). A cultura padrão é a atual, e
   a conversão usa o `IParsable<T>` quando o tipo implementa, e o `TypeConverter` no resto (P2.11).
+  Aplicado no commit `e136f82`, no `SetValue`; a falha fica no `Failure` do nó (3.3).
 - **Quando a view grava** (P2.12): texto e número no Enter e quando o controle perde o foco, com o
   Esc voltando ao valor do objeto; toggle e escolha na hora; slider e scrubbing enquanto arrastam.
   Uma conversão que falha deixa o texto como foi digitado, e o objeto mantém o valor.
 - **Faixa** (P2.8): o `SetValue` limita o valor ao `[InspectorRange]`: com (0, 255), 999 grava 255.
+  Aplicado no commit `e136f82`.
 - **Sanitizadores** (P2.9): por campo, numa lista ordenada, e executados sempre nessa ordem. O
   gancho de conversão (o "TheBrute") não volta. São duas listas, as regras de texto antes da
-  conversão e as de valor depois, então a ordem entre as duas vem da estrutura (P2.13).
+  conversão e as de valor depois, então a ordem entre as duas vem da estrutura (P2.13). Aplicado
+  no commit `e136f82`: `TextRules` e `ValueRules` no nó.
 - **`ReadOnly` passa para os filhos** (P4.1, P4.2): um objeto aninhado somente leitura, por atributo
   ou por acessor privado, deixa os filhos somente leitura, e forçar a gravação num filho lança. O
   `ReadOnly` do próprio nó basta para a view, sem um segundo valor como `IsEffectivelyReadOnly`.
@@ -510,7 +513,8 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   a bastar para a view. O nó consulta os pais na hora da leitura (P4.6). E o setter não público
   (private, protected, internal) passa a esconder o membro (relatório, 3.6; P4.5). Aplicado no
   commit `13534b0`: o filho de uma struct somente leitura agora recusa a gravação pelo próprio
-  `ReadOnly` (`'X' is read-only.`), antes da subida.
+  `ReadOnly` (`'X' is read-only.`), antes da subida. Desde o commit `e136f82`, o `SetValue` confere
+  o `ReadOnly` antes de converter o valor.
 - **Multi-bind** (aplicado, commit `c201877`): a raiz guarda uma lista de objetos. `AddBind` põe um
   ou mais (sem nada ligado, liga), `RemoveBind` tira um, e tirar o último é o mesmo que o
   `Unbind()` (P2.5); todo objeto tem que servir para a árvore (P2.3), e o mesmo objeto duas vezes
@@ -541,13 +545,24 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   `ONLY_NUMBERS` aceita tanto `.` quanto `,`. A cultura padrão é a atual, e a conversão usa o
   `IParsable<T>` quando o tipo implementa, e o `TypeConverter` no resto (P2.11). A view grava o
   texto no Enter e ao perder o foco, e toggle, escolha, slider e scrubbing na hora (P2.12).
+  Aplicado no commit `e136f82`, no `SetValue`, antes de tocar em qualquer objeto: o texto passa
+  pelas regras de texto e vira o tipo do membro (vazio é null num membro nullable, e um enum sai
+  pelo nome); um número vira o tipo numérico do membro ou um enum, e um `double` num `int`
+  arredonda, como o `Convert` (7,6 grava 8). O que falha nesse preparo (texto que não converte,
+  número grande demais para o membro, regra que lança) vai para o `Failure` do nó como recuperado,
+  com `BindFailed`, e nada é gravado; é o que a linha mostra. Um valor de um tipo sem relação com o
+  do membro (um `Moo` num `int`, null num `int`) é uso errado e lança `ArgumentException`.
 - **Faixa** (decidido, P2.8): o `SetValue` limita o valor ao `[InspectorRange]`; com (0, 255), 999
-  grava 255. Hoje grava 999.
+  grava 255. Aplicado no commit `e136f82`, depois das regras de valor, para número e para texto.
 - **Sanitizadores** (decidido, P2.9): por campo, numa lista ordenada, executados sempre nessa
   ordem. No original eles misturam texto e número: no caminho do `TextBox` o `POSITIVE_NUMBERS`
   recebe `string` e não faz nada; no scrubbing, o delegate multicast devolve só o resultado do
   último; e com três ou mais funções encadeadas o `GetTextboxData` reaplica funções anteriores.
-  São duas listas: as regras de texto antes da conversão, e as de valor depois (P2.13).
+  São duas listas: as regras de texto antes da conversão, e as de valor depois (P2.13). Aplicado
+  no commit `e136f82`: `TextRules` e `ValueRules` no nó, e cada regra é uma função. As de texto só
+  rodam quando chega texto, e as de valor rodam sempre, depois da conversão. As prontas são
+  `TextRule.Digits`, `Number`, `MaxLength(n)` e `Only(caracteres)`, e `ValueRule.Min` e `Max`; uma
+  regra que lança vira falha no nó, e nada é gravado.
 - **Sem gancho de conversão** (decidido, P2.9): o "TheBrute" não volta.
 - `ApplyFunction` vira o evento `ValueChanged` do nó (P1.4).
 - **Eventos de ciclo de vida**: a lista decidida está na 3.10 (P1.4), com um payload de falha
@@ -708,10 +723,11 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 239 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+O `Inspector` tem 283 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
 `RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o
-`Name`, os objetos ligados (`Instance` e `Instances`), o indexador, a enumeração, as `Rows`, o
-`Dispose` e o bind inteiro (`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos).
+`Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o indexador, a
+enumeração, as `Rows`, o `Refresh()`, o `Dispose` e o bind inteiro (`Bind`, `AddBind`,
+`RemoveBind`, `Unbind()` e `Rebind`, com os eventos).
 Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
 desenho, com as decisões de 27/09 e 29/09 no fim.
 
@@ -750,7 +766,8 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó, sobrescrevendo
   o global (P1.5): as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2) e
   a cultura (P2.7). O `Create` trava o `GlobalOptions` até o `Dispose` do último inspector vivo
-  (P1.5, P4.4, P1.11; commit `ffee3a7`).
+  (P1.5, P4.4, P1.11; commit `ffee3a7`). O `InspectorOptions` entrou no commit `e136f82`, com a
+  cultura.
 - `IDisposable` no inspector e nos nós (P1.5; commit `ffee3a7`).
 - Ciclo do bind: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (P2.1), os valores mistos do
   multi-bind (P2.4) e o `Refresh()` (P2.6).
@@ -839,8 +856,10 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   lê null ali, guarda a falha em `Failure` e avisa por `BindFailed` (recuperado), e a próxima
   leitura tenta de novo. Um setter que lança não para o `SetValue`; os objetos ficam com o que ele
   deixou, e a falha vai para o nó (contornado). Uma leitura que funciona não limpa uma falha de
-  gravação; uma gravação que funciona limpa. O uso errado continua lançando: somente leitura, grupo,
-  dono null e valor do tipo errado.
+  gravação; uma gravação que funciona limpa. No preparo da gravação (commit `e136f82`), texto que
+  não converte, número grande demais e regra que lança também viram falha no nó (recuperado), e
+  nada é gravado. O uso errado continua lançando: somente leitura, grupo, dono null e valor de um
+  tipo sem relação com o do membro.
 - **Falta**: a mesma proteção nas views, quando elas existirem.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
@@ -892,7 +911,7 @@ está numerado em `perguntas-em-aberto.md`.
 2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
    qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
 3. **Cultura** (resolvida em 27/09 e 29/09): configurável no inspector inteiro (P2.7), com a atual
-   como padrão (P2.11).
+   como padrão (P2.11). Aplicada no commit `e136f82`.
 4. **Nós manuais** (resolvida em 27/09 e 29/09): o botão entra, com uma ação no clique, e o campo
    só de exibição, com um getter; o cabeçalho não (P1.6).
 5. **Permissão de expandir** (resolvida em 27/09): vale só para o membro ou tipo marcado, como hoje
@@ -962,7 +981,8 @@ Núcleo (portar a essência)
 - [x] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
       `SetValue` lançando até religar (P3.3, P3.4); só o ramo trocado, com um evento que aceita o
       objeto novo (P3.6), e sem struct (P3.2). Commit `55e7173`.
-- [ ] `InspectorOptions` (por inspector), sobrescrevendo o global (P1.5), com a cultura (P2.7).
+- [x] `InspectorOptions` (por inspector), com a cultura (P2.7; commit `e136f82`). Sobrescrever o
+      global (P1.5) vale quando uma opção existir nas duas camadas; hoje nenhuma existe.
 - [x] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4,
       P1.11; commit `ffee3a7`).
 - [ ] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra.
@@ -986,11 +1006,12 @@ Núcleo (portar a essência)
 - [x] Objeto → UI por `INotifyPropertyChanged` (P2.6; commit `b6a99d8`).
 - [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
       força, cada um com o seu evento (P1.8; P1.13).
-- [ ] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o
-      `SetValue("5")` também converte (P2.7; P2.11, P2.12).
-- [ ] `SetValue` limitando o valor à faixa do `[InspectorRange]` (P2.8).
-- [ ] Sanitizadores tipados (sucessores das `CapFunction`), por campo, em lista ordenada (P2.9;
-      P2.13).
+- [x] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o
+      `SetValue("5")` também converte (P2.7; P2.11; commit `e136f82`). A hora de gravar (P2.12)
+      fica com a view.
+- [x] `SetValue` limitando o valor à faixa do `[InspectorRange]` (P2.8; commit `e136f82`).
+- [x] Sanitizadores tipados (sucessores das `CapFunction`), por campo, em lista ordenada (P2.9;
+      P2.13; commit `e136f82`).
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
       dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
 - [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
@@ -1044,13 +1065,15 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   `RequireExpandableAttribute`. Decidido (P1.5, P4.4) e aplicado no commit `ffee3a7`: o `Create`
   trava as opções globais, e mudar uma delas com um inspector vivo lança; a trava cai no `Dispose`
   do último. O TuxHost descarta cada inspector depois de imprimir, para poder ligar a flag.
-- `InspectorOptions`: ainda não existe. Chega com o passo de layout (altura de campo, espaçamento,
-  recuo...) e vai sobrescrever o global por inspector (P1.5); leva também a cultura (P2.7).
+- `InspectorOptions` (`inspector.Options`): existe desde o commit `e136f82`, por enquanto só com a
+  cultura (`Culture`; null é a atual, na hora de cada conversão). As de layout (altura de campo,
+  espaçamento, recuo...) chegam com o passo de layout e sobrescrevem o global por inspector (P1.5).
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
-  (`NumericRange`), `ScrubMultiplier`, `Expandable` e `Collapsed`; mais `Path` e `IsGroup`, que vêm
-  da árvore. O `Visible` é da view, e o `Ignored`, da árvore (P6.1); desde o commit `13534b0`, o
-  `Visible` e o `ReadOnly` são lidos pelos pais.
+  (`NumericRange`), `ScrubMultiplier`, `Expandable`, `Collapsed` e as listas `TextRules` e
+  `ValueRules` (commit `e136f82`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da
+  view, e o `Ignored`, da árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são
+  lidos pelos pais.
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
@@ -1123,6 +1146,6 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: itens de escolha, sanitizadores, visibilidade condicional, `ValueChanged`, nós
-manuais (botão e campo só de exibição) e `InspectorOptions` com o layout. O gancho de conversão saiu
-da lista (P2.9).
+**Próximos cortes**: itens de escolha, visibilidade condicional, nós manuais (botão e campo só de
+exibição) e o layout no `InspectorOptions`. Já entraram o `ValueChanged` (commit `eb497c6`) e os
+sanitizadores (commit `e136f82`); o gancho de conversão saiu da lista (P2.9).
