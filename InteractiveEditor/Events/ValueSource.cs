@@ -21,4 +21,7 @@ public enum ValueSource
 
     // Set by a forced operation.
     Force,
+
+    // The item chosen in a collection changed, and the rows below it read another one (P5.10).
+    Selection,
 }

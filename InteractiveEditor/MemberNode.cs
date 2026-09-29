@@ -8,8 +8,9 @@ using InteractiveEditor.Options.Policies;
 namespace InteractiveEditor;
 
 // A field or a property of the object above it. Group or leaf is decided at run time (IsGroup),
-// because Expandable can change after the Create.
-public sealed class MemberNode : InspectorNode
+// because Expandable can change after the Create. A member that is a collection is a CollectionNode,
+// and the item chosen in it an ItemNode, which is written as a member is (P5.10).
+public class MemberNode : InspectorNode
 {
     internal MemberNode(InspectorNode parent, MemberInfo member) : base(parent, member.Name)
     {
@@ -17,18 +18,29 @@ public sealed class MemberNode : InspectorNode
     }
 
     // A node of an inspector with no type (P1.14): only the name, until a bind finds the member.
-    internal MemberNode(InspectorNode parent, string name) : base(parent, name)
+    internal MemberNode(InspectorNode parent, string name) : this(parent, name, byName: true)
     {
-        ByName = true;
+    }
+
+    // A node with no member yet, or none at all: the item of a collection (P5.10).
+    private protected MemberNode(InspectorNode parent, string name, bool byName) : base(parent, name)
+    {
+        ByName = byName;
         Label = name;
     }
 
     // The field or property. In an inspector with no type, it is null until the first bind finds it,
-    // and each bind into nothing finds it again.
+    // and each bind into nothing finds it again. The item of a collection has none.
     public MemberInfo? Member { get; private set; }
 
     // Found by name at the bind, in an inspector with no type (P1.14).
     internal bool ByName { get; }
+
+    // The node for a member: a collection gets a CollectionNode, which shows its content (P5.10).
+    internal static MemberNode For(InspectorNode parent, MemberInfo member)
+    {
+        return ReflectionDiscovery.IsCollection(TypeOf(member)) ? new CollectionNode(parent, member) : new MemberNode(parent, member);
+    }
 
     // The object this group held in every bound object when it was last seen. Only groups of a class
     // type keep it: a struct has no identity to compare.
@@ -56,7 +68,7 @@ public sealed class MemberNode : InspectorNode
 
         if (Editor == EditorKind.Auto || EditorFromBind)
         {
-            Editor = ReflectionPolicy.EditorFor(ValueType);
+            Editor = ReflectionPolicy.EditorFor(this);
             EditorFromBind = true;
         }
     }
@@ -118,8 +130,9 @@ public sealed class MemberNode : InspectorNode
 
     // Writes what the view held into every bound object, as taken before anything was written. Groups
     // are written through their fields, and read-only or disabled nodes are never written; a node whose
-    // last read failed holds nothing the view knows, and an object with nothing above the node has
-    // nowhere to take it. A setter that throws is reported on the node. True when a pending value went.
+    // last read failed holds nothing the view knows, and an object where the node has nowhere to go
+    // (nothing above it, no place for an item) is left alone. A setter that throws is reported on the
+    // node. True when a pending value went.
     internal override bool ForceWrite(object?[] held)
     {
         if (IsGroup || ReadOnly || IsCompromised || ReadFailed)
@@ -134,7 +147,7 @@ public sealed class MemberNode : InspectorNode
 
             try
             {
-                if (Parent!.Resolve(instance) == null)
+                if (Unwritable(instance) != null)
                     continue;
 
                 WriteTo(instance, held[i]);
@@ -161,18 +174,31 @@ public sealed class MemberNode : InspectorNode
     }
 
     // Why this node cannot be written into the bound objects now, or null when it can. With nothing
-    // bound, the write fails like any other null owner, and a null owner in any of the objects stops it
-    // before any of them changes.
+    // bound, the write fails like any other null owner, and nowhere to go in any of the objects stops
+    // it before any of them changes.
     private string? CannotWrite()
     {
         if (ReadOnly)
             return $"'{Name}' is read-only.";
 
-        if (Root.Instances.Count == 0 || Root.Instances.Any(instance => Parent!.Resolve(instance) == null))
+        if (Root.Instances.Count == 0)
             return $"Cannot set '{Name}': '{Parent!.Name}' is null.";
 
-        return null;
+        return Root.Instances.Select(Unwritable).FirstOrDefault(reason => reason != null) is { } reason
+            ? $"Cannot set '{Name}': {reason}"
+            : null;
     }
+
+    // Why the node has nowhere to go in a bound object, or null when it has: a member needs the object
+    // above it, and the item of a collection a place to take it.
+    private protected virtual string? Unwritable(object instance)
+    {
+        return Parent!.Resolve(instance) == null ? $"'{Parent.Name}' is null." : null;
+    }
+
+    // Whether the node stays with the object it showed, so that another one in its place is a swap
+    // (P3.3): a member does; the item of a collection is whatever the chosen place holds (P5.10).
+    private protected virtual bool KeepsObject => true;
 
     // Writes a value that is ready into every bound object. When the write works, the pending value
     // goes; the node and whatever changed with it are read again either way.
@@ -313,7 +339,7 @@ public sealed class MemberNode : InspectorNode
 
             // A closed object is a value: replacing it is an edit, not a swap. An open group's object
             // is kept only when a subscriber accepts the new one.
-            if (IsGroup)
+            if (IsGroup && KeepsObject)
             {
                 var replaced = new ObjectReplacedEventArgs(this, instance, seen, current);
                 OnObjectReplaced(replaced);

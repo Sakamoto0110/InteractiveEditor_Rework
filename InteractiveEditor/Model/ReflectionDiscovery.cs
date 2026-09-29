@@ -44,19 +44,23 @@ internal static class ReflectionDiscovery
                     owner = group;
                 }
 
-                var node = new MemberNode(owner, member);
+                MemberNode node;
 
                 try
                 {
                     // Reading the member's signature is what fails when an assembly it uses cannot be
-                    // loaded; the indexer check reads it too.
+                    // loaded; the indexer check and the choice of the node read it too.
                     if (member is PropertyInfo property && property.GetIndexParameters().Length != 0)
                         continue;
 
+                    node = MemberNode.For(owner, member);
+
+                    // Below a member go the members of its type; a collection has the row of its item
+                    // below it, and the members of the item's type go below that (P5.10).
+                    var holder = node is CollectionNode collection ? collection.Item : node;
+
                     if (member is FieldInfo || ((PropertyInfo)member).CanRead)
-                        AddMembers(node, node.ValueType, ancestry, inspector);
-                    else
-                        _ = node.ValueType;
+                        AddMembers(holder, holder.ValueType, ancestry, inspector);
 
                     // A group goes in with its first member, so a member left out leaves no empty group.
                     if (owner is TypeGroupNode { HasMembers: false })
@@ -66,8 +70,10 @@ internal static class ReflectionDiscovery
                 }
                 catch (Exception e)
                 {
-                    inspector.OnDiscoveryFailed(node.Path, FailureSeverity.Critical, e,
-                        $"'{node.Path}' was left out: its type could not be read.",
+                    var path = InspectorNode.PathOf(owner, member.Name);
+
+                    inspector.OnDiscoveryFailed(path, FailureSeverity.Critical, e,
+                        $"'{path}' was left out: its type could not be read.",
                         "Make sure the assemblies the member's type comes from are available.");
                 }
             }
@@ -116,8 +122,8 @@ internal static class ReflectionDiscovery
     }
 
     // A collection shows its content, not the members of its type (Capacity, Count, Length...), so the
-    // discovery does not open it (P5.2). How the content shows is open (P5.10); until then, it is a
-    // Display row. A string is text, not a collection of chars.
+    // discovery does not open it (P5.2): it is a CollectionNode, whose selector chooses the item that
+    // shows in the row below it (P5.10). A string is text, not a collection of chars.
     internal static bool IsCollection(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
