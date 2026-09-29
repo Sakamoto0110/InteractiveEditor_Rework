@@ -162,7 +162,7 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   ficam com a view.
 - **Objeto → UI** (P2.6): `INotifyPropertyChanged` para quem implementa, e o `Refresh()` do
   inspector para o resto. O `Refresh()` e o `ValueChanged` com a origem entraram no commit
-  `eb497c6`.
+  `eb497c6`, e o `INotifyPropertyChanged` no commit `b6a99d8`.
 - **Texto → valor** (P2.7): a cultura é configurável no inspector inteiro, e toda entrada de texto
   cru tenta virar o tipo do membro; quando não dá, a linha mostra a falha. O `SetValue("5")` num
   `int` também tenta converter antes de gravar (relatório, seção 6). A cultura padrão é a atual, e
@@ -524,7 +524,11 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
   e não se confunde com os métodos de força (abaixo). Aplicado no commit `eb497c6`: cada nó guarda
   o que os objetos tinham na última leitura, e o `ValueChanged` só dispara quando isso muda, com a
-  origem (`Write`, `Instance`, `Refresh` ou `Force`); ligar e desligar recomeça em silêncio.
+  origem (`Write`, `Instance`, `Refresh` ou `Force`); ligar e desligar recomeça em silêncio. No
+  commit `b6a99d8`, um vigia interno (`InstanceWatcher`) assina o `PropertyChanged` dos objetos
+  ligados e dos objetos dos grupos: o aviso relê o membro (`Instance`), um aviso sem nome relê
+  todos, e a troca do objeto de um grupo é conferida na hora. A gravação feita pelo próprio
+  inspector continua `Write`, e o que o mesmo setter muda de tabela chega como `Instance`.
 - **Controle do binder** (decidido, P1.8): um enum de controle no lugar de uma flag `AutoApply`
   (manual, ou automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores
   no objeto, recarregar do objeto e limpar a view, deixando tudo vazio ou zero. Eles também podem
@@ -979,7 +983,7 @@ Núcleo (portar a essência)
 - [x] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10;
       commit `c201877`). O scrubbing por delta fica com a view.
 - [x] `Refresh()` com o `ValueChanged` dizendo a origem (P2.6, P1.10; commit `eb497c6`).
-- [ ] Objeto → UI por `INotifyPropertyChanged` (P2.6).
+- [x] Objeto → UI por `INotifyPropertyChanged` (P2.6; commit `b6a99d8`).
 - [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
       força, cada um com o seu evento (P1.8; P1.13).
 - [ ] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o

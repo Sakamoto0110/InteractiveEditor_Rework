@@ -132,8 +132,9 @@ Pegadinhas já vistas:
   objeto, `GetValues` todos, `IsMixed` diz se diferem, e `SetValue` grava em todos. O inspector
   avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
 - Valores (commit `eb497c6`): cada nó guarda a última leitura e dispara `ValueChanged` com a origem
-  quando ela muda; `inspector.Refresh()` relê tudo. Getter ou setter que lança vira `Failure` e
-  `BindFailed` no nó, sem exceção; o uso errado continua lançando.
+  quando ela muda; `inspector.Refresh()` relê tudo, e objetos com `INotifyPropertyChanged` avisam
+  sozinhos (commit `b6a99d8`). Getter ou setter que lança vira `Failure` e `BindFailed` no nó, sem
+  exceção; o uso errado continua lançando.
 - Troca por fora (commit `55e7173`): um grupo de tipo class cujo objeto foi trocado depois do bind
   dispara `ObjectReplaced`; sem aceite, o ramo fica comprometido e lança na leitura e na gravação
   até um `Rebind`. Struct fica de fora.
