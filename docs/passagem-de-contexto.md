@@ -151,8 +151,9 @@ Pegadinhas já vistas:
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa por um `Write` interno (commit `a2d8ffe`). Uma troca feita por fora
   (`foo.Moo = new Moo()`) ainda passa sem sinal.
-- Primitivos em `InteractiveEditor/Primitives`: `PxPoint`, `PxPointF`, `PxSize`, `PxSizeF`,
-  `ArgbColor` e `HslColor`. Ainda sem uso.
+- Primitivos em `InteractiveEditor/Primitives` (commits `2951ce3`, `3544a8e` e `f1de920`):
+  `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxDock`, `PxColorArgb` e `PxColorHsl`,
+  sem conversão implícita entre as cores. Ainda sem uso na biblioteca.
 - Um alvo só, `net10.0`: uma DLL, sem código de Windows na biblioteca.
 
 ## 6. Decidido, ainda não aplicado

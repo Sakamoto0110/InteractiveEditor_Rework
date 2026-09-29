@@ -248,12 +248,14 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 
 - **Primitivos com prefixo `Px`**, o mesmo da PixieLib (3.9): `PxPoint`, `PxPointF`, `PxSize` e
   `PxSizeF`. Substitui o `SK` provisório do commit `21cbeda`. Aplicado no commit `9e15f6e` (3.4).
-- **Um tipo só, em `double`** (P8.1), como no WPF: saem as variantes int e float.
-- **Primitivos novos** (P8.2): `PxRect`, `PxPadding` e `PxDock`.
+- **Um tipo só, em `double`** (P8.1), como no WPF: saem as variantes int e float. Aplicado no
+  commit `2951ce3`.
+- **Primitivos novos** (P8.2): `PxRect`, `PxPadding` e `PxDock`. Aplicado no commit `f1de920`.
 - **Cores** (P8.3, P8.4): `PxColorArgb` e `PxColorHsl`, com o espaço de cor no fim para não juntar
   dois prefixos. Sem conversão implícita entre as duas: funções estáticas `ToHsl`, `FromHsl`,
-  `ToArgb` e `FromArgb`, o que também acaba com o CS0457.
-- **Regras de conversão** de 3.4 confirmadas (P8.5).
+  `ToArgb` e `FromArgb`, o que também acaba com o CS0457. Aplicado no commit `3544a8e`.
+- **Regras de conversão** de 3.4 confirmadas (P8.5). Aplicadas com o `System.Drawing` nos commits
+  `2951ce3` e `f1de920`; as do WinForms e do WPF vêm com as views.
 - **PixieLib** (P8.6 a P8.9): a precisão padrão é `double`. Por enquanto os primitivos ficam neste
   projeto, sem `PixieLib.dll`; a mudança para a PixieLib, com o sufixo de precisão, fica para uma
   sessão própria.
@@ -626,13 +628,13 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
 
 | Antes | Agora | Situação |
 |---|---|---|
-| `Point`, `PointF` | `PxPoint`, `PxPointF` | Aplicado (`21cbeda` com `SK`, `9e15f6e` com `Px`); decidido: um tipo só, em `double` (P8.1) |
-| `Size`, `SizeF` | `PxSize`, `PxSizeF` | Aplicado; idem |
-| `Color` | `ArgbColor` | Aplicado; espaço de cor explícito, ponte para `System.Drawing.Color` e `System.Windows.Media.Color`; decidido: vira `PxColorArgb` (P8.3) |
-| `ColorHSL` | `HslColor` | Aplicado; idem, com o acrônimo em PascalCase; decidido: vira `PxColorHsl` (P8.3) |
-| (novo) | `PxRect` | Decidido (P8.2): resultado do passo de layout |
-| (novo) | `PxPadding` | Decidido (P8.2): margens (`Padding` no WinForms, `Thickness` no WPF) |
-| (novo) | `PxDock` (enum) | Decidido (P8.2): substitui o `DockStyle` nas opções |
+| `Point`, `PointF` | `PxPoint` | Aplicado (`21cbeda` com `SK`, `9e15f6e` com `Px`); um tipo só, em `double`, no commit `2951ce3` (P8.1) |
+| `Size`, `SizeF` | `PxSize` | Aplicado; idem |
+| `Color` | `PxColorArgb` | Aplicado (`ArgbColor` no `21cbeda`); espaço de cor explícito, ponte para `System.Drawing.Color`; `PxColorArgb` no commit `3544a8e` (P8.3) |
+| `ColorHSL` | `PxColorHsl` | Aplicado (`HslColor` no `21cbeda`); `PxColorHsl`, em `double`, no commit `3544a8e` (P8.3) |
+| (novo) | `PxRect` | Aplicado no commit `f1de920` (P8.2): resultado do passo de layout |
+| (novo) | `PxPadding` | Aplicado no commit `f1de920` (P8.2): margens (`Padding` no WinForms, `Thickness` no WPF) |
+| (novo) | `PxDock` (enum) | Aplicado no commit `f1de920` (P8.2): substitui o `DockStyle` nas opções, com os mesmos valores |
 
 Com os nomes novos, um arquivo WinForms ou WPF que importa `InteractiveEditor.Primitives` deixou de
 ter ambiguidade (CS0104) com `System.Drawing`, `System.Windows` e `System.Windows.Media` (testado).
@@ -650,10 +652,18 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
 - Do WPF para os tipos int ou float: explícitas, porque perdem precisão.
 - Com o `double` (P8.1), o princípio continua o mesmo (implícita quando não perde nada, explícita
   quando perde ou pode lançar), mas o `System.Drawing` inverte: dele para o `Px` fica implícita, e
-  do `Px` para ele, explícita. Com o WPF, pontos ficam implícitos nos dois sentidos.
+  do `Px` para ele, explícita. Com o WPF, pontos ficam implícitos nos dois sentidos. Aplicado com o
+  `System.Drawing` nos commits `2951ce3` (`Point`, `PointF`, `Size` e `SizeF`) e `f1de920`
+  (`Rectangle` e `RectangleF`): a volta para os tipos em int arredonda, como o `Point.Round` do
+  próprio `System.Drawing`, e a volta para os em float estreita. O `ToString` dos primitivos em
+  `double` não depende mais da cultura atual.
 - Entre as cores, nenhuma conversão implícita (decidido, P8.4): funções estáticas `ToHsl`,
-  `FromHsl`, `ToArgb` e `FromArgb`. Hoje a conversão `ArgbColor → HslColor` existe nas duas structs
-  e dá CS0457 no primeiro uso; ela sai junto.
+  `FromHsl`, `ToArgb` e `FromArgb`. Aplicado no commit `3544a8e`: `PxColorArgb.FromHsl` e `ToHsl`,
+  `PxColorHsl.FromArgb` e `ToArgb`, com as contas dos dois sentidos no `PxColorHsl`, e o CS0457
+  saiu junto. O `PxColorArgb` continua com as conversões implícitas com o `System.Drawing.Color`,
+  que não perdem nada; o `PxColorHsl` perdeu as dele, porque ir para o `System.Drawing.Color` é ir
+  para ARGB. Escolha minha, a confirmar: o `PxColorHsl` também passou para `double`, a precisão
+  padrão (P8.1, P8.6).
 - `PxPadding` e `PxDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
 
 ### 3.5 Apresentação
@@ -759,9 +769,9 @@ vez.
 - **`PxPoint` e `PxSize` sobre `PxVec2`** (proposta): o mesmo dado (8 bytes), com nomes e só as
   operações que fazem sentido: ponto + tamanho → ponto, ponto + vetor → ponto, ponto − ponto →
   vetor, tamanho + tamanho → tamanho, tamanho × k → tamanho. Conversão implícita para `PxVec2` (a
-  matemática vem dele) e explícita de volta, testadas no protótipo. As quatro variantes atuais
-  (`PxPoint`, `PxPointF`, `PxSize` e `PxSizeF`) passam a sair do gerador, com os sufixos de
-  precisão dele.
+  matemática vem dele) e explícita de volta, testadas no protótipo. Os primitivos atuais, em
+  `double` desde o commit `2951ce3` (`PxPoint`, `PxSize`, `PxRect` e `PxPadding`), passam a sair do
+  gerador, com os sufixos de precisão dele.
 - **Decidido em 27/09**: a precisão padrão é `double`, como o `Vec2` do C++ (P8.6). A PixieLib
   ainda não é usada (P8.7, P8.8): os primitivos ficam no InteractiveEditor, sem `PixieLib.dll`, e a
   mudança para lá, com o sufixo de precisão (P8.9) e o "onde" acima, fica para uma sessão própria.
@@ -962,7 +972,8 @@ dessas decisões (as exceções, pela premissa, e o motivo do `Inspector` não g
 está numerado em `perguntas-em-aberto.md`.
 
 1. **Primitivos** (resolvida em 27/09): um tipo só, em `double` (P8.1); `PxRect`, `PxPadding` e
-   `PxDock` entram (P8.2); as cores viram `PxColorArgb` e `PxColorHsl` (P8.3).
+   `PxDock` entram (P8.2); as cores viram `PxColorArgb` e `PxColorHsl` (P8.3). Aplicada nos
+   commits `2951ce3`, `3544a8e` e `f1de920`.
 2. **`Fieldset`** (resolvida no commit `5560223`): o `Fieldset` e o namespace `Binding` saíram;
    qualquer membro é um `InspectorNode`, e o CS0118 deixou de existir.
 3. **Cultura** (resolvida em 27/09 e 29/09): configurável no inspector inteiro (P2.7), com a atual
@@ -997,12 +1008,14 @@ Estrutura
       `HslColor` (commit `21cbeda`).
 - [x] Primitivos: prefixo `Px` no lugar do `SK` provisório (`PxPoint`, `PxPointF`, `PxSize` e
       `PxSizeF`), o mesmo da PixieLib (3.9; commit `9e15f6e`).
-- [ ] Primitivos: um tipo só, em `double` (P8.1); saem `PxPointF` e `PxSizeF`.
-- [ ] Cores: `PxColorArgb` e `PxColorHsl` (P8.3), sem conversão implícita entre elas: `ToHsl`,
-      `FromHsl`, `ToArgb` e `FromArgb` (P8.4), o que acaba com o CS0457.
-- [ ] Primitivos: conversões nos dois sentidos com as regras de 3.4 (confirmadas, P8.5), já com o
-      `double`.
-- [ ] Primitivos novos: `PxRect`, `PxPadding` e `PxDock` (decidido, P8.2).
+- [x] Primitivos: um tipo só, em `double` (P8.1); saem `PxPointF` e `PxSizeF` (commit `2951ce3`).
+- [x] Cores: `PxColorArgb` e `PxColorHsl` (P8.3), sem conversão implícita entre elas: `ToHsl`,
+      `FromHsl`, `ToArgb` e `FromArgb` (P8.4), o que acaba com o CS0457 (commit `3544a8e`).
+- [x] Primitivos: conversões nos dois sentidos com as regras de 3.4 (confirmadas, P8.5), já com o
+      `double`, com o `System.Drawing` (commits `2951ce3` e `f1de920`).
+- [ ] Conversões dos primitivos com o WinForms e o WPF (pontos, o `Size` do WPF, `Padding`,
+      `Thickness` e `DockStyle`), no alvo `-windows`, junto com as views (3.4).
+- [x] Primitivos novos: `PxRect`, `PxPadding` e `PxDock` (decidido, P8.2; commit `f1de920`).
 - [ ] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
       PixieLib, com source generator para as precisões (3.9; adiado para uma sessão própria, P8.7).
 
