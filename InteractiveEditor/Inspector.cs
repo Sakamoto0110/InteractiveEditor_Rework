@@ -19,7 +19,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private Inspector(Type target)
     {
         Id = Interlocked.Increment(ref LastId);
-        Root = new RootNode(target);
+        Root = new RootNode(target, this);
     }
 
     // Raised inside the Create, before anyone can subscribe to the new inspector, so they are
@@ -118,6 +118,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
             throw new ArgumentException($"'{Name}' does not have this object bound.", nameof(instance));
 
         Root.Instances.RemoveAt(index);
+        ResetNodes();
         OnBindRemoved([instance]);
 
         if (Root.Instances.Count == 0)
@@ -131,6 +132,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
         var removed = Root.Instances.ToList();
         Root.Instances.Clear();
+        ResetNodes();
         OnBindRemoved(removed);
         OnUnbound();
     }
@@ -144,6 +146,16 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
         Unbind();
         Register(instances);
+    }
+
+    // Reads every node again and raises ValueChanged (Refresh) where something changed since the last
+    // read: the natural way to catch changes in objects that do not report them.
+    public void Refresh()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
+        foreach (var node in Root)
+            node.Update(ValueSource.Refresh);
     }
 
     // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
@@ -199,7 +211,15 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private void Register(object[] instances)
     {
         Root.Instances.AddRange(instances);
+        ResetNodes();
         OnBindRegistered(instances);
+    }
+
+    // The bound objects changed, so every node starts over from what they hold now.
+    private void ResetNodes()
+    {
+        foreach (var node in Root)
+            node.Reset();
     }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
