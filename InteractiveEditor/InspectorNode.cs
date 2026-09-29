@@ -124,9 +124,11 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         {
             var node = this;
 
+            // A member hidden with new is there twice (P5.4), and the name finds the one of the most
+            // derived type, as in C#: the base types come first.
             foreach (var name in path.Split('.'))
             {
-                node = node.Children.FirstOrDefault(c => c.Name == name)
+                node = node.Children.LastOrDefault(c => c.Name == name)
                     ?? throw new KeyNotFoundException($"'{Name}' has no field at path '{path}'.");
             }
 
