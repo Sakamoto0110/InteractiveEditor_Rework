@@ -3,12 +3,14 @@ using InteractiveEditor.Events;
 
 namespace InteractiveEditor.Model;
 
-// Listens to the bound objects, and to the objects of the groups, that report their own changes
-// (INotifyPropertyChanged), so their nodes update without waiting for a Refresh().
+// Listens to the bound objects, to the objects of the groups and to the collections that report their
+// own changes (INotifyPropertyChanged, as an ObservableCollection does), so their nodes update without
+// waiting for a Refresh().
 internal sealed class InstanceWatcher(RootNode root)
 {
     // Every watched object, with the nodes whose members it owns: the root for a bound object, a
-    // group for its object. The same object can own members in more than one place.
+    // group for its object, a collection for itself. The same object can own members in more than one
+    // place.
     private readonly Dictionary<INotifyPropertyChanged, List<InspectorNode>> Owners = new(ReferenceEqualityComparer.Instance);
 
     // Watches what the objects hold now. Called when the bind changes, and when a group's object
@@ -73,6 +75,19 @@ internal sealed class InstanceWatcher(RootNode root)
 
         foreach (var owner in owners.ToList())
         {
+            // A collection that reports its changes changed its items (P5.10), unless it is the
+            // inspector putting one in.
+            if (owner is CollectionNode collection)
+            {
+                if (!collection.IsCompromised && !collection.Writing)
+                {
+                    collection.UpdateAffected(ValueSource.Instance);
+                    groupChanged = true;
+                }
+
+                continue;
+            }
+
             // A notification with no name means that every member of the object may have changed.
             foreach (var node in owner.OwnMembers.Where(n => string.IsNullOrEmpty(e.PropertyName) || n.Name == e.PropertyName))
             {
@@ -89,7 +104,8 @@ internal sealed class InstanceWatcher(RootNode root)
             }
         }
 
-        // A group's object may be a new one now (accepted, or replaced by a closed edit).
+        // A group's object may be a new one now (accepted, or replaced by a closed edit), and so may
+        // the item chosen in a collection.
         if (groupChanged)
             Rewire();
     }

@@ -20,9 +20,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         Parent = parent;
         Name = name;
         Root = parent?.Root ?? (RootNode)this;
-        Path = parent == null ? string.Empty
-            : parent.Parent == null ? name
-            : $"{parent.Path}.{name}";
+        Path = parent == null ? string.Empty : PathOf(parent, name);
+    }
+
+    // The path of a child with this name: relative to the root, which does not count.
+    internal static string PathOf(InspectorNode parent, string name)
+    {
+        return parent.Parent == null ? name : $"{parent.Path}.{name}";
     }
 
     public InspectorNode? Parent { get; }
@@ -200,7 +204,8 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // A member of the type this node holds, added by hand (P1.12). The name is checked at once, and the
     // node gets what the reflection and the attributes say about it, as in the Create, with the manual
     // layer after them; it shows even where they would hide it, since it was added on purpose. It
-    // comes without the members below it, which are added the same way.
+    // comes without the members below it, which are added the same way; a collection comes with its
+    // item row (P5.10), which takes the layers along with it.
     // In an inspector with no type, the name waits for the bind (P1.14); once a bind fixed the type, it
     // is checked at once, and the node takes the member with no layers of reflection and attributes.
     public MemberNode Add(string name)
@@ -221,9 +226,14 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
             return Adopt(found);
         }
 
-        var node = new MemberNode(this, member);
-        ReflectionPolicy.Apply(node, Inspector);
-        AttributePolicy.Apply(node, Inspector);
+        var node = MemberNode.For(this, member);
+
+        foreach (var added in node.Prepend(node).OfType<MemberNode>())
+        {
+            ReflectionPolicy.Apply(added, Inspector);
+            AttributePolicy.Apply(added, Inspector);
+        }
+
         node.Ignored = false;
 
         return Adopt(node);
@@ -283,22 +293,25 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
                 Known = values;
                 changed = true;
             }
+
+            if (ContentChanged(source))
+                changed = true;
         }
 
         if (changed)
-            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
+            OnValueChanged(source);
     }
 
     // Reads the node again with whatever changed along with it: what hangs below it (a closed object
     // replaced, a struct written as a whole) and, since a struct changes as a whole when one of its
-    // fields does, the topmost struct above it with that struct's branch.
+    // fields does, and a collection when its item does, the topmost of them above it with its branch.
     internal void UpdateAffected(ValueSource source, bool changed = false)
     {
         Update(source, changed);
 
         var top = this;
 
-        while (top.Parent is MemberNode { ValueType.IsValueType: true } owner)
+        while (top.Parent is { } owner and (CollectionNode or MemberNode { ValueType.IsValueType: true }))
             top = owner;
 
         if (top != this)
@@ -323,11 +336,12 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         Record();
 
         var values = ReadValues();
-        var changed = dropped || !values.SequenceEqual(Known);
+        var content = ContentChanged(source);
+        var changed = dropped || content || !values.SequenceEqual(Known);
         Known = values;
 
         if (changed && source is { } reported)
-            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, reported));
+            OnValueChanged(reported);
     }
 
     // Drops the pending value and reads the node again: the view goes back to what the objects hold.
@@ -347,7 +361,7 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         Known = values;
 
         if (changed)
-            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, ValueSource.Force));
+            OnValueChanged(ValueSource.Force);
     }
 
     // Writes the pending value (Apply); only a member has one.
@@ -380,7 +394,20 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
         Pending = value;
         HasPendingValue = true;
-        ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, ValueSource.Pending));
+        OnValueChanged(ValueSource.Pending);
+    }
+
+    private protected void OnValueChanged(ValueSource source)
+    {
+        ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
+    }
+
+    // Whether what the node holds changed inside the same object since the last look: only a
+    // collection checks its items, and it remembers them for the next look. The source is what the
+    // rows below it report when the item chosen changes with the items; none in a change of the bind.
+    private protected virtual bool ContentChanged(ValueSource? source)
+    {
+        return false;
     }
 
     // True when there was a pending value to drop.

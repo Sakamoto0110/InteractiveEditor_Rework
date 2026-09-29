@@ -10,6 +10,41 @@ internal static class AttributePolicy
     public static void Apply(MemberNode node, Inspector inspector)
     {
         // Whether an attribute chose how the member is edited: a type with more than one editor needs it.
+        // The item of a collection has no member, so only its type counts (P5.10).
+        var chosen = node.Member != null && ApplyMember(node, inspector);
+
+        // [InspectorExpandable] counts on the member or on its type, and only when there is something to open.
+        Use(node, inspector,
+            () => node.Member?.GetCustomAttribute<InspectorExpandableAttribute>()
+                ?? (Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType).GetCustomAttribute<InspectorExpandableAttribute>(),
+            expandable =>
+            {
+                if (!node.HasMembers)
+                    return;
+
+                node.Expandable = true;
+                node.Collapsed = expandable.Collapsed;
+                chosen = true;
+            });
+
+        // Without a choice, a type with more than one editor stays a Display row, and the Create says
+        // so (P5.8); a subscriber can choose right there and mark it handled.
+        if (!chosen && ReflectionDiscovery.HasManyEditors(node.ValueType))
+        {
+            var type = Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType;
+
+            inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround,
+                new NotSupportedException($"{type.Name} fits more than one editor, and none was chosen."),
+                $"'{node.Path}' shows as Display until an editor is chosen.",
+                node.Member == null
+                    ? "Set Editor or Expandable on the node."
+                    : "Choose one with [InspectorEditor] or [InspectorExpandable], or set Editor or Expandable on the node.");
+        }
+    }
+
+    // The attributes on the member itself; true when [InspectorEditor] chose the editor.
+    private static bool ApplyMember(MemberNode node, Inspector inspector)
+    {
         var chosen = false;
 
         // [InspectorReadOnly] brings back a member the reflection hid for its setter, so it goes
@@ -37,31 +72,7 @@ internal static class AttributePolicy
         Use<InspectorScrubAttribute>(node, inspector, scrub => node.ScrubMultiplier = scrub.Multiplier);
         Use<InspectorOrderAttribute>(node, inspector, order => node.Order = order.Order);
 
-        // [InspectorExpandable] counts on the member or on its type, and only when there is something to open.
-        Use(node, inspector,
-            () => node.Member!.GetCustomAttribute<InspectorExpandableAttribute>()
-                ?? (Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType).GetCustomAttribute<InspectorExpandableAttribute>(),
-            expandable =>
-            {
-                if (!node.HasMembers)
-                    return;
-
-                node.Expandable = true;
-                node.Collapsed = expandable.Collapsed;
-                chosen = true;
-            });
-
-        // Without a choice, a type with more than one editor stays a Display row, and the Create says
-        // so (P5.8); a subscriber can choose right there and mark it handled.
-        if (!chosen && ReflectionDiscovery.HasManyEditors(node.ValueType))
-        {
-            var type = Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType;
-
-            inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround,
-                new NotSupportedException($"{type.Name} fits more than one editor, and none was chosen."),
-                $"'{node.Path}' shows as Display until an editor is chosen.",
-                "Choose one with [InspectorEditor] or [InspectorExpandable], or set Editor or Expandable on the node.");
-        }
+        return chosen;
     }
 
     private static void Use<TAttribute>(MemberNode node, Inspector inspector, Action<TAttribute> apply)

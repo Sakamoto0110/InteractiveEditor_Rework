@@ -13,4 +13,7 @@ public enum EditorKind
     Display,
     Header,
     Separator,
+
+    // A collection: a list of its items to choose one, which shows in the row below (P5.10).
+    Selector,
 }

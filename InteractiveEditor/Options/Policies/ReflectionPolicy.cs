@@ -11,14 +11,20 @@ internal static class ReflectionPolicy
     {
         try
         {
-            var member = node.Member!;
-            node.Label = member.Name;
-            node.Editor = EditorFor(node.ValueType);
-            node.ReadOnly = !IsPubliclyWritable(member);
-            node.Ignored = HasHiddenSetter(member);
-            // A type with more than one editor stays closed until one is chosen (P5.5).
-            node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute
-                && !ReflectionDiscovery.HasManyEditors(node.ValueType);
+            node.Label = node.Name;
+            node.Editor = EditorFor(node);
+
+            // The item of a collection has no member to say these (P5.10).
+            if (node.Member is { } member)
+            {
+                node.ReadOnly = !IsPubliclyWritable(member);
+                node.Ignored = HasHiddenSetter(member);
+            }
+
+            // A collection always shows the row of its item, which opens as a member would. A type with
+            // more than one editor stays closed until one is chosen (P5.5).
+            node.Expandable = node is CollectionNode
+                || node.HasMembers && !GlobalOptions.RequireExpandableAttribute && !ReflectionDiscovery.HasManyEditors(node.ValueType);
         }
         catch (Exception e)
         {
@@ -30,7 +36,15 @@ internal static class ReflectionPolicy
         }
     }
 
-    internal static EditorKind EditorFor(Type type)
+    // Only a collection node lists its items: a collection anywhere else (an item that is one, or a
+    // member of an inspector with no type, made before its type was known) is a Display row.
+    internal static EditorKind EditorFor(MemberNode node)
+    {
+        var editor = EditorFor(node.ValueType);
+        return editor == EditorKind.Selector && node is not CollectionNode ? EditorKind.Display : editor;
+    }
+
+    private static EditorKind EditorFor(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
 
@@ -42,6 +56,10 @@ internal static class ReflectionPolicy
 
         if (ValueConverter.IsNumber(type))
             return EditorKind.Number;
+
+        // A collection lists its items, and the one chosen shows in the row below (P5.10).
+        if (ReflectionDiscovery.IsCollection(type))
+            return EditorKind.Selector;
 
         if (type == typeof(object) || !ReflectionDiscovery.IsTerminal(type))
             return EditorKind.Display;
