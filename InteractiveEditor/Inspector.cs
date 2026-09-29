@@ -1,12 +1,13 @@
 ﻿using System.Collections;
 using InteractiveEditor.Diagnostics;
+using InteractiveEditor.Events;
 using InteractiveEditor.Model;
 using InteractiveEditor.Options;
 using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
-// Holds the tree and the bound object. It is not a node itself: the options live on the nodes,
+// Holds the tree and the bound objects. It is not a node itself: the options live on the nodes,
 // and the root stays inside.
 public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 {
@@ -30,13 +31,22 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // Tells inspectors apart, so an event can be traced back to the one that raised it.
     public int Id { get; }
 
+    // Objects coming into the bind and leaving it; Unbound when the last one leaves.
+    public event EventHandler<BindEventArgs>? BindRegistered;
+    public event EventHandler<BindEventArgs>? BindRemoved;
+    public event EventHandler<InspectorEventArgs>? Unbound;
+
     // What went wrong during the Create, for whoever checks after it.
     public InspectorReport Report { get; } = new();
 
     public string Name => Root.Name;
 
-    // The bound object, or null. A struct at the root is the inspector's own copy, read back here.
-    public object? Instance => Root.Instance;
+    // The first bound object, or null. A struct at the root is the inspector's own copy, read back
+    // here.
+    public object? Instance => Root.Instances.FirstOrDefault();
+
+    // Every bound object, in the order they were bound.
+    public IReadOnlyList<object> Instances => Root.Instances.AsReadOnly();
 
     // A failure inside the Create does not stop it: the failed piece falls back or is left out, and
     // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller.
@@ -77,31 +87,63 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
 
-    // One object at a time for now (multi-bind comes later), so swapping it is explicit.
+    // Binding over a bound object throws: the swap is explicit (Rebind), and adding one is AddBind.
     public void Bind(object instance)
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instance);
 
-        if (Root.Instance != null)
-            throw new InvalidOperationException($"'{Name}' is already bound; call Unbind() or Rebind() first.");
+        if (Root.Instances.Count > 0)
+            throw new InvalidOperationException($"'{Name}' is already bound; call Unbind(), Rebind() or AddBind().");
 
-        Root.Instance = instance;
+        CheckBindable([instance]);
+        Register([instance]);
+    }
+
+    // Puts more objects in the bind (multi-bind). With nothing bound, it binds them.
+    public void AddBind(params object[] instances)
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+        CheckBindable(instances);
+        Register(instances);
+    }
+
+    // Takes one object out of the bind; taking the last one out is the same as Unbind().
+    public void RemoveBind(object instance)
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
+        var index = Root.Instances.FindIndex(bound => ReferenceEquals(bound, instance));
+
+        if (index < 0)
+            throw new ArgumentException($"'{Name}' does not have this object bound.", nameof(instance));
+
+        Root.Instances.RemoveAt(index);
+        OnBindRemoved([instance]);
+
+        if (Root.Instances.Count == 0)
+            OnUnbound();
     }
 
     public void Unbind()
     {
-        Root.Instance = null;
+        if (Root.Instances.Count == 0)
+            return;
+
+        var removed = Root.Instances.ToList();
+        Root.Instances.Clear();
+        OnBindRemoved(removed);
+        OnUnbound();
     }
 
-    public void Rebind(object instance)
+    // Unbind and bind again, with one object or several.
+    public void Rebind(params object[] instances)
     {
-        // Checked before unbinding, so a refused instance leaves the current one bound.
+        // Checked before unbinding, so a refused instance leaves the current ones bound.
         ObjectDisposedException.ThrowIf(Disposed, this);
-        CheckBindable(instance);
+        CheckBindable(instances);
 
         Unbind();
-        Bind(instance);
+        Register(instances);
     }
 
     // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
@@ -154,13 +196,44 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         Created?.Invoke(inspector, new InspectorCreatedEventArgs(inspector));
     }
 
-    // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
-    private void CheckBindable(object instance)
+    private void Register(object[] instances)
     {
-        if (instance == null)
-            throw new ArgumentNullException(nameof(instance));
+        Root.Instances.AddRange(instances);
+        OnBindRegistered(instances);
+    }
 
-        if (!Root.Target.IsInstanceOfType(instance))
-            throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
+    // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
+    // and an object is bound once.
+    private void CheckBindable(object[] instances)
+    {
+        if (instances == null)
+            throw new ArgumentNullException(nameof(instances));
+
+        foreach (var instance in instances)
+        {
+            if (instance == null)
+                throw new ArgumentNullException(nameof(instance));
+
+            if (!Root.Target.IsInstanceOfType(instance))
+                throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
+
+            if (Root.Instances.Concat(instances).Count(bound => ReferenceEquals(bound, instance)) > 1)
+                throw new ArgumentException($"'{Name}' already has this object bound.", nameof(instance));
+        }
+    }
+
+    private void OnBindRegistered(IReadOnlyList<object> instances)
+    {
+        BindRegistered?.Invoke(this, new BindEventArgs(this, instances));
+    }
+
+    private void OnBindRemoved(IReadOnlyList<object> instances)
+    {
+        BindRemoved?.Invoke(this, new BindEventArgs(this, instances));
+    }
+
+    private void OnUnbound()
+    {
+        Unbound?.Invoke(this, new InspectorEventArgs(this));
     }
 }
