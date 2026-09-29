@@ -20,6 +20,11 @@ internal static class AttributePolicy
             node.Ignored = false;
         });
         Use<InspectorIgnoreAttribute>(node, inspector, _ => node.Ignored = true);
+
+        // A name hidden from outside for the object's type counts as an [InspectorIgnore] (P6.7).
+        if (node.Member.ReflectedType is { } owner && GlobalOptions.IsHidden(owner, node.Name))
+            node.Ignored = true;
+
         Use<InspectorLabelAttribute>(node, inspector, label => node.Label = label.Text);
         Use<InspectorTooltipAttribute>(node, inspector, tooltip => node.Tooltip = tooltip.Text);
         Use<InspectorHelpAttribute>(node, inspector, help => node.Help = help.Text);
