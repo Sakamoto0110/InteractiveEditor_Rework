@@ -2,6 +2,7 @@
 using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
+using InteractiveEditor.Model;
 using InteractiveEditor.Options;
 
 namespace InteractiveEditor;
@@ -70,12 +71,26 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     #region State
 
-    // What the bound objects held here at the last read, one value per object. ValueChanged reports
+    // What the view holds for the bound objects, one value per object: what each held here at the last
+    // read the binder control let through, or an empty value after a ForceClear(). ValueChanged reports
     // a change against it.
     private object?[] Known = [];
 
+    // A value written through the inspector while ViewToInstance is off, held until Apply() writes it
+    // or Reload() drops it.
+    private protected object? Pending { get; private set; }
+
+    public bool HasPendingValue { get; private set; }
+
+    // What the view shows: the pending value, or what the first bound object held at the last read.
+    // Unlike GetValue(), it does not read the object, so it follows the binder control.
+    public object? ViewValue => ViewValueAt(0);
+
     // Whether the failure on the node came from a write: a read that works does not clear it.
     private bool FailedOnWrite;
+
+    // True when the last read of the node failed, so the view holds nothing it knows.
+    private protected bool ReadFailed => Failure != null && !FailedOnWrite;
 
     // Set when this group's object was replaced outside the inspector and nobody accepted it.
     private protected bool Replaced;
@@ -134,15 +149,10 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return ReadValues();
     }
 
-    // True when the bound objects do not all hold the same value here; never on a disabled branch.
-    public bool IsMixed
-    {
-        get
-        {
-            DetectReplacements();
-            return !IsCompromised && ReadValues().Distinct().Skip(1).Any();
-        }
-    }
+    // True when the bound objects did not all hold the same value here at the last read, what the row
+    // shows as mixed. Never with a pending value, which goes to all of them, nor on a disabled branch.
+    // Like ViewValue, it does not read the objects.
+    public bool IsMixed => !IsCompromised && !HasPendingValue && Known.Distinct().Skip(1).Any();
 
     public abstract void SetValue(object? value);
 
@@ -175,28 +185,31 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return GetEnumerator();
     }
 
-    // Reads the node again and reports a change against the last read; a disabled branch is left
-    // alone.
-    internal void Update(ValueSource source)
+    // Reads the node again and reports a change against the last read, or one the caller already knows
+    // of (a pending value dropped); a disabled branch is not read.
+    internal void Update(ValueSource source, bool changed = false)
     {
-        if (IsCompromised)
-            return;
+        if (!IsCompromised)
+        {
+            var values = ReadValues();
 
-        var values = ReadValues();
+            if (!values.SequenceEqual(Known))
+            {
+                Known = values;
+                changed = true;
+            }
+        }
 
-        if (values.SequenceEqual(Known))
-            return;
-
-        Known = values;
-        ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
+        if (changed)
+            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
     }
 
     // Reads the node again with whatever changed along with it: what hangs below it (a closed object
     // replaced, a struct written as a whole) and, since a struct changes as a whole when one of its
     // fields does, the topmost struct above it with that struct's branch.
-    internal void UpdateAffected(ValueSource source)
+    internal void UpdateAffected(ValueSource source, bool changed = false)
     {
-        Update(source);
+        Update(source, changed);
 
         var top = this;
 
@@ -213,15 +226,92 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         }
     }
 
-    // The objects changed (bind, unbind): the node starts over from what they hold, without an event,
-    // and a disabled branch is enabled again.
-    internal void Reset()
+    // The node starts over from what the objects hold: nothing pending, no failure, and a disabled
+    // branch enabled again. A change in the bind does it without an event; ForceReload() reports what
+    // the view has to show again.
+    internal void Reset(ValueSource? source = null)
     {
+        var dropped = DropPending();
         Failure = null;
         FailedOnWrite = false;
         Replaced = false;
         Record();
-        Known = ReadValues();
+
+        var values = ReadValues();
+        var changed = dropped || !values.SequenceEqual(Known);
+        Known = values;
+
+        if (changed && source is { } reported)
+            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, reported));
+    }
+
+    // Drops the pending value and reads the node again: the view goes back to what the objects hold.
+    internal void Reload()
+    {
+        Update(ValueSource.Reload, DropPending());
+    }
+
+    // Empties what the view holds (ForceClear): nothing pending, and zero, false, an empty text or null
+    // for every object. The objects keep their values.
+    internal void Clear()
+    {
+        var dropped = DropPending();
+        var empty = ValueType == null ? null : ValueConverter.Empty(ValueType);
+        var values = Enumerable.Repeat(empty, Root.Instances.Count).ToArray();
+        var changed = dropped || !values.SequenceEqual(Known);
+        Known = values;
+
+        if (changed)
+            ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, ValueSource.Force));
+    }
+
+    // Writes the pending value (Apply); only a member has one.
+    internal virtual void ApplyPending()
+    {
+    }
+
+    // Writes what the view holds into the objects, as taken before anything was written (ForceApply);
+    // true when a pending value went with it. Only a member writes.
+    internal virtual bool ForceWrite(object?[] held)
+    {
+        return false;
+    }
+
+    // What the view holds for each bound object: the pending value, or what each one held at the last
+    // read.
+    internal object?[] HeldValues()
+    {
+        return Enumerable.Range(0, Root.Instances.Count).Select(ViewValueAt).ToArray();
+    }
+
+    // Keeps a value written while ViewToInstance is off, until Apply() writes it or Reload() drops it.
+    // A value that goes through clears the failure of an earlier attempt.
+    private protected void Hold(object? value)
+    {
+        OnWritten();
+
+        if (HasPendingValue && Equals(Pending, value))
+            return;
+
+        Pending = value;
+        HasPendingValue = true;
+        ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, ValueSource.Pending));
+    }
+
+    // True when there was a pending value to drop.
+    private protected bool DropPending()
+    {
+        if (!HasPendingValue)
+            return false;
+
+        Pending = null;
+        HasPendingValue = false;
+        return true;
+    }
+
+    private object? ViewValueAt(int index)
+    {
+        return HasPendingValue ? Pending : index < Known.Length ? Known[index] : null;
     }
 
     // Groups remember the object they hold in every bound object, or in one of them; the others have
@@ -263,7 +353,7 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     // From the top down, so a replaced parent is caught before its children are compared with
     // objects that are no longer theirs.
-    private void DetectReplacements()
+    private protected void DetectReplacements()
     {
         var chain = new Stack<InspectorNode>();
 

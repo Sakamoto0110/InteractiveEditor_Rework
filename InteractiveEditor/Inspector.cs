@@ -38,6 +38,12 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     public event EventHandler<BindEventArgs>? BindRemoved;
     public event EventHandler<InspectorEventArgs>? Unbound;
 
+    // Raised after each forced operation, an override or a fallback for when the normal flow (Apply(),
+    // Reload() and Refresh()) failed or does not fit.
+    public event EventHandler<InspectorEventArgs>? ForcedApply;
+    public event EventHandler<InspectorEventArgs>? ForcedReload;
+    public event EventHandler<InspectorEventArgs>? ForcedClear;
+
     // What went wrong during the Create, for whoever checks after it.
     public InspectorReport Report { get; } = new();
 
@@ -52,6 +58,9 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // Every bound object, in the order they were bound.
     public IReadOnlyList<object> Instances => Root.Instances.AsReadOnly();
+
+    // True when a node holds a value waiting for Apply().
+    public bool HasPendingValues => Root.Any(node => node.HasPendingValue);
 
     // A failure inside the Create does not stop it: the failed piece falls back or is left out, and
     // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller.
@@ -156,22 +165,85 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // Reads every node again and raises ValueChanged (Refresh) where something changed since the last
     // read: the natural way to catch changes in objects that do not report them. Groups whose object
-    // was replaced outside are found first, and their branches are left out.
+    // was replaced outside are found first, and their branches are left out. It is the way from the
+    // objects to the view on its own, so without InstanceToView it does nothing; pending values stay.
     public void Refresh()
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
 
-        // The tree comes in pre-order, so a parent is checked before its children.
+        if (Options.InstanceToView)
+            ReadAll(node => node.Update(ValueSource.Refresh));
+    }
+
+    // Writes the values the nodes hold while ViewToInstance is off: the normal flow for writing by
+    // hand. A node that cannot take its value now keeps it, and the row shows why.
+    public void Apply()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
         foreach (var node in Root)
+            node.ApplyPending();
+    }
+
+    // Drops the pending values and reads every node again, raising ValueChanged (Reload) where the view
+    // changed: the normal flow for reading by hand, whatever the binder control. Replaced groups are
+    // found first, as in Refresh().
+    public void Reload()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+        ReadAll(node => node.Reload());
+    }
+
+    // Writes what the view holds (the pending values, and the values read last) into every bound
+    // object, whatever the binder control: for when the objects went their own way and the view is
+    // right. ValueChanged (Force) comes where the view changed with it: a pending value that went, or
+    // a value a setter changed on its way in.
+    public void ForceApply()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
+        // Taken before anything is written, because a write reads its branch again.
+        var held = Root.Select(node => (Node: node, Values: node.HeldValues())).ToList();
+        var dropped = new HashSet<InspectorNode>();
+
+        foreach (var (node, values) in held)
         {
-            if (!node.IsCompromised)
-                node.CheckReplaced();
+            if (node.ForceWrite(values))
+                dropped.Add(node);
         }
 
         foreach (var node in Root)
-            node.Update(ValueSource.Refresh);
+            node.Update(ValueSource.Force, dropped.Contains(node));
 
         Watcher.Rewire();
+        OnForcedApply();
+    }
+
+    // Starts over from what the objects hold now, whatever the binder control: pending values and
+    // failures go, and a branch disabled by a replaced group takes the new object, as a Rebind with the
+    // same objects would, without the bind events. ValueChanged (Force) says what the view has to show
+    // again.
+    public void ForceReload()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
+        foreach (var node in Root)
+            node.Reset(ValueSource.Force);
+
+        Watcher.Rewire();
+        OnForcedReload();
+    }
+
+    // Empties what the view shows (zero, false, an empty text or null), whatever the binder control.
+    // The objects keep their values, and the next read brings them back.
+    public void ForceClear()
+    {
+        ObjectDisposedException.ThrowIf(Disposed, this);
+
+        foreach (var node in Root)
+            node.Clear();
+
+        OnForcedClear();
     }
 
     // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
@@ -237,6 +309,22 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         Watcher.Rewire();
     }
 
+    // Replaced groups first, from the top down, so a parent is checked before its children (the tree
+    // comes in pre-order); then every node is read.
+    private void ReadAll(Action<InspectorNode> read)
+    {
+        foreach (var node in Root)
+        {
+            if (!node.IsCompromised)
+                node.CheckReplaced();
+        }
+
+        foreach (var node in Root)
+            read(node);
+
+        Watcher.Rewire();
+    }
+
     // The bound objects changed, so every node starts over from what they hold now.
     private void ResetNodes()
     {
@@ -279,5 +367,20 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private void OnUnbound()
     {
         Unbound?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedApply()
+    {
+        ForcedApply?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedReload()
+    {
+        ForcedReload?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedClear()
+    {
+        ForcedClear?.Invoke(this, new InspectorEventArgs(this));
     }
 }

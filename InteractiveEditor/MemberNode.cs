@@ -24,7 +24,7 @@ public sealed class MemberNode : InspectorNode
 
     public override Type ValueType => Member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)Member).PropertyType;
 
-    // Every bound object takes the value.
+    // Every bound object takes the value; with ViewToInstance off, the node holds it until Apply().
     public override void SetValue(object? value)
     {
         // A group is edited through its fields; the object behind it is never replaced from here.
@@ -33,29 +33,123 @@ public sealed class MemberNode : InspectorNode
 
         ThrowIfCompromised();
 
-        if (ReadOnly)
-            throw new InvalidOperationException($"'{Name}' is read-only.");
-
-        // With nothing bound, the write fails like any other null owner.
-        if (Root.Instances.Count == 0)
-            WriteTo(null, value);
-
-        // A null owner in any of the objects stops the write before any of them changes.
-        foreach (var instance in Root.Instances)
-        {
-            if (Parent!.Resolve(instance) == null)
-                throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
-        }
+        if (CannotWrite() is { } reason)
+            throw new InvalidOperationException(reason);
 
         if (!TryPrepare(value, out var prepared))
             return;
 
+        if (Inspector.Options.ViewToInstance)
+            Write(prepared, ValueSource.Write);
+        else
+            Hold(prepared);
+    }
+
+    // Writes the pending value into every bound object. A node that cannot take it now (read-only, a
+    // null owner, a getter above it that throws) keeps it, and the row shows why; a disabled branch
+    // keeps it until the Rebind drops it.
+    internal override void ApplyPending()
+    {
+        if (!HasPendingValue)
+            return;
+
+        DetectReplacements();
+
+        if (IsCompromised)
+            return;
+
+        Exception? problem;
+
+        try
+        {
+            problem = CannotWrite() is { } reason ? new InvalidOperationException(reason) : null;
+        }
+        catch (Exception e)
+        {
+            problem = Unwrap(e);
+        }
+
+        if (problem != null)
+        {
+            OnBindFailed(FailureSeverity.WorkedAround, problem, $"'{Path}' could not take its pending value.",
+                "Check the node and the objects above it; Reload() drops the value.", onWrite: true);
+            return;
+        }
+
+        Write(Pending, ValueSource.Write);
+    }
+
+    // Writes what the view held into every bound object, as taken before anything was written. Groups
+    // are written through their fields, and read-only or disabled nodes are never written; a node whose
+    // last read failed holds nothing the view knows, and an object with nothing above the node has
+    // nowhere to take it. A setter that throws is reported on the node. True when a pending value went.
+    internal override bool ForceWrite(object?[] held)
+    {
+        if (IsGroup || ReadOnly || IsCompromised || ReadFailed)
+            return false;
+
+        var wrote = false;
+        var failed = false;
+
+        for (var i = 0; i < held.Length && i < Root.Instances.Count; i++)
+        {
+            var instance = Root.Instances[i];
+
+            try
+            {
+                if (Parent!.Resolve(instance) == null)
+                    continue;
+
+                WriteTo(instance, held[i]);
+                wrote = true;
+            }
+            catch (Exception e)
+            {
+                failed = true;
+                OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"'{Path}' could not be forced into the objects.",
+                    "Check the member's setter, and the objects above it.", onWrite: true);
+            }
+        }
+
+        if (!wrote)
+            return false;
+
+        RecordBranch();
+
+        if (failed)
+            return false;
+
+        OnWritten();
+        return DropPending();
+    }
+
+    // Why this node cannot be written into the bound objects now, or null when it can. With nothing
+    // bound, the write fails like any other null owner, and a null owner in any of the objects stops it
+    // before any of them changes.
+    private string? CannotWrite()
+    {
+        if (ReadOnly)
+            return $"'{Name}' is read-only.";
+
+        if (Root.Instances.Count == 0 || Root.Instances.Any(instance => Parent!.Resolve(instance) == null))
+            return $"Cannot set '{Name}': '{Parent!.Name}' is null.";
+
+        return null;
+    }
+
+    // Writes a value that is ready into every bound object. When the write works, the pending value
+    // goes; the node and whatever changed with it are read again either way.
+    private void Write(object? value, ValueSource source)
+    {
+        var dropped = false;
+
         try
         {
             foreach (var instance in Root.Instances)
-                WriteTo(instance, prepared);
+                WriteTo(instance, value);
 
             OnWritten();
+            dropped = DropPending();
         }
         catch (TargetInvocationException e)
         {
@@ -64,17 +158,22 @@ public sealed class MemberNode : InspectorNode
                 "Check the member's setter.", onWrite: true);
         }
 
-        // A closed object replaced here was replaced by the inspector itself, not from outside: its
-        // branch starts over from the new object.
-        Record();
-
-        foreach (var node in this)
-            node.Record();
+        RecordBranch();
 
         if (HasMembers)
             Root.Owner.Rewire();
 
-        UpdateAffected(ValueSource.Write);
+        UpdateAffected(source, dropped);
+    }
+
+    // A closed object replaced here was replaced by the inspector itself, not from outside: its branch
+    // starts over from the new object.
+    private void RecordBranch()
+    {
+        Record();
+
+        foreach (var node in this)
+            node.Record();
     }
 
     // Turns what came in into what the member takes: text through the text rules and the parser, a
