@@ -125,11 +125,9 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         {
             var node = this;
 
-            // A member hidden with new is there twice (P5.4), and the name finds the one of the most
-            // derived type, as in C#: the base types come first.
             foreach (var name in path.Split('.'))
             {
-                node = node.Children.LastOrDefault(c => c.Name == name)
+                node = node.Child(name)
                     ?? throw new KeyNotFoundException($"'{Name}' has no field at path '{path}'.");
             }
 
@@ -148,7 +146,16 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
                 $"The selector starts from {typeof(T).Name}, but '{Name}' holds {ValueType?.Name ?? "nothing"}.", nameof(selector));
         }
 
-        return this[MemberPath.Of(selector)];
+        var chain = MemberPath.Of(selector);
+        var node = this;
+
+        foreach (var member in chain)
+        {
+            node = node.ChildFor(member) ?? throw new KeyNotFoundException(
+                $"'{Name}' has no field at path '{string.Join('.', chain.Select(m => m.Name))}'.");
+        }
+
+        return node;
     }
 
     // The value in the first bound object, or null when nothing is bound. A disabled branch throws.
@@ -495,14 +502,37 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // Writes into a bound object. A struct owner comes back up through here, even when it is a group.
     internal abstract void WriteTo(object? instance, object? value);
 
-    internal IReadOnlyList<InspectorNode> ChildNodes => Children;
+    // The children that are members of this node's object: a group of a type stands for its members.
+    internal IEnumerable<InspectorNode> OwnMembers =>
+        Children.SelectMany(child => child is TypeGroupNode group ? group.Children : (IEnumerable<InspectorNode>)[child]);
+
+    // A child by name. A member hidden with new sits in the group of the type that declares it (P5.9),
+    // and the name alone finds the one of the most derived type, as in C#: the groups of the base
+    // types come first.
+    private InspectorNode? Child(string name)
+    {
+        return Children.FirstOrDefault(c => c.Name == name)
+            ?? Children.OfType<TypeGroupNode>()
+                .Select(group => group.Children.FirstOrDefault(c => c.Name == name))
+                .LastOrDefault(c => c != null);
+    }
+
+    // The child for a member of a selector: in the group of its declaring type when it is hidden,
+    // since the member tells which of the two it is; by name otherwise.
+    private InspectorNode? ChildFor(MemberInfo member)
+    {
+        return Children.OfType<TypeGroupNode>()
+                .FirstOrDefault(group => group.DeclaringType == member.DeclaringType)?.Children
+                .FirstOrDefault(c => c.Name == member.Name)
+            ?? Child(member.Name);
+    }
 
     // A node added by hand goes after the ones already here, and its name has to be free: the indexer
     // finds children by name. It reads the bound objects at once, and a member it goes into opens,
     // since a child was added to it on purpose.
     private protected T Adopt<T>(T child) where T : InspectorNode
     {
-        if (Children.Any(c => c.Name == child.Name))
+        if (Child(child.Name) != null)
             throw new ArgumentException($"'{Name}' already has a node named '{child.Name}'.", "name");
 
         AddChild(child);
