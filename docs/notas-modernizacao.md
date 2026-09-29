@@ -251,7 +251,10 @@ tinha deixado para ele confirmar.
   derivado, e no exemplo `Derived.Value` é o `string Value`, não o `int Value`. A árvore (P5.9):
   só os membros escondidos ganham um nível com o nome do tipo que os declara (`Base.Value` e
   `Derived.Value`), e o resto fica direto no dono, como hoje; `inspector["Value"]`, sem o tipo,
-  acha o do derivado, como no C#.
+  acha o do derivado, como no C#. Aplicado no commit `c9868a9`, com um nó de grupo por tipo
+  (`TypeGroupNode`), que não tem valor próprio: os membros dele leem e gravam o objeto onde o grupo
+  está. O seletor por expressão segue o membro da expressão, então `Node<Base>(b => b.Value)` chega
+  ao do tipo base.
 - **Tipos com mais de um editor** (P5.5), como o `Color`: são casos de borda, e o comportamento tem
   que ser escolhido explicitamente (expandir em campos int, texto hex ou um seletor aberto por um
   botão). Também é um motivo para usar os primitivos próprios, sem o excesso de propriedades do
@@ -1182,12 +1185,10 @@ Pendências da primeira revisão (já conhecidas)
       que as opções marcam (commit `6117bb1`).
 - [x] `FieldDescriptor.Type` com o tipo dono e o namespace `Binding` escondendo o tipo `Binding` do
       WinForms e do WPF: os dois saíram (commit `5560223`).
-- [ ] Membro escondido com `new`: não quebra mais o `Create`, mas aparece duas vezes, e o indexador
-      acha o do tipo derivado; desde o commit `6c17a15`, o da base vem primeiro, e o indexador
-      pega o último com o nome. Só quando o tipo muda: com o mesmo tipo
-      (`public new int Value`), aparece uma vez só (testado). Decidido (P5.4): os dois aparecem,
-      com o nome composto, que expande nos campos do tipo derivado (P5.7); só os membros
-      escondidos ganham o nível do tipo, e o nome sem o tipo acha o do derivado (P5.9).
+- [x] Membro escondido com `new`: os dois aparecem (P5.4), cada um no grupo do tipo que o declara
+      (`Base.Value` e `Derived.Value`), e o nome sem o tipo acha o do derivado (P5.7, P5.9; commit
+      `c9868a9`). Só quando o tipo muda: com o mesmo tipo (`public new int Value`), a reflection
+      devolve um só, e não há grupo (testado).
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de
