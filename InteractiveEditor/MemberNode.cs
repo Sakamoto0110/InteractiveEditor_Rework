@@ -50,8 +50,6 @@ public sealed class MemberNode : InspectorNode
         if (!TryPrepare(value, out var prepared))
             return;
 
-        Writing = true;
-
         try
         {
             foreach (var instance in Root.Instances)
@@ -65,10 +63,6 @@ public sealed class MemberNode : InspectorNode
             OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"'{Path}' could not be written.",
                 "Check the member's setter.", onWrite: true);
         }
-        finally
-        {
-            Writing = false;
-        }
 
         // A closed object replaced here was replaced by the inspector itself, not from outside: its
         // branch starts over from the new object.
@@ -80,7 +74,7 @@ public sealed class MemberNode : InspectorNode
         if (HasMembers)
             Root.Owner.Rewire();
 
-        Update(ValueSource.Write);
+        UpdateAffected(ValueSource.Write);
     }
 
     // Turns what came in into what the member takes: text through the text rules and the parser, a
@@ -137,19 +131,23 @@ public sealed class MemberNode : InspectorNode
     {
         Seen.Clear();
 
+        foreach (var instance in Root.Instances)
+            Record(instance);
+    }
+
+    internal override void Record(object instance)
+    {
         if (!Tracks)
             return;
 
-        foreach (var instance in Root.Instances)
+        try
         {
-            try
-            {
-                Seen[instance] = Resolve(instance);
-            }
-            catch (Exception)
-            {
-                // A getter that throws leaves nothing to compare; the read reports it.
-            }
+            Seen[instance] = Resolve(instance);
+        }
+        catch (Exception)
+        {
+            // A getter that throws leaves nothing to compare; the read reports it.
+            Seen.Remove(instance);
         }
     }
 
@@ -177,23 +175,25 @@ public sealed class MemberNode : InspectorNode
                 continue;
             }
 
-            // A closed object is a value: replacing it is an edit, not a swap.
-            if (!IsGroup)
+            // A closed object is a value: replacing it is an edit, not a swap. An open group's object
+            // is kept only when a subscriber accepts the new one.
+            if (IsGroup)
             {
-                Seen[instance] = current;
-                continue;
+                var replaced = new ObjectReplacedEventArgs(this, instance, seen, current);
+                OnObjectReplaced(replaced);
+
+                if (!replaced.Accepted)
+                {
+                    Replaced = true;
+                    return;
+                }
             }
 
-            var replaced = new ObjectReplacedEventArgs(this, instance, seen, current);
-            OnObjectReplaced(replaced);
-
-            if (!replaced.Accepted)
-            {
-                Replaced = true;
-                return;
-            }
-
+            // Either way, the branch starts over from the new object in this instance.
             Seen[instance] = current;
+
+            foreach (var node in this)
+                node.Record(instance);
         }
     }
 
@@ -220,16 +220,27 @@ public sealed class MemberNode : InspectorNode
         var owner = Parent!.Resolve(instance)
             ?? throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
 
-        switch (Member)
+        // Marked while the setter runs, so the owner's notification of this write, and of a struct
+        // written back into it, is not taken for a change made by the object.
+        Writing = true;
+
+        try
         {
-            case FieldInfo fi:
-                fi.SetValue(owner, value);
-                break;
-            case PropertyInfo { CanWrite: true } pi:
-                pi.SetValue(owner, value);
-                break;
-            default:
-                throw new InvalidOperationException($"'{Name}' is read-only.");
+            switch (Member)
+            {
+                case FieldInfo fi:
+                    fi.SetValue(owner, value);
+                    break;
+                case PropertyInfo { CanWrite: true } pi:
+                    pi.SetValue(owner, value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"'{Name}' is read-only.");
+            }
+        }
+        finally
+        {
+            Writing = false;
         }
 
         // A struct owner is a boxed copy, so it has to be written back into its own owner.

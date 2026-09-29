@@ -191,6 +191,28 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         ValueChanged?.Invoke(this, new ValueChangedEventArgs(this, source));
     }
 
+    // Reads the node again with whatever changed along with it: what hangs below it (a closed object
+    // replaced, a struct written as a whole) and, since a struct changes as a whole when one of its
+    // fields does, the topmost struct above it with that struct's branch.
+    internal void UpdateAffected(ValueSource source)
+    {
+        Update(source);
+
+        var top = this;
+
+        while (top.Parent is MemberNode { ValueType.IsValueType: true } owner)
+            top = owner;
+
+        if (top != this)
+            top.Update(source);
+
+        foreach (var node in top)
+        {
+            if (node != this)
+                node.Update(source);
+        }
+    }
+
     // The objects changed (bind, unbind): the node starts over from what they hold, without an event,
     // and a disabled branch is enabled again.
     internal void Reset()
@@ -202,8 +224,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         Known = ReadValues();
     }
 
-    // Groups remember the object they hold in every bound object; the others have nothing to keep.
+    // Groups remember the object they hold in every bound object, or in one of them; the others have
+    // nothing to keep.
     internal virtual void Record()
+    {
+    }
+
+    internal virtual void Record(object instance)
     {
     }
 
