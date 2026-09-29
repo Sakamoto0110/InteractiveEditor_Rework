@@ -5,6 +5,7 @@ using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
 using InteractiveEditor.Options;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
@@ -172,6 +173,29 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public bool IsMixed => !IsCompromised && !HasPendingValue && Known.Distinct().Skip(1).Any();
 
     public abstract void SetValue(object? value);
+
+    // A member of the type this node holds, added by hand (P1.12). The name is checked at once, and the
+    // node gets what the reflection and the attributes say about it, as in the Create, with the manual
+    // layer after them; it shows even where they would hide it, since it was added on purpose. It
+    // comes without the members below it, which are added the same way.
+    public MemberNode Add(string name)
+    {
+        var type = ValueType is { } held ? Nullable.GetUnderlyingType(held) ?? held
+            : throw new InvalidOperationException($"'{Name}' holds nothing to find '{name}' in.");
+
+        if (ReflectionDiscovery.IsTerminal(type))
+            throw new InvalidOperationException($"'{Name}' holds a {type.Name}, which has no members to add.");
+
+        var member = ReflectionDiscovery.FindMember(type, name)
+            ?? throw new ArgumentException($"'{type.Name}' has no public field or property named '{name}'.", nameof(name));
+
+        var node = new MemberNode(this, member);
+        ReflectionPolicy.Apply(node, Inspector);
+        AttributePolicy.Apply(node, Inspector);
+        node.Ignored = false;
+
+        return Adopt(node);
+    }
 
     // A button added by hand, with the action to run when it is pressed (P1.6).
     public ButtonNode AddButton(string name, string text, Action press)

@@ -82,7 +82,8 @@ internal static class DeclarationOrder
             p.GetMethod?.MetadataToken == first.MetadataToken || p.SetMethod?.MetadataToken == first.MetadataToken) ?? member;
     }
 
-    private static int Depth(Type type)
+    // How many types stand above this one; the base types have less.
+    internal static int Depth(Type type)
     {
         var depth = 0;
 
