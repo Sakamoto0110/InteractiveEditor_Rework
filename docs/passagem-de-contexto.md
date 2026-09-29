@@ -156,8 +156,9 @@ Pegadinhas já vistas:
   inspector ou em qualquer nó; o `ButtonNode` roda a ação no `Press()`, e o `DisplayNode` lê o
   getter como um membro.
 - `TypeBinderMode` (commit `f12ebf9`): `Create<T>(TypeBinderMode.Manual)` começa sem membros, e o
-  `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo foi
-  decidido na P1.14.
+  `Add("X")` põe um membro com as camadas de reflection e de atributos. O `Inspector.Create()` sem
+  tipo (commit `4e6b3d0`) acha os nomes no bind, que fixa o tipo até o `Unbind()`; o `Member` do nó
+  fica null até lá.
 - Filtro por nome (commit `f2ec855`): `GlobalOptions.Hide<T>(nomes)` antes do `Create`, travado
   como as outras opções globais; conta como um `[InspectorIgnore]`, e os testes precisam chamar
   `Unhide<T>()` no fim, porque o registro é global.
@@ -184,10 +185,10 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar, um conceito por commit: o inspector sem tipo (P1.14), o seletor
-  das coleções e o editor de lista (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro
-  escondido com `new` (P5.9, commit `c9868a9`) e o filtro por nome (P6.7, commit `f2ec855`) já
-  entraram.
+- Decidido em 29/09, a aplicar, um conceito por commit: o seletor das coleções e o editor de lista
+  (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new` (P5.9,
+  commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`) e o inspector sem tipo (P1.14,
+  commit `4e6b3d0`) já entraram.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
