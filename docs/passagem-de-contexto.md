@@ -118,6 +118,9 @@ Pegadinhas já vistas:
   `c9868a9`): o caminho é `Base.Value` ou `Derived.Value`, e `Value` sozinho acha o do derivado.
 - Os primitivos são em `double`: num teste, `(int)node.GetValue()` de um campo de `PxPoint` lança
   `InvalidCastException`.
+- Uma coleção tem sempre a linha do item escolhido embaixo (commit `eb58a3e`): o caminho de um
+  campo do item é `Items.Item.MooX`, e o `Items.Add("MooX")` lança; os membros do item entram em
+  `inspector["Items.Item"].Add("MooX")`.
 
 ## 5. O código hoje, em resumo
 
@@ -128,8 +131,10 @@ Pegadinhas já vistas:
   `Id`, o `Name`, o `Mode`, as opções (`Options`), o objeto ligado (`Instance`), o indexador e o
   `Node<T>`, a enumeração e `Rows`. `InspectorNode` é abstrato, com as opções como propriedades, o
   indexador por caminho relativo (encadeável), o `GetValue` comum e o `SetValue` abstrato; os nós
-  são `MemberNode` (campo ou propriedade), `ButtonNode`, `DisplayNode` e o `RootNode` interno. A
-  enumeração entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
+  são `MemberNode` (campo ou propriedade), `ButtonNode`, `DisplayNode`, `TypeGroupNode` (commit
+  `c9868a9`), `CollectionNode` e `ItemNode` (commit `eb58a3e`, os dois derivados do `MemberNode`) e
+  o `RootNode` interno. A enumeração entrega a árvore inteira, e `Rows` entrega as linhas da view
+  (commit `b456398`).
 - `ReadOnly` e `Visible` são lidos pelos pais (commit `13534b0`), e um setter não público esconde o
   membro, que o `[InspectorReadOnly]` traz de volta.
 - Falhas no `Create` (commit `1535874`): viram eventos estáticos (`DiscoveryFailed`, com a
@@ -165,6 +170,12 @@ Pegadinhas já vistas:
 - Descoberta: ordem de declaração (commit `6c17a15`), coleções sem os membros do tipo delas
   (commit `1b9fcf6`) e cor numa linha `Display` fechada até escolherem o editor, com um aviso
   (commit `7482c5f`). O seletor por expressão é o `Node<T>` (commit `e06b6f7`).
+- Coleções (commit `eb58a3e`): o `CollectionNode` tem o editor `Selector`, o `Items` (o que a
+  coleção do primeiro objeto tinha na última leitura) e o `SelectedIndex`; a linha de baixo, `Item`,
+  lê e grava o item escolhido como um membro, com os membros do tipo do item embaixo. A escolha
+  segue os itens (o primeiro ao ganhar itens, o último se o escolhido sair), outro objeto no lugar
+  escolhido não é troca, e uma `ObservableCollection` avisa sozinha. As opções do item ainda vão à
+  mão; os atributos do membro da coleção ficam no nó dela.
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
@@ -185,10 +196,12 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar, um conceito por commit: o seletor das coleções e o editor de lista
-  (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new` (P5.9,
-  commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`) e o inspector sem tipo (P1.14,
-  commit `4e6b3d0`) já entraram.
+- Decidido em 29/09, a aplicar, um conceito por commit: o editor de lista (P5.10, com
+  `EditorKind.List`) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new`
+  (P5.9, commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem tipo
+  (P1.14, commit `4e6b3d0`) e o seletor das coleções (P5.10, commit `eb58a3e`) já entraram. No
+  editor de lista, ver se os atributos do membro da coleção (faixa, scrubbing) passam para a linha
+  do item, que serve de modelo para as linhas de cada item.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
