@@ -87,7 +87,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   `ValueChanged` vale nos dois sentidos e diz de onde veio a mudança, e os nomes seguem a convenção
   do .NET: o evento é `Created`, e `OnCreated` é o método que o dispara (P1.10).
 - **Descartável** (P1.5): o `Inspector` e os nós implementam `IDisposable`, já pensando em campos de
-  imagem e de recursos. O `Dispose` também solta a trava das opções globais (abaixo).
+  imagem e de recursos. O `Dispose` também solta a trava das opções globais (abaixo). Aplicado no
+  commit `ffee3a7`: descartar um nó descarta o ramo dele, e descartar o inspector desliga o objeto,
+  descarta a árvore e solta a trava; depois disso, `Bind` e `Rebind` lançam
+  `ObjectDisposedException`.
 - **`TypeBinderMode` continua** (P1.7), porque nem todo inspector vai ser tipado. O modo sai do
   jeito de criar: tipado é automático, e sem tipo é manual; o modo explícito continua para o
   inspector tipado e manual (P1.12).
@@ -116,7 +119,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   (P1.5).
 - **Opções globais travadas** (P1.5, P4.4): o `Create` congela o `GlobalOptions`. Enquanto houver um
   inspector vivo, mudar uma opção global lança exceção; a trava cai no `Dispose` do último. Ela
-  guarda os ids dos inspectors vivos (P1.11).
+  guarda os ids dos inspectors vivos (P1.11), e a mensagem da exceção diz quais são. Aplicado no
+  commit `ffee3a7`; um `Create` que falha solta a trava antes de lançar.
 - **Chaves em string**: caminho relativo ao nó em que o indexador é chamado (`"Moo.MooX"`), que
   também pode ser encadeado (`inspector["Moo"]["MooX"]`); sem atalho pelo nome do tipo. O seletor
   por expressão também vai existir, ao lado do caminho em string (P6.5).
@@ -725,8 +729,8 @@ com as decisões de 27/09 e 29/09 no fim.
 - Opções por inspector (`InspectorOptions`), a camada entre o `GlobalOptions` e o nó, sobrescrevendo
   o global (P1.5): as de layout e hospedagem (1.1, item 12; altura e espaçamento por editor, 1.2) e
   a cultura (P2.7). O `Create` trava o `GlobalOptions` até o `Dispose` do último inspector vivo
-  (P1.5, P4.4, P1.11).
-- `IDisposable` no inspector e nos nós (P1.5).
+  (P1.5, P4.4, P1.11; commit `ffee3a7`).
+- `IDisposable` no inspector e nos nós (P1.5; commit `ffee3a7`).
 - Ciclo do bind: `Bind`, `Unbind`, `Rebind`, `AddBind` e `RemoveBind` (P2.1), os valores mistos do
   multi-bind (P2.4) e o `Refresh()` (P2.6).
 - Controle do binder (P1.8, P1.13): um enum de flags e um fluxo normal para ler e gravar à mão; os
@@ -898,7 +902,8 @@ Núcleo (portar a essência)
 - [x] Composição e tipos de nó: o `Inspector` guarda a raiz, `InspectorNode` abstrato com o getter
       comum e o setter abstrato, `MemberNode` e `RootNode`, e um id por inspector (P1.1, P1.2, P1.9;
       P9.3; commit `0bc2f9d`).
-- [ ] `Inspector`: `IDisposable` (P1.5) e `TypeBinderMode` (P1.7, P1.12).
+- [x] `IDisposable` no inspector e nos nós (P1.5; commit `ffee3a7`).
+- [ ] `TypeBinderMode`, com o modo tirado do jeito de criar (P1.7, P1.12).
 - [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
@@ -907,7 +912,8 @@ Núcleo (portar a essência)
       `SetValue` lançando até religar (P3.3, P3.4); só o ramo trocado, com um evento que aceita o
       objeto novo (P3.6), e sem struct (P3.2).
 - [ ] `InspectorOptions` (por inspector), sobrescrevendo o global (P1.5), com a cultura (P2.7).
-- [ ] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4).
+- [x] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4,
+      P1.11; commit `ffee3a7`).
 - [ ] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra.
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem; P6.3, para o final).
@@ -978,8 +984,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 **Três camadas de opções**
 
 - `GlobalOptions` (estática): valem para o processo inteiro. Por enquanto só
-  `RequireExpandableAttribute`. Decidido (P1.5, P4.4): o `Create` trava as opções globais, e mudar
-  uma delas com um inspector vivo lança; a trava cai no `Dispose`.
+  `RequireExpandableAttribute`. Decidido (P1.5, P4.4) e aplicado no commit `ffee3a7`: o `Create`
+  trava as opções globais, e mudar uma delas com um inspector vivo lança; a trava cai no `Dispose`
+  do último. O TuxHost descarta cada inspector depois de imprimir, para poder ligar a flag.
 - `InspectorOptions`: ainda não existe. Chega com o passo de layout (altura de campo, espaçamento,
   recuo...) e vai sobrescrever o global por inspector (P1.5); leva também a cultura (P2.7).
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
