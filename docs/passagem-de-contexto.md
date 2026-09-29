@@ -47,10 +47,11 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: só a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Na
-  última rodada de 29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e
-  as escolhas que eu tinha deixado para ele confirmar; tudo isso está na seção 0 das notas. Os
-  números antigos valem, e os novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: as quatro escolhas que sobraram ao aplicar a 5.10 (4.7, 5.11,
+  5.12 e 5.13), e a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Na última rodada de 29/09
+  ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha
+  deixado para ele confirmar; tudo isso está na seção 0 das notas. Os números antigos valem, e os
+  novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -173,9 +174,12 @@ Pegadinhas já vistas:
 - Coleções (commit `eb58a3e`): o `CollectionNode` tem o editor `Selector`, o `Items` (o que a
   coleção do primeiro objeto tinha na última leitura) e o `SelectedIndex`; a linha de baixo, `Item`,
   lê e grava o item escolhido como um membro, com os membros do tipo do item embaixo. A escolha
-  segue os itens (o primeiro ao ganhar itens, o último se o escolhido sair), outro objeto no lugar
-  escolhido não é troca, e uma `ObservableCollection` avisa sozinha. As opções do item ainda vão à
-  mão; os atributos do membro da coleção ficam no nó dela.
+  segue os itens (o primeiro ao ganhar itens; um objeto que muda de lugar leva a escolha junto,
+  commit `a5abdad`; o último se o escolhido sair), outro objeto no lugar escolhido não é troca, e
+  uma `ObservableCollection` avisa sozinha. As opções do item ainda vão à mão; os atributos do
+  membro da coleção ficam no nó dela. O editor de lista (commit `5395dea`) é o `EditorKind.List`,
+  com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)` no `CollectionNode`, que gravam na hora
+  em cada objeto ligado.
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
@@ -196,12 +200,13 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar, um conceito por commit: o editor de lista (P5.10, com
-  `EditorKind.List`) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new`
-  (P5.9, commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem tipo
-  (P1.14, commit `4e6b3d0`) e o seletor das coleções (P5.10, commit `eb58a3e`) já entraram. No
-  editor de lista, ver se os atributos do membro da coleção (faixa, scrubbing) passam para a linha
-  do item, que serve de modelo para as linhas de cada item.
+- Decidido em 29/09, a aplicar: o passo de layout no núcleo (P7.5). A árvore do membro escondido
+  com `new` (P5.9, commit `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem
+  tipo (P1.14, commit `4e6b3d0`), o seletor das coleções e o editor de lista (P5.10, commits
+  `eb58a3e`, `a5abdad` e `5395dea`) já entraram.
+- Esperando resposta: 4.7, 5.11, 5.12 e 5.13 (`perguntas-em-aberto.md`), as escolhas que sobraram
+  da 5.10. Na 5.12 e na 5.13, o código já está como a sugestão; na 4.7 (coleção só com getter) e na
+  5.11 (faixa e scrubbing do membro no item), aplicar a resposta.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a

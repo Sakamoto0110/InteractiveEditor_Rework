@@ -245,7 +245,10 @@ tinha deixado para ele confirmar.
   `1b9fcf6`: a descoberta não abre mais uma coleção (qualquer coisa enumerável que não seja
   string), e o `Add` recusa os membros dela. O seletor entrou no commit `eb58a3e` (3.2): a coleção
   é um `CollectionNode`, com o editor `Selector`, e o item escolhido aparece na linha logo abaixo,
-  `Items.Item` (um `ItemNode`), com os campos do item embaixo dela. O editor de lista vem depois.
+  `Items.Item` (um `ItemNode`), com os campos do item embaixo dela. A escolha segue o objeto
+  escolhido quando ele muda de lugar (commit `a5abdad`), e o editor de lista entrou no commit
+  `5395dea`: `EditorKind.List`, com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)` no nó da
+  coleção. O que ficou para ele confirmar está nas perguntas 4.7, 5.11, 5.12 e 5.13.
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
@@ -504,7 +507,7 @@ DataAnnotations; aplicados no commit `5319247`)
   parâmetro, lança `ArgumentException`.
 - Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (`EditorKind`: `Text`,
   `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator` e,
-  desde o commit `eb58a3e`, `Selector`). Cada view decide o controle.
+  desde os commits `eb58a3e` e `5395dea`, `Selector` e `List`). Cada view decide o controle.
 - O que a configuração guarda: rótulo, editor, flags (`ReadOnly`, `Disabled`, scrubbing),
   multiplicadores (scrubbing e slider), sanitizadores, visível, recolhido e ação pós-bind.
 - A ideia do `TypeSafeLock` (opt-in de quais tipos podem ser expandidos) continua, como atributo do
@@ -545,34 +548,52 @@ DataAnnotations; aplicados no commit `5319247`)
   `SelectedIndex` escolhe o lugar que a linha logo abaixo, `Item` (um `ItemNode`), lê em cada objeto
   ligado. A linha do item é lida e gravada como um membro (conversão, regras, faixa e valor
   pendente) e tem embaixo os membros do tipo do item: um `List<Moo>` mostra `Items.Item.MooX`, e um
-  `List<int>` mostra `Items.Item` como um número. `Item` é o nome que o C# dá ao indexador. A linha
-  do item existe para toda coleção, porque assim um item sem campos (número, texto) também tem onde
-  ser editado, e um item de tipo com mais de um editor fica fechado como um membro ficaria.
+  `List<int>` mostra `Items.Item` como um número. `Item` é o nome que o C# dá ao indexador. Escolha
+  minha, a confirmar (5.12): a linha do item existe para toda coleção, porque assim um item sem
+  campos (número, texto) também tem onde ser editado, e um item de tipo com mais de um editor fica
+  fechado como um membro ficaria.
 
   Escolher larga o que as linhas de baixo guardavam e as lê de novo, com a origem `Selection`; um
   lugar fora dos itens listados lança. A escolha segue os itens: o primeiro quando a coleção ganha
-  itens depois de não ter nenhum (no bind, por exemplo), o último quando o lugar escolhido passa do
-  fim, e -1 para nenhum. O `Unbind()` esvazia a lista, então o `Rebind` volta ao primeiro item. No
-  multi-bind, o lugar escolhido vale em cada objeto: um objeto sem aquele lugar lê null, e uma
-  gravação para antes de mudar qualquer objeto, dizendo qual lugar falta.
+  itens depois de não ter nenhum (no bind, por exemplo); um objeto que mudou de lugar leva a escolha
+  junto (commit `a5abdad`); uma struct, um null ou um objeto que saiu ficam só com o lugar, que vai
+  para o último item quando passa do fim. -1 é nenhum. O `Unbind()` esvazia a lista, então o
+  `Rebind` volta ao primeiro item. No multi-bind, o lugar escolhido vale em cada objeto: um objeto
+  sem aquele lugar lê null, e uma gravação para antes de mudar qualquer objeto, dizendo qual lugar
+  falta.
 
   Outro objeto no lugar escolhido não é troca: a linha mostra o que estiver lá, e larga o que as
   linhas de baixo guardavam. Uma troca por fora abaixo do item, ou da própria coleção, continua
   desativando o ramo (P3.3). Um item struct volta para o lugar dele, como uma struct volta para o
-  dono. Uma coleção que não aceita um item no lugar de outro (`IEnumerable<T>`,
-  `IReadOnlyList<T>`, um dicionário) tem o item somente leitura; uma lista que só é somente leitura
-  em tempo de execução recusa o item antes de mudar qualquer coisa. Uma coleção só com getter deixa
-  os itens somente leitura, como um objeto aninhado (P4.1). Uma coleção que avisa das próprias
-  mudanças (`ObservableCollection`) atualiza os itens sem `Refresh()`, e a gravação do próprio
-  inspector não volta como mudança de fora.
+  dono. Uma coleção que não aceita um item no lugar de outro (`IEnumerable<T>`, `IReadOnlyList<T>`,
+  um dicionário) tem o item somente leitura; uma lista que só é somente leitura em tempo de execução
+  recusa o item antes de mudar qualquer coisa. Uma coleção só com getter fica somente leitura, como
+  um objeto aninhado (P4.1), com os itens e as operações da lista; a pergunta 4.7 é se deve ser
+  assim. Uma coleção que avisa das próprias mudanças (`ObservableCollection`) atualiza os itens sem
+  `Refresh()`, e a gravação do próprio inspector não volta como mudança de fora.
 
   A coleção sempre mostra a linha do item, mesmo com o `RequireExpandableAttribute`; o item abre
   como um membro abriria, e um tipo com mais de um editor espera a escolha (P5.8), que ali só pode
   ser no nó (`inspector["Palette.Item"].Editor`), porque o item não tem membro para levar atributo.
   Os atributos do membro da coleção (faixa, scrubbing) ficam no nó da coleção, e a linha do item
   recebe só o que o tipo do item diz; por enquanto, o resto vai à mão
-  (`inspector["Items.Item"].Range`). No inspector sem tipo, e como item de outra coleção, uma
-  coleção continua uma linha `Display`.
+  (`inspector["Items.Item"].Range`), e a pergunta 5.11 é se a faixa e o scrubbing do membro passam
+  para o item. No inspector sem tipo, e como item de outra coleção, uma coleção continua uma linha
+  `Display`.
+
+  O editor de lista (P5.10) entrou no commit `5395dea`: `EditorKind.List`, escolhido pelo
+  `[InspectorEditor(EditorKind.List)]` ou no nó, mostra uma linha por item, e o item escolhido
+  continua na linha de baixo. O `AddItem()` põe um item novo no fim, em cada objeto ligado, e o
+  escolhe: um objeto feito com o construtor sem parâmetros do tipo do item, ou o valor vazio do
+  tipo (zero, false, texto vazio ou null). O `RemoveItem(i)` tira um, e a escolha fica com o item
+  escolhido, ou passa para o que ocupa o lugar dele. O `MoveItem(de, para)` move um, com os do meio
+  abrindo espaço, também num array, que não muda de tamanho; a escolha vai junto. O que não pode
+  receber a operação lança antes de mudar qualquer objeto: nó somente leitura, ramo desativado,
+  coleção null, uma que não muda os itens (nem cresce ou diminui, para pôr e tirar) e um lugar além
+  dos itens listados ou dos itens de um dos objetos. Uma coleção que dois objetos guardam muda uma
+  vez só, o que a coleção lança no meio vira falha no nó, e o aviso de uma `ObservableCollection`
+  sobre a própria operação não volta como mudança de fora. Escolha minha, a confirmar (5.13): as
+  operações gravam na hora, qualquer que seja o controle do binder, como o botão.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
 são de cortes seguintes, com nomes provisórios:
@@ -1220,8 +1241,8 @@ Núcleo (portar a essência)
       `1b9fcf6`).
 - [x] Coleções pelo conteúdo: o seletor (combo box) escolhe o item que aparece na linha de baixo
       (P5.2; P5.10; commit `eb58a3e`).
-- [ ] Editor de lista, uma linha por item, com adicionar, remover e reordenar: uma escolha
-      explícita, `EditorKind.List` (P5.2; P5.10).
+- [x] Editor de lista, uma linha por item, com adicionar, remover e reordenar: uma escolha
+      explícita, `EditorKind.List` (P5.2; P5.10; commit `5395dea`).
 - [x] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
       `Display` com aviso (P5.5; P5.8; commit `7482c5f`).
 
