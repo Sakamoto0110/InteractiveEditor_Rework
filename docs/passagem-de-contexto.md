@@ -139,6 +139,9 @@ Pegadinhas já vistas:
   a conversão pela cultura do `inspector.Options` (`IParsable<T>` ou `TypeConverter`), as regras de
   valor e a faixa. O que falha no preparo vira `Failure` no nó, e nada é gravado; um valor de um
   tipo sem relação com o do membro lança.
+- Nós manuais (commit `0c97638`): `AddButton(nome, texto, ação)` e `AddDisplay(nome, getter)`, no
+  inspector ou em qualquer nó; o `ButtonNode` roda a ação no `Press()`, e o `DisplayNode` lê o
+  getter como um membro.
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
