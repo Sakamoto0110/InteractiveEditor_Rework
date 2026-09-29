@@ -20,7 +20,9 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 
 As respostas de 27/09 e de 29/09 às perguntas em aberto entraram aqui, com o número da pergunta:
 `P2.2` é a pergunta 2.2 de `perguntas-em-aberto.md`, e um número sem o `P` é uma seção destas
-notas. O que ainda depende de resposta continua naquele arquivo.
+notas. O que ainda depende de resposta continua naquele arquivo. A última rodada de 29/09 aceitou
+as sugestões das perguntas que sobravam (P1.14, P5.9, P5.10, P6.7 e P7.5) e as escolhas que eu
+tinha deixado para ele confirmar.
 
 ### Premissa
 
@@ -96,7 +98,13 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **`TypeBinderMode` continua** (P1.7), porque nem todo inspector vai ser tipado. O modo sai do
   jeito de criar: tipado é automático, e sem tipo é manual; o modo explícito continua para o
   inspector tipado e manual (P1.12). O tipado e manual entrou no commit `f12ebf9`
-  (`Create<T>(TypeBinderMode.Manual)` e `Add("X")`); o sem tipo tem detalhes em aberto (P1.14).
+  (`Create<T>(TypeBinderMode.Manual)` e `Add("X")`).
+- **O inspector sem tipo** (P1.14, 29/09): `Inspector.Create()` é manual, e o `Add("X")` procura o
+  membro pelo nome no bind (P1.12). Ele não tem as camadas de reflection e de atributos, que
+  dependem de um tipo: só a manual, e o bind completa o que ficou sem escolha (o editor, se ainda
+  for `Auto`, sai do tipo do membro, e um membro sem setter público fica somente leitura). O
+  primeiro bind fixa o tipo, como no tipado (P2.2): um objeto de outro tipo lança, até o `Unbind()`
+  soltar tudo e deixar o próximo bind escolher de novo. Um nome que o objeto não tem lança no bind.
 - **Nós manuais** (P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá para
   resolver de outro jeito. O campo só de exibição também entra, com um getter (29/09). Aplicado no
   commit `0c97638`: `AddButton(nome, texto, ação)` e `AddDisplay(nome, getter)`, no inspector ou em
@@ -141,7 +149,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   inspector; um nó invisível faz parte, mas está escondido agora, e os filhos vão junto. Aplicado
   no commit `13534b0`: o `Visible` é lido pelos pais, e as `Rows` pulam o ramo invisível.
 - **Filtro por nome** (P6.4): pode ser injetado, e é resolvido com a mesma precedência dos
-  atributos. Vale por tipo, no `Create` (P6.6); onde ele é injetado está em aberto (P6.7).
+  atributos. Vale por tipo, no `Create` (P6.6). É injetado de fora da classe, por tipo, antes do
+  `Create`, e fica travado como as opções globais (P6.7): `GlobalOptions.Hide<Rectangle>("Text")`.
+  Serve também para tipos de terceiros, que não dá para anotar, e a camada manual ainda traz o
+  membro de volta (`Ignored = false`).
 - **Expandir com a flag global** (P4.3): a permissão vale só para o membro ou tipo marcado, e os
   níveis de baixo continuam fechados, porque a flag existe justamente para não propagar. Um
   atributo que propague fica como ideia (seção 7).
@@ -220,13 +231,16 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   `Create`. Aplicado nos commits `5560223` e `6622a41`.
 - **Ordem dos irmãos** (P5.1): a de declaração é a preferida, se der para recuperar sem muito
   custo; se não der, fica a da reflection, e o `[InspectorOrder]` resolve o resto. Aplicado no
-  commit `6c17a15`, pelos metadados (seção 7). Escolhas minhas, a confirmar: os membros do tipo
+  commit `6c17a15`, pelos metadados (seção 7). Confirmado em 29/09: os membros do tipo
   base vêm antes dos do derivado, e uma propriedade calculada, que não deixa rastro da posição
   entre os campos, vai para logo antes da próxima propriedade automática.
 - **Coleções** (P5.2; relatório, seção 2): em vez dos membros do tipo da coleção (`Capacity`,
   `Count`, `Length`...), o conteúdo. O editor padrão é um seletor, que vira combo box, e vale
-  tentar um editor de lista. Pode precisar de configuração a mais; o que o seletor faz com o item
-  escolhido está em aberto (P5.10). A primeira parte entrou no commit `1b9fcf6`: a descoberta não
+  tentar um editor de lista. Pode precisar de configuração a mais. O seletor escolhe o item que
+  aparece embaixo, para editar (P5.10): `Items[0]` ou `Items[1]`, com os campos dele. O editor de
+  lista (uma linha por item, com adicionar, remover e reordenar) é uma escolha explícita, com um
+  tipo de editor novo (`[InspectorEditor(EditorKind.List)]`). A primeira parte entrou no commit
+  `1b9fcf6`: a descoberta não
   abre mais uma coleção (qualquer coisa enumerável que não seja string), o `Add` recusa os membros
   dela, e ela fica numa linha `Display` até o seletor existir.
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
@@ -234,8 +248,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   `[InspectorIgnore]`.
 - **Membro escondido com `new`** (P5.4): os dois aparecem, e nesses casos o nome composto pode ser o
   padrão (`Derived.Value` em vez de `Value`). Na P5.7: o nome composto expande nos campos do tipo
-  derivado, e no exemplo `Derived.Value` é o `string Value`, não o `int Value`. Como fica a árvore
-  está em aberto (P5.9).
+  derivado, e no exemplo `Derived.Value` é o `string Value`, não o `int Value`. A árvore (P5.9):
+  só os membros escondidos ganham um nível com o nome do tipo que os declara (`Base.Value` e
+  `Derived.Value`), e o resto fica direto no dono, como hoje; `inspector["Value"]`, sem o tipo,
+  acha o do derivado, como no C#.
 - **Tipos com mais de um editor** (P5.5), como o `Color`: são casos de borda, e o comportamento tem
   que ser escolhido explicitamente (expandir em campos int, texto hex ou um seletor aberto por um
   botão). Também é um motivo para usar os primitivos próprios, sem o excesso de propriedades do
@@ -244,8 +260,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   `System.Drawing.Color`, o `PxColorArgb` e o `PxColorHsl`: sem escolha, a linha fica fechada, com
   os campos ainda na árvore, e o `Create` avisa cada um como contornado. A escolha é o
   `[InspectorEditor]` ou o `[InspectorExpandable]` no membro, o `Editor` ou o `Expandable` no nó,
-  ou quem assina o `DiscoveryFailed`, no meio do `Create`, marcando o aviso como tratado. Escolha
-  minha, a confirmar: o "só leitura" é o editor `Display`, que a view não edita, e o nó não fica
+  ou quem assina o `DiscoveryFailed`, no meio do `Create`, marcando o aviso como tratado.
+  Confirmado em 29/09: o "só leitura" é o editor `Display`, que a view não edita, e o nó não fica
   `ReadOnly`, para que expandir nos campos funcione sem mais um passo.
 - **Cache** (P5.6): por enquanto, só a lista de membros por tipo; o desenho do cache fica para uma
   sessão própria.
@@ -258,6 +274,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Válvulas de escape** (P7.4): um callback por plataforma quando um controle é criado, e um
   terceiro, agnóstico, quando a linha inteira termina de ser montada. Se ele não puder ser
   agnóstico, são quatro, dois por plataforma.
+- **Passo de layout** (P7.5, 29/09): no núcleo, agnóstico. Ele devolve os retângulos de cada linha
+  (a linha, o rótulo e o editor), e a view só os aplica; as opções de layout (altura da linha,
+  espaçamento, recuo por nível) ficam no `InspectorOptions`. Assim ele é testado no Linux, sem
+  WinForms nem WPF.
 
 ### Primitivos e PixieLib
 
@@ -438,7 +458,8 @@ no `Create`; uma camada nova é mais uma classe e uma linha ali. Os filtros por 
 (blacklist/whitelist, opt-in de tipos) saem com uma regra em massa depois do `Create` (seção 7); o
 filtro por instância fica com a visibilidade condicional. Um filtro por nome também pode ser
 injetado, resolvido com a mesma precedência dos atributos (P6.4). Ele vale por tipo, no `Create`
-(P6.6); onde ele é injetado está em aberto (P6.7).
+(P6.6), e é injetado de fora da classe, antes do `Create`: `GlobalOptions.Hide<T>(nomes)`, travado
+como as opções globais (P6.7).
 
 **Atributos do inspector** (próprios, para não haver ambiguidade com `System.ComponentModel` ou
 DataAnnotations; aplicados no commit `5319247`)
@@ -488,7 +509,7 @@ DataAnnotations; aplicados no commit `5319247`)
   esconderiam (setter não público, `[InspectorIgnore]`), porque foi posto de propósito, e vem sem os
   membros de baixo, que entram do mesmo jeito (`inspector["Moo"].Add("MooX")`). Um tipo sem
   membros para pôr (int, string) lança, como a descoberta, que nunca abre um. O inspector sem tipo
-  (`Inspector.Create()`) espera a P1.14.
+  (`Inspector.Create()`) foi decidido na P1.14 (seção 0).
 - Nós manuais (decidido, P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá
   para resolver de outro jeito. O campo só de exibição também entra, com um getter. Aplicado no
   commit `0c97638`, com dois tipos de nó sem membro atrás. O `ButtonNode` tem o texto do botão
@@ -497,7 +518,7 @@ DataAnnotations; aplicados no commit `5319247`)
   nó somente leitura. O `DisplayNode` é somente leitura e lê o getter como um membro é lido: o
   `Refresh()` e o `Reload()` o atualizam, e um getter que lança vira falha na linha. Os dois entram
   depois dos nós que já estão ali, com `Order` valendo como em qualquer linha, e um nome que um
-  irmão já usa lança, porque o indexador acha os nós pelo nome. Escolha minha, a confirmar: um
+  irmão já usa lança, porque o indexador acha os nós pelo nome. Confirmado em 29/09: um
   membro que recebe um nó à mão abre (`Expandable`), porque o filho foi posto ali de propósito.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
@@ -565,8 +586,8 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   diferem (P2.10). `SetValue` grava em todos, e um dono null em qualquer um deles interrompe antes
   de algum mudar. Na view (P2.4): sem scrubbing, a linha indica que as instâncias diferem; com
   scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como no original. O
-  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`. Escolha minha no commit
-  `18dc069`, a confirmar: o `IsMixed` passou a seguir o que a view mostra (a última leitura, e
+  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`. No commit `18dc069`,
+  confirmado em 29/09: o `IsMixed` passou a seguir o que a view mostra (a última leitura, e
   nunca misto com um valor guardado, que vai para todos), sem ler os objetos, para a linha não
   juntar uma leitura ao vivo com o valor que ela mostra.
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
@@ -619,7 +640,7 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
     eventos de bind. O `ForceClear()` esvazia a view (zero, false, texto vazio ou null) e não mexe
     nos objetos; a próxima leitura traz os valores de volta, e um `ForceApply()` logo depois esvazia
     os objetos. Nos três, o `ValueChanged` sai com `Force` onde a view mudou.
-  - Escolhas minhas, a confirmar: o `Refresh()` fica no sentido objeto → view, então não faz nada
+  - Confirmado em 29/09: o `Refresh()` fica no sentido objeto → view, então não faz nada
     sem `InstanceToView`; o `Reload()` descarta os valores guardados, e o `Refresh()` não; o
     `ForceReload()` reativa os ramos desativados; e o `ValueChanged` também sai para um valor
     guardado (`Pending`), já que a view mudou, mesmo sem o objeto mudar.
@@ -655,9 +676,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
 ### 3.4 Layout agnóstico e os primitivos
 
 - O original posiciona cada linha à mão (`Y = índice × (altura + espaçamento)`), desloca as seguintes
-  quando uma some e rola a lista movendo painel por painel. Proposta: um passo de layout que produz
-  os retângulos de cada linha (linha, rótulo, editor) a partir das opções, da profundidade, da
-  visibilidade e do recolhimento. A view só aplica.
+  quando uma some e rola a lista movendo painel por painel. Decidido (P7.5): um passo de layout no
+  núcleo, agnóstico, que produz os retângulos de cada linha (linha, rótulo, editor) a partir das
+  opções, da profundidade, da visibilidade e do recolhimento. A view só aplica.
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
@@ -699,7 +720,7 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   `PxColorHsl.FromArgb` e `ToArgb`, com as contas dos dois sentidos no `PxColorHsl`, e o CS0457
   saiu junto. O `PxColorArgb` continua com as conversões implícitas com o `System.Drawing.Color`,
   que não perdem nada; o `PxColorHsl` perdeu as dele, porque ir para o `System.Drawing.Color` é ir
-  para ARGB. Escolha minha, a confirmar: o `PxColorHsl` também passou para `double`, a precisão
+  para ARGB. Confirmado em 29/09: o `PxColorHsl` também passou para `double`, a precisão
   padrão (P8.1, P8.6).
 - `PxPadding` e `PxDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
 
@@ -872,9 +893,9 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
 - `TypeBinderMode` continua (P1.7), e sai do jeito de criar (P1.12). Nós manuais: botão com ação e
   campo só de exibição com getter, sim; cabeçalho, não (P1.6). Os nós manuais entraram no commit
   `0c97638`, e o inspector tipado e manual, com o `Add`, no commit `f12ebf9` (3.2); o sem tipo
-  espera a P1.14.
-- Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
-  injetado está em aberto (P6.7). A visibilidade condicional ficou para o final (P6.2).
+  foi decidido na P1.14.
+- Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6), registrado de
+  fora antes do `Create` (P6.7). A visibilidade condicional ficou para o final (P6.2).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
   pelo próprio inspector. Os nomes seguem a convenção do .NET (P1.10): o evento sem o `On`, e o
   `On` no método que o dispara. Os da criação são estáticos (P1.9):
@@ -932,7 +953,8 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   objeto novo aceito por quem assina), os grupos de dentro também recomeçam do objeto novo; antes,
   a leitura seguinte os dava como trocados e desativava o ramo.
 
-**Em aberto** (em `perguntas-em-aberto.md`): onde o filtro por nome é injetado (P6.7).
+**Decidido em 29/09**: o filtro por nome é injetado de fora, por tipo (P6.7), e o inspector sem tipo
+não tem as camadas de reflection e de atributos, com o tipo fixado no primeiro bind (P1.14).
 
 ### 3.11 Erros: o inspector não cai
 
@@ -1083,8 +1105,8 @@ Núcleo (portar a essência)
 - [x] `IDisposable` no inspector e nos nós (P1.5; commit `ffee3a7`).
 - [x] `TypeBinderMode` no inspector tipado: `Create<T>(TypeBinderMode.Manual)` e `Add("X")` (P1.7,
       P1.12; commit `f12ebf9`).
-- [ ] Inspector sem tipo, manual, com o membro procurado pelo nome no bind (P1.12; em aberto,
-      P1.14).
+- [ ] Inspector sem tipo, manual, com o membro procurado pelo nome no bind, sem as camadas de
+      reflection e de atributos, e o tipo fixado no primeiro bind (P1.12; P1.14).
 - [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
@@ -1126,7 +1148,7 @@ Núcleo (portar a essência)
       P2.13; commit `e136f82`).
 - [x] Seletor por expressão ao lado do caminho em string (P6.5; commit `e06b6f7`).
 - [ ] Filtros: blacklist/whitelist, `TypeSafeLock` e o filtro por nome injetável, com a precedência
-      dos atributos, por tipo (P6.4; P6.6; onde injetar, P6.7).
+      dos atributos, por tipo, registrado com `GlobalOptions.Hide<T>` (P6.4; P6.6; P6.7).
 - [x] Eventos da criação, estáticos, com o resultado guardado no inspector (P1.4, P1.9; commit
       `1535874`).
 - [x] Eventos do bind no inspector: `BindRegistered`, `BindRemoved` e `Unbound` (P1.4; commit
@@ -1138,13 +1160,15 @@ Núcleo (portar a essência)
       `6c17a15`).
 - [x] Coleções sem os membros do tipo delas (`Capacity`, `Count`, `Length`...) (P5.2; commit
       `1b9fcf6`).
-- [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
+- [ ] Coleções pelo conteúdo: o seletor (combo box) escolhe o item que aparece embaixo, e o
+      editor de lista é uma escolha explícita, `EditorKind.List` (P5.2; P5.10).
 - [x] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
       `Display` com aviso (P5.5; P5.8; commit `7482c5f`).
 
 Apresentação
 
-- [ ] Passo de layout agnóstico que gera os retângulos de cada linha.
+- [ ] Passo de layout agnóstico, no núcleo, que gera os retângulos de cada linha, com as opções de
+      layout no `InspectorOptions` (P7.5).
 - [ ] Views WinForms e WPF: editores por tipo, scrubbing, grupos recolhíveis, cabeçalho e scroll
       (sem paginação), percorrendo a árvore (P7.3).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
@@ -1162,7 +1186,8 @@ Pendências da primeira revisão (já conhecidas)
       acha o do tipo derivado; desde o commit `6c17a15`, o da base vem primeiro, e o indexador
       pega o último com o nome. Só quando o tipo muda: com o mesmo tipo
       (`public new int Value`), aparece uma vez só (testado). Decidido (P5.4): os dois aparecem,
-      com o nome composto, que expande nos campos do tipo derivado (P5.7); falta a árvore (P5.9).
+      com o nome composto, que expande nos campos do tipo derivado (P5.7); só os membros
+      escondidos ganham o nível do tipo, e o nome sem o tipo acha o do derivado (P5.9).
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
       `7740b61`). Revertido no commit `9587e12`: o NoHost voltou a ser ignorado por inteiro.
 - [x] Structs, inclusive aninhadas em classes e em outras structs: o valor alterado é gravado de

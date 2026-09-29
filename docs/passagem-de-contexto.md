@@ -47,10 +47,10 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: o que continua em aberto: 1.14 (o inspector sem tipo), 5.9, 5.10,
-  6.7 e 7.5 (o passo de layout, que ficou sem resposta na primeira rodada), cada uma com exemplo e
-  sugestão, mais 6.2 e 6.3, que ficaram para o final, a pedido dele. Os números antigos valem, e os
-  novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: só a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Na
+  última rodada de 29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e
+  as escolhas que eu tinha deixado para ele confirmar; tudo isso está na seção 0 das notas. Os
+  números antigos valem, e os novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -156,8 +156,8 @@ Pegadinhas já vistas:
   inspector ou em qualquer nó; o `ButtonNode` roda a ação no `Press()`, e o `DisplayNode` lê o
   getter como um membro.
 - `TypeBinderMode` (commit `f12ebf9`): `Create<T>(TypeBinderMode.Manual)` começa sem membros, e o
-  `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo espera
-  a 1.14 de `perguntas-em-aberto.md`.
+  `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo foi
+  decidido na P1.14.
 - Descoberta: ordem de declaração (commit `6c17a15`), coleções sem os membros do tipo delas
   (commit `1b9fcf6`) e cor numa linha `Display` fechada até escolherem o editor, com um aviso
   (commit `7482c5f`). O seletor por expressão é o `Node<T>` (commit `e06b6f7`).
@@ -181,23 +181,19 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Esperando resposta, em `perguntas-em-aberto.md`: 1.14 (o inspector sem tipo), 5.9 (a árvore do
-  membro escondido com `new`), 5.10 (o que o seletor das coleções faz), 6.7 (onde o filtro por nome
-  é injetado) e 7.5 (o passo de layout).
+- Decidido em 29/09, a aplicar, um conceito por commit: a árvore do membro escondido com `new`
+  (P5.9), o filtro por nome com `GlobalOptions.Hide<T>` (P6.7), o inspector sem tipo (P1.14), o
+  seletor das coleções e o editor de lista (P5.10) e o passo de layout no núcleo (P7.5).
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
   premissa de erros nas views e as conversões dos primitivos com o WinForms e o WPF.
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
-- As escolhas que fiz sem ele estão marcadas nas notas com "a confirmar"; vale listá-las para ele
-  quando ele voltar.
 
 ## 7. Próximo passo
 
-1. A parte de código decidida até 29/09 está aplicada, um conceito por commit, cada um com o seu
-   commit de notas. Não há código decidido esperando.
-2. Quando ele responder 1.14, 5.9, 5.10, 6.7 e 7.5, registrar nas notas (seção 0) e aplicar.
-3. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
+1. Aplicar o que foi decidido em 29/09 (seção 6 acima), cada conceito com o seu commit de notas.
+2. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
    funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
    sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`.
