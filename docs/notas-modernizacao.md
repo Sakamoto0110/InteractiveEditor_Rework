@@ -130,7 +130,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   inspector depois do `Create` (`inspector["x"].Label = ...`). Nada de `map`, `Modify`, provider ou
   callback. Aplicado no commit `bf6f74f` (seção 7).
 - **`Ignored` é da árvore, `Visible` é da view** (P6.1): um nó ignorado não faz parte deste
-  inspector; um nó invisível faz parte, mas está escondido agora, e os filhos vão junto.
+  inspector; um nó invisível faz parte, mas está escondido agora, e os filhos vão junto. Aplicado
+  no commit `13534b0`: o `Visible` é lido pelos pais, e as `Rows` pulam o ramo invisível.
 - **Filtro por nome** (P6.4): pode ser injetado, e é resolvido com a mesma precedência dos
   atributos. Vale por tipo, no `Create` (P6.6); onde ele é injetado está em aberto (P6.7).
 - **Expandir com a flag global** (P4.3): a permissão vale só para o membro ou tipo marcado, e os
@@ -173,10 +174,12 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   ou por acessor privado, deixa os filhos somente leitura, e forçar a gravação num filho lança. O
   `ReadOnly` do próprio nó basta para a view, sem um segundo valor como `IsEffectivelyReadOnly`.
   O nó consulta os pais na hora da leitura (P4.6): uma mudança na camada manual vale na hora para o
-  ramo todo, e um filho não reabre enquanto o pai for somente leitura.
+  ramo todo, e um filho não reabre enquanto o pai for somente leitura. Aplicado no commit
+  `13534b0`.
 - **Setter não público some na reflection** (relatório, 3.6; P4.5): o membro com setter private,
   protected ou internal deixa de aparecer, e o `[InspectorReadOnly]` o traz de volta, somente
-  leitura. `init`, campo `readonly` e só getter continuam aparecendo, somente leitura.
+  leitura. `init`, campo `readonly` e só getter continuam aparecendo, somente leitura. Aplicado no
+  commit `13534b0`; o `Boo.Secret` saiu da saída do TuxHost, que ficou com 67 linhas.
 
 ### O objeto do grupo
 
@@ -500,7 +503,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   próprio objeto (seção 5, item 6). Decidido em 27/09 (P4.1, P4.2): o `ReadOnly` passa para os
   filhos, também numa class, e forçar a gravação num filho lança; o `ReadOnly` do próprio nó passa
   a bastar para a view. O nó consulta os pais na hora da leitura (P4.6). E o setter não público
-  (private, protected, internal) passa a esconder o membro (relatório, 3.6; P4.5).
+  (private, protected, internal) passa a esconder o membro (relatório, 3.6; P4.5). Aplicado no
+  commit `13534b0`: o filho de uma struct somente leitura agora recusa a gravação pelo próprio
+  `ReadOnly` (`'X' is read-only.`), antes da subida.
 - **Multi-bind**: `AddBind` e `RemoveBind`, só com objetos do mesmo tipo (P2.3); tirar o último é
   o mesmo que o `Unbind()` (P2.5). Com vários objetos, cada nó passa a ter um valor por objeto, e a
   cadeia de pais resolve cada um. Valores diferentes (P2.4): sem scrubbing, a linha indica que as
@@ -747,9 +752,9 @@ com as decisões de 27/09 e 29/09 no fim.
 
   | Onde | Evento | Quando | Situação |
   |---|---|---|---|
-  | inspector (estático) | `Created` | a criação terminou; args com a contagem de erros (abaixo) | commit `1535874` |
-  | inspector (estático) | `DiscoveryFinished` | a descoberta (a árvore) terminou | commit `1535874` |
-  | inspector (estático) | `DiscoveryFailed` | uma falha dentro do `Create`, com a severidade | commit `1535874` |
+  | inspector, estático | `Created` | a criação terminou, com as contagens | `1535874` |
+  | inspector, estático | `DiscoveryFinished` | a árvore está montada | `1535874` |
+  | inspector, estático | `DiscoveryFailed` | uma falha no `Create`, com a severidade | `1535874` |
   | inspector | `BindRegistered` | um ou mais objetos entraram no bind | a fazer |
   | inspector | `BindRemoved` | um objeto saiu do bind | a fazer |
   | inspector | `Unbound` | o último objeto saiu | a fazer |
@@ -799,13 +804,13 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   que nada caia, e o evento dá a quem assina a chance de corrigir o estado no meio do caminho.
   Os args levam um `Handled`, como no WinForms; quem corrige marca, e o fallback só vale quando
   ninguém marcou. É daí que sai a contagem dos que caíram em fallback.
-- **Aplicado no `Create`** (commit `1535874`), com os tipos em `InteractiveEditor.Diagnostics`, um por
-  arquivo: `FailureSeverity`, `InspectorEventArgs`, `InspectorFailureEventArgs` (caminho, exceção,
-  mensagem, motivo, sugestão e `Handled`), `InspectorCreatedEventArgs` (as três contagens) e
-  `InspectorReport`, que fica em `inspector.Report`. Um membro cuja assinatura não dá para ler (uma
-  assembly que ele usa está ausente) sai da árvore, como crítico; o `GetIndexParameters()` também
-  lê a assinatura, então ele fica dentro da mesma proteção. Um atributo que não dá para ler ou
-  aplicar é pulado, e os outros do mesmo membro valem, como contornado. Os padrões da reflection
+- **Aplicado no `Create`** (commit `1535874`), com os tipos em `InteractiveEditor.Diagnostics`, um
+  por arquivo: `FailureSeverity`, `InspectorEventArgs`, `InspectorFailureEventArgs` (caminho,
+  exceção, mensagem, motivo, sugestão e `Handled`), `InspectorCreatedEventArgs` (as três contagens)
+  e `InspectorReport`, que fica em `inspector.Report`. Um membro cuja assinatura não dá para ler
+  (uma assembly que ele usa está ausente) sai da árvore, como crítico; o `GetIndexParameters()`
+  também lê a assinatura, então ele fica dentro da mesma proteção. Um atributo que não dá para ler
+  ou aplicar é pulado, e os outros do mesmo membro valem, como contornado. Os padrões da reflection
   que falham deixam o nó com o nome como rótulo, também contornado. Só o fatal sobe, depois de
   soltar a trava das opções globais; uma exceção de quem assina o evento também sobe por ele.
   Testado com uma biblioteca cuja dependência é apagada antes de rodar.
@@ -936,12 +941,12 @@ Núcleo (portar a essência)
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem; P6.3, para o final).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`; P6.2, para o
       final).
-- [ ] `Visible` só da view, passando para os filhos (P6.1).
+- [x] `Visible` só da view, passando para os filhos (P6.1; commit `13534b0`).
 - [x] Binding respeitar o `ReadOnly` das opções no `SetValue` (commit `6117bb1`).
-- [ ] `ReadOnly` passando para os filhos, no lugar de um `ReadOnly` efetivo (P4.1, P4.2; P4.6):
-      hoje o filho de uma struct somente leitura tem `ReadOnly = false`, mas o `SetValue` recusa.
-- [ ] Setter privado escondido pela reflection, com o `[InspectorReadOnly]` trazendo o membro de
-      volta (relatório, 3.6; P4.5).
+- [x] `ReadOnly` passando para os filhos, no lugar de um `ReadOnly` efetivo (P4.1, P4.2; P4.6;
+      commit `13534b0`).
+- [x] Setter não público escondido pela reflection, com o `[InspectorReadOnly]` trazendo o membro
+      de volta (relatório, 3.6; P4.5; commit `13534b0`).
 - [x] Rebind: `bind` de novo troca o objeto (commit `2a1cf94`). Revisto: vira `Rebind`, e o `Bind`
       volta a lançar se já houver objeto ligado (seção 0).
 - [x] Binding: ligar que lança se já houver objeto ligado ou se o tipo for outro (P2.2), `Unbind()`
@@ -1010,27 +1015,28 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
   (`NumericRange`), `ScrubMultiplier`, `Expandable` e `Collapsed`; mais `Path` e `IsGroup`, que vêm
-  da árvore. O `Visible` ainda não é lido; decidido (P6.1): ele é da view, e o `Ignored`, da árvore.
+  da árvore. O `Visible` é da view, e o `Ignored`, da árvore (P6.1); desde o commit `13534b0`, o
+  `Visible` e o `ReadOnly` são lidos pelos pais.
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
 1. `ReflectionPolicy`: rótulo = nome do membro; editor pelo tipo (números → `Number`, `bool` →
    `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
    público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
-   flag global exija o atributo. Decidido (relatório, 3.6): o setter privado passa a esconder o
-   membro, e o `[InspectorReadOnly]` o traz de volta; vale para todo setter não público (P4.5).
+   flag global exija o atributo. Um setter não público esconde o membro (relatório, 3.6; P4.5;
+   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta.
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
    no membro ou no tipo.
 3. Manual: o que for definido no inspector depois do `Create`.
 
-`Ignored`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o que a view
-mostra, então podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado sai com a
-subárvore; um objeto que não é expansível aparece como campo `Display`, sem os filhos; irmãos saem
-por `Order`.
-Nos empates vale a ordem em que a reflection devolve os membros, que não é a de declaração quando
-campos e propriedades se misturam: primeiro as propriedades, depois os campos, e os membros do
-próprio tipo antes dos herdados (testado). O nó ignorado continua na árvore, então a camada manual
-pode trazê-lo de volta (`Ignored = false`), mesmo quando foi o `[InspectorIgnore]` que o escondeu.
+`Ignored`, `Visible`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o
+que a view mostra, então podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado
+sai com a subárvore; um objeto que não é expansível aparece como campo `Display`, sem os filhos;
+irmãos saem por `Order`. Nos empates vale a ordem em que a reflection devolve os membros, que não é
+a de declaração quando campos e propriedades se misturam: primeiro as propriedades, depois os
+campos, e os membros do próprio tipo antes dos herdados (testado). O nó ignorado continua na árvore,
+então a camada manual pode trazê-lo de volta (`Ignored = false`), mesmo quando foi o
+`[InspectorIgnore]` que o escondeu.
 
 **Configuração**: o `Create` já aplica as duas políticas, e o que se define depois, no próprio
 inspector, tem a palavra final. O indexador recebe um caminho relativo ao nó em que é chamado e pode
