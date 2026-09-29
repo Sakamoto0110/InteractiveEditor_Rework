@@ -139,6 +139,11 @@ Pegadinhas já vistas:
   a conversão pela cultura do `inspector.Options` (`IParsable<T>` ou `TypeConverter`), as regras de
   valor e a faixa. O que falha no preparo vira `Failure` no nó, e nada é gravado; um valor de um
   tipo sem relação com o do membro lança.
+- Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
+  Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
+  `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
+  view mostra o `ViewValue`, e não o `GetValue()`, que lê o objeto. Os de força são o
+  `ForceApply()`, o `ForceReload()` e o `ForceClear()`, cada um com o seu evento.
 - Troca por fora (commit `55e7173`): um grupo de tipo class cujo objeto foi trocado depois do bind
   dispara `ObjectReplaced`; sem aceite, o ramo fica comprometido e lança na leitura e na gravação
   até um `Rebind`. Struct fica de fora.

@@ -105,7 +105,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   normal: os de força são override ou fallback, mesmo quando fazem a mesma coisa. Formato (P1.13):
   um enum de flags sem combinação inválida (`Manual = 0`, `ViewToInstance`, `InstanceToView` e
   `Automatic`, os dois sentidos), mais um fluxo normal para ler e gravar à mão; os de força ficam
-  só para quando o fluxo normal falhou ou não se encaixa, cada um com o seu evento.
+  só para quando o fluxo normal falhou ou não se encaixa, cada um com o seu evento. Aplicado no
+  commit `18dc069` (3.3): o fluxo normal é o `Apply()` e o `Reload()`, e os de força são o
+  `ForceApply()`, o `ForceReload()` e o `ForceClear()`, com os eventos `ForcedApply`,
+  `ForcedReload` e `ForcedClear`.
 
 ### Opções e configuração
 
@@ -118,7 +121,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
 - **Opções em três camadas**: global/estática (`GlobalOptions`, com a flag que exige
   `[InspectorExpandable]` para expandir objetos aninhados), por inspector e por campo. Primeiro
   corte aplicado no commit `5319247` (seção 7). As opções por inspector sobrescrevem as globais
-  (P1.5). O `InspectorOptions` existe desde o commit `e136f82`, por enquanto só com a cultura.
+  (P1.5). O `InspectorOptions` existe desde o commit `e136f82`, com a cultura, e tem o modo de
+  controle do binder desde o commit `18dc069`.
 - **Opções globais travadas** (P1.5, P4.4): o `Create` congela o `GlobalOptions`. Enquanto houver um
   inspector vivo, mudar uma opção global lança exceção; a trava cai no `Dispose` do último. Ela
   guarda os ids dos inspectors vivos (P1.11), e a mensagem da exceção diz quais são. Aplicado no
@@ -522,7 +526,10 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   diferem (P2.10). `SetValue` grava em todos, e um dono null em qualquer um deles interrompe antes
   de algum mudar. Na view (P2.4): sem scrubbing, a linha indica que as instâncias diferem; com
   scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como no original. O
-  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
+  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`. Escolha minha no commit
+  `18dc069`, a confirmar: o `IsMixed` passou a seguir o que a view mostra (a última leitura, e
+  nunca misto com um valor guardado, que vai para todos), sem ler os objetos, para a linha não
+  juntar uma leitura ao vivo com o valor que ela mostra.
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
   O objeto deixa de guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
@@ -542,7 +549,41 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   no objeto, recarregar do objeto e limpar a view, deixando tudo vazio ou zero. Eles também podem
   ser disparados por um evento, quando algo sai do normal. O enum é de flags, sem combinação
   inválida, e o modo manual tem um fluxo normal para ler e gravar à mão; os de força ficam para
-  quando esse fluxo falhou ou não se encaixa, cada um com o seu evento (P1.13).
+  quando esse fluxo falhou ou não se encaixa, cada um com o seu evento (P1.13). Aplicado no commit
+  `18dc069`, com o modo em `inspector.Options.BinderControl` (`Automatic` por padrão):
+
+  | Sentido | Sozinho (flag ligada) | À mão (fluxo normal) | Forçado |
+  |---|---|---|---|
+  | view → objeto (`ViewToInstance`) | `SetValue` grava na hora | `SetValue` guarda, `Apply()` grava | `ForceApply()` |
+  | objeto → view (`InstanceToView`) | `INotifyPropertyChanged` e `Refresh()` | `Reload()` | `ForceReload()` |
+  | só a view | | | `ForceClear()` |
+
+  - Sem `ViewToInstance`, o `SetValue` prepara o valor como antes (regras, conversão e faixa, com a
+    falha na linha) e o nó o guarda: `HasPendingValue`, e `ValueChanged` com a origem `Pending`,
+    sem mudar o objeto. O `Apply()` grava o que está guardado (`Write`); um nó que não pode receber
+    o valor agora (somente leitura, dono null, getter acima que lança) fica com ele e mostra a
+    falha, como contornado, e num ramo desativado o valor espera o `Rebind`, que o descarta. O
+    inspector diz se há algo guardado por `HasPendingValues`.
+  - Sem `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view. O `Reload()` relê
+    tudo em qualquer modo e descarta os valores guardados (`ValueChanged` com `Reload`), como o
+    botão Reload do original; o `Refresh()` guarda os valores pendentes, para um `Refresh()`
+    periódico não apagar o que a pessoa digitou.
+  - O que a view mostra é o `ViewValue`: o valor guardado, ou o que o primeiro objeto tinha na
+    última leitura que o modo deixou passar. Ele não lê o objeto; o `GetValue()` continua lendo.
+  - Os de força valem em qualquer modo, e cada um dispara o seu evento no inspector
+    (`ForcedApply`, `ForcedReload` e `ForcedClear`). O `ForceApply()` grava o que a view mostra, os
+    valores guardados e os lidos por último, cada objeto com o seu, tomados antes de gravar
+    qualquer coisa (um setter que muda outro membro não apaga o que a view tinha); ficam de fora os
+    grupos, os somente leitura, os ramos desativados, o nó cuja leitura falhou e o dono null. O
+    `ForceReload()` recomeça do que os objetos têm: descarta os valores guardados e as falhas, e os
+    ramos desativados aceitam o objeto novo, como um `Rebind` com os mesmos objetos, mas sem os
+    eventos de bind. O `ForceClear()` esvazia a view (zero, false, texto vazio ou null) e não mexe
+    nos objetos; a próxima leitura traz os valores de volta, e um `ForceApply()` logo depois esvazia
+    os objetos. Nos três, o `ValueChanged` sai com `Force` onde a view mudou.
+  - Escolhas minhas, a confirmar: o `Refresh()` fica no sentido objeto → view, então não faz nada
+    sem `InstanceToView`; o `Reload()` descarta os valores guardados, e o `Refresh()` não; o
+    `ForceReload()` reativa os ramos desativados; e o `ValueChanged` também sai para um valor
+    guardado (`Pending`), já que a view mudou, mesmo sem o objeto mudar.
 - **UI → objeto** (decidido, P2.7): toda entrada de texto cru tenta virar o tipo do membro, com a
   cultura configurada no inspector; se não der, a linha mostra a falha. O `SetValue("5")` num `int`
   também tenta converter antes de gravar. O original usa `Convert.ToDouble` com a cultura atual, e o
@@ -727,11 +768,12 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 283 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+O `Inspector` tem 386 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
 `RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o
 `Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o indexador, a
-enumeração, as `Rows`, o `Refresh()`, o `Dispose` e o bind inteiro (`Bind`, `AddBind`,
-`RemoveBind`, `Unbind()` e `Rebind`, com os eventos).
+enumeração, as `Rows`, o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`, `AddBind`,
+`RemoveBind`, `Unbind()` e `Rebind`, com os eventos) e o controle do binder (`Apply()`,
+`Reload()`, `HasPendingValues` e os três métodos de força, com os eventos).
 Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
 desenho, com as decisões de 27/09 e 29/09 no fim.
 
@@ -749,8 +791,9 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   `Inspector.SetValue` (raiz e grupos aninhados) lançava exceção; o commit `2a1cf94` trocou isso
   pela gravação pelo pai, para a struct voltar ao dono, e a proteção se perdeu. Agora o `SetValue`
   de um grupo aberto lança, e a struct volta ao dono por um caminho interno (P3.1).
-- Uma troca feita por fora (`foo.Moo = new Moo()`) ainda passa sem sinal: o ramo só segue o objeto
-  novo. Com null, as leituras dão null e só a gravação lança. É a detecção decidida em P3.3 e P3.4.
+- Resolvido no commit `55e7173`: uma troca feita por fora (`foo.Moo = new Moo()`) passava sem
+  sinal, e o ramo só seguia o objeto novo; com null, as leituras davam null e só a gravação lançava.
+  Agora é a detecção decidida em P3.3 e P3.4 (abaixo).
 - A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
   inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
 
@@ -777,6 +820,7 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   multi-bind (P2.4) e o `Refresh()` (P2.6).
 - Controle do binder (P1.8, P1.13): um enum de flags e um fluxo normal para ler e gravar à mão; os
   métodos de força, cada um com o seu evento, não se confundem com esse fluxo nem com o `Refresh()`.
+  Aplicado no commit `18dc069` (3.3).
 - `TypeBinderMode` continua (P1.7), e sai do jeito de criar (P1.12). Nós manuais: botão com ação e
   campo só de exibição com getter, sim; cabeçalho, não (P1.6).
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
@@ -793,6 +837,9 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   | inspector | `BindRegistered` | um ou mais objetos entraram no bind | `c201877` |
   | inspector | `BindRemoved` | objetos saíram do bind | `c201877` |
   | inspector | `Unbound` | o último objeto saiu | `c201877` |
+  | inspector | `ForcedApply` | um `ForceApply()` terminou | `18dc069` |
+  | inspector | `ForcedReload` | um `ForceReload()` terminou | `18dc069` |
+  | inspector | `ForcedClear` | um `ForceClear()` terminou | `18dc069` |
   | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | `eb497c6` |
   | nó | `ObjectReplaced` | o objeto do grupo foi trocado por fora; dá para aceitar | `55e7173` |
   | nó | `BindFailed` | falha ao ler ou gravar, com mensagem, motivo, sugestão e caminho | `eb497c6` |
@@ -865,8 +912,9 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   deixou, e a falha vai para o nó (contornado). Uma leitura que funciona não limpa uma falha de
   gravação; uma gravação que funciona limpa. No preparo da gravação (commit `e136f82`), texto que
   não converte, número grande demais e regra que lança também viram falha no nó (recuperado), e
-  nada é gravado. O uso errado continua lançando: somente leitura, grupo, dono null e valor de um
-  tipo sem relação com o do membro.
+  nada é gravado. No `Apply()` e no `ForceApply()` (commit `18dc069`), um nó que não recebe o valor
+  mostra a falha (contornado), e os outros seguem. O uso errado continua lançando: somente
+  leitura, grupo, dono null e valor de um tipo sem relação com o do membro.
 - **Falta**: a mesma proteção nas views, quando elas existirem.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
@@ -1011,8 +1059,8 @@ Núcleo (portar a essência)
       commit `c201877`). O scrubbing por delta fica com a view.
 - [x] `Refresh()` com o `ValueChanged` dizendo a origem (P2.6, P1.10; commit `eb497c6`).
 - [x] Objeto → UI por `INotifyPropertyChanged` (P2.6; commit `b6a99d8`).
-- [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
-      força, cada um com o seu evento (P1.8; P1.13).
+- [x] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
+      força, cada um com o seu evento (P1.8; P1.13; commit `18dc069`).
 - [x] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o
       `SetValue("5")` também converte (P2.7; P2.11; commit `e136f82`). A hora de gravar (P2.12)
       fica com a view.
@@ -1072,8 +1120,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   `RequireExpandableAttribute`. Decidido (P1.5, P4.4) e aplicado no commit `ffee3a7`: o `Create`
   trava as opções globais, e mudar uma delas com um inspector vivo lança; a trava cai no `Dispose`
   do último. O TuxHost descarta cada inspector depois de imprimir, para poder ligar a flag.
-- `InspectorOptions` (`inspector.Options`): existe desde o commit `e136f82`, por enquanto só com a
-  cultura (`Culture`; null é a atual, na hora de cada conversão). As de layout (altura de campo,
+- `InspectorOptions` (`inspector.Options`): existe desde o commit `e136f82`, com a cultura
+  (`Culture`; null é a atual, na hora de cada conversão), e desde o commit `18dc069` com o modo de
+  controle do binder (`BinderControl`, `Automatic` por padrão). As de layout (altura de campo,
   espaçamento, recuo...) chegam com o passo de layout e sobrescrevem o global por inspector (P1.5).
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
