@@ -216,7 +216,10 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   As duas políticas viram classes estáticas, sem interface nem instâncias, chamadas em ordem no
   `Create`. Aplicado nos commits `5560223` e `6622a41`.
 - **Ordem dos irmãos** (P5.1): a de declaração é a preferida, se der para recuperar sem muito
-  custo; se não der, fica a da reflection, e o `[InspectorOrder]` resolve o resto.
+  custo; se não der, fica a da reflection, e o `[InspectorOrder]` resolve o resto. Aplicado no
+  commit `6c17a15`, pelos metadados (seção 7). Escolhas minhas, a confirmar: os membros do tipo
+  base vêm antes dos do derivado, e uma propriedade calculada, que não deixa rastro da posição
+  entre os campos, vai para logo antes da próxima propriedade automática.
 - **Coleções** (P5.2; relatório, seção 2): em vez dos membros do tipo da coleção (`Capacity`,
   `Count`, `Length`...), o conteúdo. O editor padrão é um seletor, que vira combo box, e vale
   tentar um editor de lista. Pode precisar de configuração a mais; o que o seletor faz com o item
@@ -1096,7 +1099,8 @@ Núcleo (portar a essência)
 - [x] Eventos dos nós: `ValueChanged`, com a origem, e `BindFailed` (P1.4, P1.10; commit `eb497c6`).
 - [x] Evento do objeto do grupo trocado por fora: `ObjectReplaced` (P1.4, P3.6; commit `55e7173`).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
-- [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
+- [x] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1; commit
+      `6c17a15`).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
 - [ ] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
       `Display` com aviso (P5.5; P5.8).
@@ -1118,7 +1122,8 @@ Pendências da primeira revisão (já conhecidas)
 - [x] `FieldDescriptor.Type` com o tipo dono e o namespace `Binding` escondendo o tipo `Binding` do
       WinForms e do WPF: os dois saíram (commit `5560223`).
 - [ ] Membro escondido com `new`: não quebra mais o `Create`, mas aparece duas vezes, e o indexador
-      acha o do tipo derivado, que vem primeiro. Só quando o tipo muda: com o mesmo tipo
+      acha o do tipo derivado; desde o commit `6c17a15`, o da base vem primeiro, e o indexador
+      pega o último com o nome. Só quando o tipo muda: com o mesmo tipo
       (`public new int Value`), aparece uma vez só (testado). Decidido (P5.4): os dois aparecem,
       com o nome composto, que expande nos campos do tipo derivado (P5.7); falta a árvore (P5.9).
 - [x] `/NoHost` no `.gitignore`: agora só `NoHost/bin` e `NoHost/obj` são ignorados (commit
@@ -1165,9 +1170,14 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 `Ignored`, `Visible`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o
 que a view mostra, então podem mudar a qualquer momento, inclusive depois do bind: um nó ignorado
 sai com a subárvore; um objeto que não é expansível aparece como campo `Display`, sem os filhos;
-irmãos saem por `Order`. Nos empates vale a ordem em que a reflection devolve os membros, que não é
-a de declaração quando campos e propriedades se misturam: primeiro as propriedades, depois os
-campos, e os membros do próprio tipo antes dos herdados (testado). O nó ignorado continua na árvore,
+irmãos saem por `Order`. Nos empates vale a ordem de declaração, desde o commit `6c17a15` (P5.1). A
+reflection devolve primeiro as propriedades, depois os campos, e os membros do próprio tipo antes
+dos herdados (testado), então a ordem sai dos metadados: os tipos base vêm primeiro; dentro de um
+tipo, os campos ficam na ordem deles, e cada propriedade automática fica no lugar do campo de apoio,
+que o compilador emite onde a propriedade é declarada. Uma propriedade calculada não tem campo de
+apoio, então vai para logo antes da próxima propriedade automática, ou para o fim; um override fica
+onde a propriedade foi declarada primeiro. Se a ordem não puder ser lida, fica a da reflection, e a
+falha sai como contornado. O nó ignorado continua na árvore,
 então a camada manual pode trazê-lo de volta (`Ignored = false`), mesmo quando foi o
 `[InspectorIgnore]` que o escondeu.
 
