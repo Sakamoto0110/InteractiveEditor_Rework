@@ -533,6 +533,10 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   ligados e dos objetos dos grupos: o aviso relê o membro (`Instance`), um aviso sem nome relê
   todos, e a troca do objeto de um grupo é conferida na hora. A gravação feita pelo próprio
   inspector continua `Write`, e o que o mesmo setter muda de tabela chega como `Instance`.
+  Corrigido no commit `0602d0a`: a gravação e o aviso releem também o que muda junto, que é a
+  struct mais de cima do campo gravado, com o ramo dela, e os membros de baixo de uma struct ou de
+  um objeto fechado; e o aviso da struct que o inspector grava de volta no dono não chega mais como
+  `Instance`.
 - **Controle do binder** (decidido, P1.8): um enum de controle no lugar de uma flag `AutoApply`
   (manual, ou automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores
   no objeto, recarregar do objeto e limpar a view, deixando tudo vazio ou zero. Eles também podem
@@ -827,6 +831,9 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   `GetValues` e `SetValue` lançam dizendo qual grupo foi trocado, `IsMixed` lê false, e o
   `Refresh()` deixa o ramo de fora. Um objeto fechado é valor: trocá-lo é edição, e quando o
   próprio inspector troca um, o ramo dele guarda o objeto novo. Qualquer mudança no bind restaura.
+  Corrigido no commit `0602d0a`: quando a troca fica (um objeto fechado trocado por fora, ou o
+  objeto novo aceito por quem assina), os grupos de dentro também recomeçam do objeto novo; antes,
+  a leitura seguinte os dava como trocados e desativava o ramo.
 
 **Em aberto** (em `perguntas-em-aberto.md`): onde o filtro por nome é injetado (P6.7).
 
