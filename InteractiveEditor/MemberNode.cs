@@ -43,6 +43,8 @@ public sealed class MemberNode : InspectorNode
                 throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
         }
 
+        Writing = true;
+
         try
         {
             foreach (var instance in Root.Instances)
@@ -56,6 +58,10 @@ public sealed class MemberNode : InspectorNode
             OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"'{Path}' could not be written.",
                 "Check the member's setter.", onWrite: true);
         }
+        finally
+        {
+            Writing = false;
+        }
 
         // A closed object replaced here was replaced by the inspector itself, not from outside: its
         // branch starts over from the new object.
@@ -63,6 +69,9 @@ public sealed class MemberNode : InspectorNode
 
         foreach (var node in this)
             node.Record();
+
+        if (HasMembers)
+            Root.Owner.Rewire();
 
         Update(ValueSource.Write);
     }

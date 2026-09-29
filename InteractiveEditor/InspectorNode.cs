@@ -75,6 +75,10 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // Set when this group's object was replaced outside the inspector and nobody accepted it.
     private protected bool Replaced;
 
+    // Set while the inspector writes this node, so the object's own notification of that write does
+    // not come back as a change from the object.
+    internal bool Writing { get; private protected set; }
+
     // The last failure reading or writing this node, or null once it works again; the view shows it
     // on the row.
     public InspectorFailureEventArgs? Failure { get; private set; }
@@ -312,6 +316,8 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     // Writes into a bound object. A struct owner comes back up through here, even when it is a group.
     internal abstract void WriteTo(object? instance, object? value);
+
+    internal IReadOnlyList<InspectorNode> ChildNodes => Children;
 
     internal T Add<T>(T child) where T : InspectorNode
     {

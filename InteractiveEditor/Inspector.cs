@@ -14,12 +14,14 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private static int LastId;
 
     private readonly RootNode Root;
+    private readonly InstanceWatcher Watcher;
     private bool Disposed;
 
     private Inspector(Type target)
     {
         Id = Interlocked.Increment(ref LastId);
         Root = new RootNode(target, this);
+        Watcher = new InstanceWatcher(Root);
     }
 
     // Raised inside the Create, before anyone can subscribe to the new inspector, so they are
@@ -165,6 +167,8 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
         foreach (var node in Root)
             node.Update(ValueSource.Refresh);
+
+        Watcher.Rewire();
     }
 
     // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
@@ -224,11 +228,19 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         OnBindRegistered(instances);
     }
 
+    // The objects the watcher listens to may have changed.
+    internal void Rewire()
+    {
+        Watcher.Rewire();
+    }
+
     // The bound objects changed, so every node starts over from what they hold now.
     private void ResetNodes()
     {
         foreach (var node in Root)
             node.Reset();
+
+        Watcher.Rewire();
     }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
