@@ -74,6 +74,16 @@ internal static class ReflectionDiscovery
         }
     }
 
+    // The public field or property with that name, the one of the most derived type when one hides
+    // another (P5.4); indexers do not count.
+    internal static MemberInfo? FindMember(Type type, string name)
+    {
+        return type.GetMember(name, MemberTypes.Field | MemberTypes.Property, BindingFlags.Public | BindingFlags.Instance)
+            .Where(member => member is not PropertyInfo property || property.GetIndexParameters().Length == 0)
+            .OrderByDescending(member => DeclarationOrder.Depth(member.DeclaringType!))
+            .FirstOrDefault();
+    }
+
     internal static bool IsTerminal(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;

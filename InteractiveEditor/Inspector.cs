@@ -18,9 +18,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private readonly InstanceWatcher Watcher;
     private bool Disposed;
 
-    private Inspector(Type target)
+    private Inspector(Type target, TypeBinderMode mode)
     {
         Id = Interlocked.Increment(ref LastId);
+        Mode = mode;
         Root = new RootNode(target, this);
         Watcher = new InstanceWatcher(Root);
     }
@@ -33,6 +34,9 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // Tells inspectors apart, so an event can be traced back to the one that raised it.
     public int Id { get; }
+
+    // How the Create built the tree: Automatic found every member, Manual left them to Add.
+    public TypeBinderMode Mode { get; }
 
     // Objects coming into the bind and leaving it; Unbound when the last one leaves.
     public event EventHandler<BindEventArgs>? BindRegistered;
@@ -64,17 +68,23 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     public bool HasPendingValues => Root.Any(node => node.HasPendingValue);
 
     // A failure inside the Create does not stop it: the failed piece falls back or is left out, and
-    // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller.
-    public static Inspector Create<T>()
+    // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller. A manual
+    // inspector starts with no members; they come one by one, through Add.
+    public static Inspector Create<T>(TypeBinderMode mode = TypeBinderMode.Automatic)
     {
-        var inspector = new Inspector(typeof(T));
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Not a TypeBinderMode.");
+
+        var inspector = new Inspector(typeof(T), mode);
 
         // The global options are read below, so they are frozen from here until the Dispose.
         GlobalOptions.Lock(inspector.Id);
 
         try
         {
-            ReflectionDiscovery.AddMembers(inspector.Root, typeof(T), inspector);
+            if (mode == TypeBinderMode.Automatic)
+                ReflectionDiscovery.AddMembers(inspector.Root, typeof(T), inspector);
+
             OnDiscoveryFinished(inspector);
 
             // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
@@ -106,8 +116,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
 
-    // Nodes added by hand at the top of the tree (P1.6); inspector["Moo"].AddButton(...) puts one
-    // inside a group.
+    // Nodes added by hand at the top of the tree (P1.6, P1.12); inspector["Moo"].Add("MooX") and the
+    // like put one inside another node.
+    public MemberNode Add(string name) => Root.Add(name);
+
     public ButtonNode AddButton(string name, string text, Action press) => Root.AddButton(name, text, press);
 
     public DisplayNode AddDisplay(string name, Func<object?> read) => Root.AddDisplay(name, read);
