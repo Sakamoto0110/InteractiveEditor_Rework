@@ -2,6 +2,8 @@
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
+using InteractiveEditor.Options;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
@@ -14,7 +16,19 @@ public sealed class MemberNode : InspectorNode
         Member = member;
     }
 
-    public MemberInfo Member { get; }
+    // A node of an inspector with no type (P1.14): only the name, until a bind finds the member.
+    internal MemberNode(InspectorNode parent, string name) : base(parent, name)
+    {
+        ByName = true;
+        Label = name;
+    }
+
+    // The field or property. In an inspector with no type, it is null until the first bind finds it,
+    // and each bind into nothing finds it again.
+    public MemberInfo? Member { get; private set; }
+
+    // Found by name at the bind, in an inspector with no type (P1.14).
+    internal bool ByName { get; }
 
     // The object this group held in every bound object when it was last seen. Only groups of a class
     // type keep it: a struct has no identity to compare.
@@ -22,7 +36,30 @@ public sealed class MemberNode : InspectorNode
 
     private bool Tracks => !ValueType.IsValueType && HasMembers;
 
-    public override Type ValueType => Member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)Member).PropertyType;
+    public override Type ValueType => Member == null ? typeof(object) : TypeOf(Member);
+
+    // A member with no public setter is read-only in an inspector with no type, which has no layer of
+    // reflection to say so (P1.14).
+    private protected override bool FixedReadOnly => ByName && Member != null && !ReflectionPolicy.IsPubliclyWritable(Member);
+
+    internal static Type TypeOf(MemberInfo member)
+    {
+        return member is FieldInfo fi ? fi.FieldType : ((PropertyInfo)member).PropertyType;
+    }
+
+    // Takes the member a bind found (P1.14). With no layers of reflection and attributes, what the
+    // manual layer left unchosen comes from it: the editor, while Auto, or while it is still the one
+    // an earlier bind chose.
+    internal void Take(MemberInfo member)
+    {
+        Member = member;
+
+        if (Editor == EditorKind.Auto || EditorFromBind)
+        {
+            Editor = ReflectionPolicy.EditorFor(ValueType);
+            EditorFromBind = true;
+        }
+    }
 
     // Every bound object takes the value; with ViewToInstance off, the node holds it until Apply().
     public override void SetValue(object? value)

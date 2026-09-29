@@ -22,7 +22,7 @@ internal static class AttributePolicy
         Use<InspectorIgnoreAttribute>(node, inspector, _ => node.Ignored = true);
 
         // A name hidden from outside for the object's type counts as an [InspectorIgnore] (P6.7).
-        if (node.Member.ReflectedType is { } owner && GlobalOptions.IsHidden(owner, node.Name))
+        if (node.Member!.ReflectedType is { } owner && GlobalOptions.IsHidden(owner, node.Name))
             node.Ignored = true;
 
         Use<InspectorLabelAttribute>(node, inspector, label => node.Label = label.Text);
@@ -39,7 +39,7 @@ internal static class AttributePolicy
 
         // [InspectorExpandable] counts on the member or on its type, and only when there is something to open.
         Use(node, inspector,
-            () => node.Member.GetCustomAttribute<InspectorExpandableAttribute>()
+            () => node.Member!.GetCustomAttribute<InspectorExpandableAttribute>()
                 ?? (Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType).GetCustomAttribute<InspectorExpandableAttribute>(),
             expandable =>
             {
@@ -67,7 +67,7 @@ internal static class AttributePolicy
     private static void Use<TAttribute>(MemberNode node, Inspector inspector, Action<TAttribute> apply)
         where TAttribute : Attribute
     {
-        Use(node, inspector, () => node.Member.GetCustomAttribute<TAttribute>(), apply);
+        Use(node, inspector, () => node.Member!.GetCustomAttribute<TAttribute>(), apply);
     }
 
     // An attribute that cannot be read or applied is skipped: the node keeps what the reflection

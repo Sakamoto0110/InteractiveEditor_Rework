@@ -11,10 +11,11 @@ internal static class ReflectionPolicy
     {
         try
         {
-            node.Label = node.Member.Name;
+            var member = node.Member!;
+            node.Label = member.Name;
             node.Editor = EditorFor(node.ValueType);
-            node.ReadOnly = !IsPubliclyWritable(node.Member);
-            node.Ignored = HasHiddenSetter(node.Member);
+            node.ReadOnly = !IsPubliclyWritable(member);
+            node.Ignored = HasHiddenSetter(member);
             // A type with more than one editor stays closed until one is chosen (P5.5).
             node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute
                 && !ReflectionDiscovery.HasManyEditors(node.ValueType);
@@ -29,7 +30,7 @@ internal static class ReflectionPolicy
         }
     }
 
-    private static EditorKind EditorFor(Type type)
+    internal static EditorKind EditorFor(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
 
@@ -48,7 +49,7 @@ internal static class ReflectionPolicy
         return EditorKind.Text;
     }
 
-    private static bool IsPubliclyWritable(MemberInfo member)
+    internal static bool IsPubliclyWritable(MemberInfo member)
     {
         return member switch
         {

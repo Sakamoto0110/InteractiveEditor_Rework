@@ -54,11 +54,21 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     public bool ReadOnly
     {
-        get => field || Parent?.ReadOnly == true;
+        get => field || FixedReadOnly || Parent?.ReadOnly == true;
         set;
     }
 
-    public EditorKind Editor { get; set; }
+    // In an inspector with no type, the bind can choose the editor while nobody else did (P1.14);
+    // setting it takes that over.
+    public EditorKind Editor
+    {
+        get;
+        set
+        {
+            field = value;
+            EditorFromBind = false;
+        }
+    }
     public NumericRange? Range { get; set; }
     public double? ScrubMultiplier { get; set; }
     public bool Expandable { get; set; }
@@ -72,6 +82,12 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     #endregion
 
     #region State
+
+    // Read-only whatever the options say; only a member of an inspector with no type is (P1.14).
+    private protected virtual bool FixedReadOnly => false;
+
+    // Whether the editor is the one a bind chose, and so another bind can choose again.
+    private protected bool EditorFromBind { get; set; }
 
     // What the view holds for the bound objects, one value per object: what each held here at the last
     // read the binder control let through, or an empty value after a ForceClear(). ValueChanged reports
@@ -185,19 +201,25 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // node gets what the reflection and the attributes say about it, as in the Create, with the manual
     // layer after them; it shows even where they would hide it, since it was added on purpose. It
     // comes without the members below it, which are added the same way.
+    // In an inspector with no type, the name waits for the bind (P1.14); once a bind fixed the type, it
+    // is checked at once, and the node takes the member with no layers of reflection and attributes.
     public MemberNode Add(string name)
     {
-        var type = ValueType is { } held ? Nullable.GetUnderlyingType(held) ?? held
-            : throw new InvalidOperationException($"'{Name}' holds nothing to find '{name}' in.");
+        if (this is not (RootNode or MemberNode))
+            throw new InvalidOperationException($"'{Name}' holds nothing to find '{name}' in.");
 
-        if (ReflectionDiscovery.IsTerminal(type))
-            throw new InvalidOperationException($"'{Name}' holds a {type.Name}, which has no members to add.");
+        if (!Root.Typed && (Root.Instances.Count == 0 || this is MemberNode { Member: null }))
+            return Adopt(new MemberNode(this, name));
 
-        if (ReflectionDiscovery.IsCollection(type))
-            throw new InvalidOperationException($"'{Name}' holds a collection, which shows its content, not its members.");
+        var type = ValueType ?? throw new InvalidOperationException($"'{Name}' holds nothing to find '{name}' in.");
+        var member = ReflectionDiscovery.MemberNamed(type, name, Name);
 
-        var member = ReflectionDiscovery.FindMember(type, name)
-            ?? throw new ArgumentException($"'{type.Name}' has no public field or property named '{name}'.", nameof(name));
+        if (!Root.Typed)
+        {
+            var found = new MemberNode(this, name);
+            found.Take(member);
+            return Adopt(found);
+        }
 
         var node = new MemberNode(this, member);
         ReflectionPolicy.Apply(node, Inspector);

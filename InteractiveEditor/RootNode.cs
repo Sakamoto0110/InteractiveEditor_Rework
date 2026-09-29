@@ -4,13 +4,18 @@
 // resolves its owner from it.
 internal sealed class RootNode : InspectorNode
 {
-    internal RootNode(Type target, Inspector inspector) : base(null, target.Name)
+    internal RootNode(Type target, Inspector inspector, bool typed) : base(null, target.Name)
     {
         Target = target;
         Owner = inspector;
+        Typed = typed;
     }
 
-    public Type Target { get; }
+    // The type the tree is for. Without a type, it is the type the first bind into nothing fixed.
+    public Type Target { get; set; }
+
+    // False for an inspector with no type (P1.14), whose members are found by name at the bind.
+    public bool Typed { get; }
 
     // The inspector that keeps this root; every node reaches it from here.
     public Inspector Owner { get; }
