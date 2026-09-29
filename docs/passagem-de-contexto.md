@@ -1,8 +1,8 @@
 # Passagem de contexto
 
 Para retomar o trabalho num contexto novo. Estado de 29 de setembro de 2026, na branch
-`rework-claude`, depois da segunda rodada de respostas do Rafael (29/09) e do commit `b456398`. Ler
-isto inteiro antes de mexer em qualquer coisa.
+`rework-claude`, depois de aplicar no código o que a segunda rodada de respostas do Rafael (29/09)
+decidiu; o último commit de código é o `7482c5f`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -47,14 +47,14 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: o que continua em aberto depois das respostas de 29/09 (5.9, 5.10
-  e 6.7), cada uma com exemplo e sugestão, mais 6.2 e 6.3, que ficaram para o final, a pedido dele.
-  Os números antigos valem, e os novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: o que continua em aberto: 1.14 (o inspector sem tipo), 5.9, 5.10,
+  6.7 e 7.5 (o passo de layout, que ficou sem resposta na primeira rodada), cada uma com exemplo e
+  sugestão, mais 6.2 e 6.3, que ficaram para o final, a pedido dele. Os números antigos valem, e os
+  novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
-  publicar de novo na mesma URL. Ele descreve o código em `9a1fffa`: as partes de bind (seções 1 e
-  6), enumeração (4 e 5) e "decidido, ainda não aplicado" (8) ficaram velhas depois de `4dec125`,
-  `a2d8ffe` e `b456398`.
+  publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
+  depois desta rodada; atualizar só se o Rafael pedir.
 - Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0`), `DemoObjects` (os tipos de
   teste: `Foo`, `Moo`, `Doo`, `Boo`), `TuxHost` (o console de verificação, roda no Linux),
   `NoHost` (local do Rafael, `net10.0-windows`), `WindowsHost` e `WpfHost`.
@@ -86,9 +86,14 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão tinha 62 checagens: bind (null, segundo bind, outro tipo, `Rebind` recusado, tipo
-  derivado, struct na raiz), grupo e raiz (grupo aberto, objeto fechado, structs aninhadas, struct
-  somente leitura, pai null) e enumeração (árvore, linhas, ignorados, flag global).
+  sessão chegou a 405 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
+  `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor,
+  ordem de declaração, nós manuais, modo manual, coleções e cores. Um segundo console testa a
+  assembly ausente. Os dois ficam no scratchpad da sessão e não passam para a próxima; a lista
+  acima serve de roteiro para refazer o que for preciso.
+- Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
+  mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
   `dotnet exec --runtimeconfig`.
 
@@ -107,6 +112,12 @@ Pegadinhas já vistas:
   depois do build, rodando com `dotnet X.dll` (o `dotnet run` copiaria a DLL de volta).
 - Os eventos da criação são estáticos: um console de teste precisa tirar a assinatura no fim, senão
   ela vale para os testes seguintes.
+- O `Refresh()` não faz nada sem `InstanceToView` (controle do binder); a leitura à mão é o
+  `Reload()`. E a view mostra o `ViewValue`: o `GetValue()` lê o objeto na hora.
+- Com a ordem de declaração, o membro escondido com `new` vem depois do da base, e o indexador pega
+  o último com o nome, que é o do derivado.
+- Os primitivos são em `double`: num teste, `(int)node.GetValue()` de um campo de `PxPoint` lança
+  `InvalidCastException`.
 
 ## 5. O código hoje, em resumo
 
@@ -114,10 +125,11 @@ Pegadinhas já vistas:
   nó passa por `ReflectionPolicy.Apply` e depois `AttributePolicy.Apply`. A camada manual vem
   depois, no próprio inspector (`inspector["Moo.MooX"].Label = ...`).
 - `Inspector` não é mais um nó (commit `0bc2f9d`): guarda a raiz num `RootNode` interno e expõe o
-  `Id`, o `Name`, o objeto ligado (`Instance`), o indexador, a enumeração e `Rows`. `InspectorNode`
-  é abstrato, com as opções como propriedades, o indexador por caminho relativo (encadeável), o
-  `GetValue` comum e o `SetValue` abstrato; `MemberNode` é um campo ou propriedade. A enumeração
-  entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
+  `Id`, o `Name`, o `Mode`, as opções (`Options`), o objeto ligado (`Instance`), o indexador e o
+  `Node<T>`, a enumeração e `Rows`. `InspectorNode` é abstrato, com as opções como propriedades, o
+  indexador por caminho relativo (encadeável), o `GetValue` comum e o `SetValue` abstrato; os nós
+  são `MemberNode` (campo ou propriedade), `ButtonNode`, `DisplayNode` e o `RootNode` interno. A
+  enumeração entrega a árvore inteira, e `Rows` entrega as linhas da view (commit `b456398`).
 - `ReadOnly` e `Visible` são lidos pelos pais (commit `13534b0`), e um setter não público esconde o
   membro, que o `[InspectorReadOnly]` traz de volta.
 - Falhas no `Create` (commit `1535874`): viram eventos estáticos (`DiscoveryFailed`, com a
@@ -129,12 +141,13 @@ Pegadinhas já vistas:
 - Bind (commits `4dec125` e `c201877`): `Bind` lança se já houver objeto ligado ou se o objeto não
   servir para a árvore (um tipo derivado serve); `AddBind` põe mais objetos, `RemoveBind` tira um,
   `Unbind()` solta todos, e `Rebind` confere e depois desliga e liga. `GetValue` lê o primeiro
-  objeto, `GetValues` todos, `IsMixed` diz se diferem, e `SetValue` grava em todos. O inspector
-  avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
+  objeto, `GetValues` todos, `IsMixed` diz se diferiam na última leitura (commit `18dc069`), e
+  `SetValue` grava em todos. O inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
 - Valores (commit `eb497c6`): cada nó guarda a última leitura e dispara `ValueChanged` com a origem
   quando ela muda; `inspector.Refresh()` relê tudo, e objetos com `INotifyPropertyChanged` avisam
   sozinhos (commit `b6a99d8`). Getter ou setter que lança vira `Failure` e `BindFailed` no nó, sem
-  exceção; o uso errado continua lançando.
+  exceção; o uso errado continua lançando. A gravação e os avisos releem também o que muda junto: a
+  struct acima do campo gravado e o que fica abaixo de um objeto fechado (commit `0602d0a`).
 - Gravação (commit `e136f82`): o `SetValue` prepara o valor antes de gravar, com as regras de texto,
   a conversão pela cultura do `inspector.Options` (`IParsable<T>` ou `TypeConverter`), as regras de
   valor e a faixa. O que falha no preparo vira `Failure` no nó, e nada é gravado; um valor de um
@@ -158,46 +171,32 @@ Pegadinhas já vistas:
   até um `Rebind`. Struct fica de fora.
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
-  de volta passa por um `Write` interno (commit `a2d8ffe`). Uma troca feita por fora
-  (`foo.Moo = new Moo()`) ainda passa sem sinal.
+  de volta passa pelo `WriteTo` interno (commit `a2d8ffe`).
 - Primitivos em `InteractiveEditor/Primitives` (commits `2951ce3`, `3544a8e` e `f1de920`):
   `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxDock`, `PxColorArgb` e `PxColorHsl`,
   sem conversão implícita entre as cores. Ainda sem uso na biblioteca.
 - Um alvo só, `net10.0`: uma DLL, sem código de Windows na biblioteca.
 
-## 6. Decidido, ainda não aplicado
+## 6. O que falta
 
-Está tudo na seção 0 das notas e no checklist (seção 6). O principal:
+O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- A premissa: exceção interna não derruba o inspector (3.11), com a severidade e a linha entre
-  lançar e avisar ainda em aberto (0.1 e 0.2).
-- Composição: o `Inspector` guarda a raiz em vez de herdar de `InspectorNode` (P1.1). Aplicar
-  depende da 9.3, que o Rafael não tinha entendido e foi explicada de novo.
-- Setter abstrato, com um tipo de nó por comportamento (P1.2); eventos (P1.4); `IDisposable` e a
-  trava do `GlobalOptions` enquanto houver inspector vivo (P1.5); `TypeBinderMode` (P1.7); enum de
-  controle do binder e métodos de força (P1.8).
-- Binding: multi-bind de um tipo só (P2.3), valores mistos (P2.4), `INotifyPropertyChanged` e
-  `Refresh()` (P2.6), conversão de texto com a cultura do inspector (P2.7), faixa que limita o
-  valor (P2.8) e sanitizadores ordenados, sem o "TheBrute" (P2.9).
-- Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura (P3.3, P3.4).
-- `ReadOnly` passando para os filhos (P4.1, P4.2) e setter privado escondido pela reflection.
-- Descoberta: ordem de declaração se der, coleções pelo conteúdo, `Color` com escolha explícita.
-- Views com dois alvos no mesmo projeto (P7.1), fábricas com nomes distintos, a view percorrendo a
-  árvore e um callback agnóstico por linha.
-- Primitivos em `double`, um tipo só (P8.1); `PxRect`, `PxPadding` e `PxDock` (P8.2);
-  `PxColorArgb` e `PxColorHsl`, sem conversão implícita entre elas (P8.3, P8.4). A PixieLib fica
-  para uma sessão própria.
-
-Duas decisões anteriores mudaram: o tipo da raiz ficou fixo (ligar outro tipo lança, P2.2), então o
-`Inspector` é não genérico porque nem todo inspector vai ser tipado (P1.7); e as views trazem de
-volta os dois alvos, no lugar de um alvo só.
+- Esperando resposta, em `perguntas-em-aberto.md`: 1.14 (o inspector sem tipo), 5.9 (a árvore do
+  membro escondido com `new`), 5.10 (o que o seletor das coleções faz), 6.7 (onde o filtro por nome
+  é injetado) e 7.5 (o passo de layout).
+- Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
+- Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
+  view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
+  premissa de erros nas views e as conversões dos primitivos com o WinForms e o WPF.
+- Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
+- As escolhas que fiz sem ele estão marcadas nas notas com "a confirmar"; vale listá-las para ele
+  quando ele voltar.
 
 ## 7. Próximo passo
 
-1. Em 29/09 o Rafael respondeu a segunda rodada e pediu para "matar a parte de código antes das
-   explicações do final": aplicar o que está decidido na seção 0 das notas, um conceito por commit,
-   começando pela composição (P9.3). O checklist (seção 6) diz o que já foi aplicado.
-2. Quando ele responder 5.9, 5.10 e 6.7, registrar nas notas e aplicar.
+1. A parte de código decidida até 29/09 está aplicada, um conceito por commit, cada um com o seu
+   commit de notas. Não há código decidido esperando.
+2. Quando ele responder 1.14, 5.9, 5.10, 6.7 e 7.5, registrar nas notas (seção 0) e aplicar.
 3. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
    funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
    sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
