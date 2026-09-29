@@ -24,10 +24,10 @@ internal static class ReflectionDiscovery
             if (member is not (FieldInfo or PropertyInfo))
                 continue;
 
-            var node = parent.Add(member);
+            var node = parent.Add(new MemberNode(parent, member));
 
             if (member is FieldInfo || ((PropertyInfo)member).CanRead)
-                AddMembers(node, node.ValueType!, ancestry);
+                AddMembers(node, node.ValueType, ancestry);
         }
 
         ancestry.Remove(type);

@@ -1,50 +1,67 @@
-﻿using InteractiveEditor.Model;
+﻿using System.Collections;
+using InteractiveEditor.Model;
 using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
-public class Inspector : InspectorNode
+// Holds the tree and the bound object. It is not a node itself: the options live on the nodes,
+// and the root stays inside.
+public sealed class Inspector : IEnumerable<InspectorNode>
 {
-    private readonly Type Target;
-    private object? Instance;
+    private static int LastId;
 
-    private Inspector(Type target) : base(null, null)
+    private readonly RootNode Root;
+
+    private Inspector(Type target)
     {
-        Target = target;
+        Id = Interlocked.Increment(ref LastId);
+        Root = new RootNode(target);
     }
 
-    public override string Name => Target.Name;
+    // Tells inspectors apart, so an event can be traced back to the one that raised it.
+    public int Id { get; }
+
+    public string Name => Root.Name;
+
+    // The bound object, or null. A struct at the root is the inspector's own copy, read back here.
+    public object? Instance => Root.Instance;
 
     public static Inspector Create<T>()
     {
-        var root = new Inspector(typeof(T));
+        var inspector = new Inspector(typeof(T));
 
-        ReflectionDiscovery.AddMembers(root, typeof(T));
+        ReflectionDiscovery.AddMembers(inspector.Root, typeof(T));
 
         // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
-        foreach (var node in root.Descendants())
+        foreach (var node in inspector.Root.Descendants().OfType<MemberNode>())
         {
             ReflectionPolicy.Apply(node);
             AttributePolicy.Apply(node);
         }
 
-        return root;
+        return inspector;
     }
+
+    // A path from the root ("Moo.MooY"); chaining works too: inspector["Moo"]["MooY"].
+    public InspectorNode this[string path] => Root[path];
+
+    // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
+    public IEnumerable<InspectorNode> Rows => Root.Rows;
 
     // One object at a time for now (multi-bind comes later), so swapping it is explicit.
     public void Bind(object instance)
     {
         CheckBindable(instance);
 
-        if (Instance != null)
+        if (Root.Instance != null)
             throw new InvalidOperationException($"'{Name}' is already bound; call Unbind() or Rebind() first.");
 
-        Instance = instance;
+        Root.Instance = instance;
     }
 
     public void Unbind()
     {
-        Instance = null;
+        Root.Instance = null;
     }
 
     public void Rebind(object instance)
@@ -56,16 +73,16 @@ public class Inspector : InspectorNode
         Bind(instance);
     }
 
-    public override object? GetValue() => Instance;
-
-    // The bound object only changes through Bind, Unbind and Rebind.
-    public override void SetValue(object? value)
+    // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
+    public IEnumerator<InspectorNode> GetEnumerator()
     {
-        throw new InvalidOperationException($"'{Name}' is the root; use Rebind() to change the bound object.");
+        return Root.GetEnumerator();
     }
 
-    // A struct at the root is edited in its own box, so the write-back hands that same box back.
-    internal override void Write(object? value) => Instance = value;
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 
     // The tree was built for Target, so only an instance of it (or of a type derived from it) fits.
     private void CheckBindable(object instance)
@@ -73,7 +90,7 @@ public class Inspector : InspectorNode
         if (instance == null)
             throw new ArgumentNullException(nameof(instance));
 
-        if (!Target.IsInstanceOfType(instance))
+        if (!Root.Target.IsInstanceOfType(instance))
             throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
     }
 }
