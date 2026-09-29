@@ -2,8 +2,8 @@
 
 Estado de 29 de setembro de 2026, depois das respostas de 27/09 e de 29/09. As respondidas saíram
 daqui e estão na seção 0 de `notas-modernizacao.md`, citadas com um `P` na frente do número
-(`P2.2`). O que ficou: os desdobramentos das últimas respostas, as duas que ficaram para o final e
-uma que apareceu no código (1.14).
+(`P2.2`). O que ficou: os desdobramentos das últimas respostas, as duas que ficaram para o final,
+uma que apareceu no código (1.14) e uma que tinha saído sem resposta (7.5).
 
 Os números antigos continuam valendo, e os novos seguem a numeração de cada seção, sem reaproveitar
 número. Os nomes que ainda não existem no código são só ilustração, e a sugestão, quando há, vem no
@@ -113,6 +113,27 @@ inspector["Text"].Ignored = false;               // a camada manual ainda traz d
 Sugestão: (b), porque "injetado" pede algo de fora da classe, e serve também para tipos de
 terceiros, que não dá para anotar. O (a) seria um `[InspectorIgnore]` em lote, que já existe membro
 a membro.
+
+## 7. Views
+
+### 7.5 Passo de layout (antes das views)
+
+Esta pergunta saiu daqui em 27/09 sem resposta, por engano meu. Ela dependia das 8.1 e 8.2, que já
+foram decididas, e o `PxRect` existe desde o commit `f1de920`.
+
+Fica no núcleo, agnóstico, e devolve os retângulos de cada linha?
+
+```csharp
+var rows = Layout.Compute(inspector);   // sem nenhum controle de UI
+// cada linha: PxRect Row, PxRect Label e PxRect Editor
+view.Apply(rows);                       // a view só posiciona
+```
+
+As opções de layout do `InspectorOptions` (altura da linha, espaçamento, recuo por nível) entram
+aqui; hoje ele só tem a cultura e o modo do binder.
+
+Sugestão: sim, no núcleo e agnóstico. A view só aplica os retângulos, e o passo de layout pode ser
+testado no Linux, sem WinForms nem WPF.
 
 ## Para o final
 
