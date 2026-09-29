@@ -32,8 +32,21 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public string? Help { get; set; }
     public int Order { get; set; }
     public bool Ignored { get; set; }
-    public bool Visible { get; set; } = true;
-    public bool ReadOnly { get; set; }
+
+    // Visible and ReadOnly are read through the parents: hiding or locking a node takes its whole
+    // branch along, and a child cannot be opened while something above it stays closed.
+    public bool Visible
+    {
+        get => field && Parent?.Visible != false;
+        set;
+    } = true;
+
+    public bool ReadOnly
+    {
+        get => field || Parent?.ReadOnly == true;
+        set;
+    }
+
     public EditorKind Editor { get; set; }
     public NumericRange? Range { get; set; }
     public double? ScrubMultiplier { get; set; }
@@ -64,12 +77,12 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     public abstract void SetValue(object? value);
 
-    // What a view shows: ignored nodes left out, siblings by Order, and only groups opened.
+    // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows
     {
         get
         {
-            foreach (var child in Children.Where(c => !c.Ignored).OrderBy(c => c.Order))
+            foreach (var child in Children.Where(c => !c.Ignored && c.Visible).OrderBy(c => c.Order))
             {
                 yield return child;
 

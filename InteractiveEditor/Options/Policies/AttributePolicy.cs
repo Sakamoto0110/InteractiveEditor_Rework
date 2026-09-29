@@ -8,11 +8,17 @@ internal static class AttributePolicy
 {
     public static void Apply(MemberNode node, Inspector inspector)
     {
+        // [InspectorReadOnly] brings back a member the reflection hid for its setter, so it goes
+        // before [InspectorIgnore], which has the last word.
+        Use<InspectorReadOnlyAttribute>(node, inspector, _ =>
+        {
+            node.ReadOnly = true;
+            node.Ignored = false;
+        });
         Use<InspectorIgnoreAttribute>(node, inspector, _ => node.Ignored = true);
         Use<InspectorLabelAttribute>(node, inspector, label => node.Label = label.Text);
         Use<InspectorTooltipAttribute>(node, inspector, tooltip => node.Tooltip = tooltip.Text);
         Use<InspectorHelpAttribute>(node, inspector, help => node.Help = help.Text);
-        Use<InspectorReadOnlyAttribute>(node, inspector, _ => node.ReadOnly = true);
         Use<InspectorEditorAttribute>(node, inspector, editor => node.Editor = editor.Kind);
         Use<InspectorRangeAttribute>(node, inspector, range => node.Range = new NumericRange(range.Min, range.Max, range.Step));
         Use<InspectorScrubAttribute>(node, inspector, scrub => node.ScrubMultiplier = scrub.Multiplier);
