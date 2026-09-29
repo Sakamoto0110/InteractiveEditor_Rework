@@ -131,6 +131,9 @@ Pegadinhas já vistas:
   `Unbind()` solta todos, e `Rebind` confere e depois desliga e liga. `GetValue` lê o primeiro
   objeto, `GetValues` todos, `IsMixed` diz se diferem, e `SetValue` grava em todos. O inspector
   avisa por `BindRegistered`, `BindRemoved` e `Unbound`.
+- Valores (commit `eb497c6`): cada nó guarda a última leitura e dispara `ValueChanged` com a origem
+  quando ela muda; `inspector.Refresh()` relê tudo. Getter ou setter que lança vira `Failure` e
+  `BindFailed` no nó, sem exceção; o uso errado continua lançando.
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa por um `Write` interno (commit `a2d8ffe`). Uma troca feita por fora
