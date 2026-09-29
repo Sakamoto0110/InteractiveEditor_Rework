@@ -256,7 +256,7 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     {
         get
         {
-            foreach (var child in Children.Where(c => !c.Ignored && c.Visible).OrderBy(c => c.Order))
+            foreach (var child in ShownChildren)
             {
                 yield return child;
 
@@ -268,6 +268,9 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
             }
         }
     }
+
+    // The children a view shows, in their order: ignored and hidden ones left out, siblings by Order.
+    internal IEnumerable<InspectorNode> ShownChildren => Children.Where(c => !c.Ignored && c.Visible).OrderBy(c => c.Order);
 
     // The whole tree below this node, as discovered: ignored nodes and the insides of closed groups too.
     public IEnumerator<InspectorNode> GetEnumerator()
