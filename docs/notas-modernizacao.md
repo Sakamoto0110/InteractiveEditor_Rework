@@ -97,7 +97,9 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   jeito de criar: tipado é automático, e sem tipo é manual; o modo explícito continua para o
   inspector tipado e manual (P1.12).
 - **Nós manuais** (P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá para
-  resolver de outro jeito. O campo só de exibição também entra, com um getter (29/09).
+  resolver de outro jeito. O campo só de exibição também entra, com um getter (29/09). Aplicado no
+  commit `0c97638`: `AddButton(nome, texto, ação)` e `AddDisplay(nome, getter)`, no inspector ou em
+  qualquer nó (3.2).
 - **Controle do binder** (P1.8): no lugar de uma flag `AutoApply`, um enum de controle (manual, ou
   automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores no objeto,
   recarregar do objeto e limpar a view (tudo vazio ou zero), que também podem ser disparados por um
@@ -471,7 +473,15 @@ DataAnnotations; aplicados no commit `5319247`)
   (decidido, P1.7). O modo sai do jeito de criar: tipado é automático, sem tipo é manual, e o modo
   explícito continua para o inspector tipado e manual (P1.12).
 - Nós manuais (decidido, P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá
-  para resolver de outro jeito. O campo só de exibição também entra, com um getter.
+  para resolver de outro jeito. O campo só de exibição também entra, com um getter. Aplicado no
+  commit `0c97638`, com dois tipos de nó sem membro atrás. O `ButtonNode` tem o texto do botão
+  (`Text`, à parte do rótulo) e roda a ação no `Press()`; uma ação que lança vira falha na linha
+  (contornado), e apertar um botão somente leitura, ou num ramo desativado, lança, como gravar num
+  nó somente leitura. O `DisplayNode` é somente leitura e lê o getter como um membro é lido: o
+  `Refresh()` e o `Reload()` o atualizam, e um getter que lança vira falha na linha. Os dois entram
+  depois dos nós que já estão ali, com `Order` valendo como em qualquer linha, e um nome que um
+  irmão já usa lança, porque o indexador acha os nós pelo nome. Escolha minha, a confirmar: um
+  membro que recebe um nó à mão abre (`Expandable`), porque o filho foi posto ali de propósito.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
 são de cortes seguintes, com nomes provisórios:
@@ -485,14 +495,15 @@ component["Opacity"].Editor = EditorKind.Slider;
 component["Opacity"].Range = new NumericRange(0, 255, 5);
 component["FillColor"].Label = "Color1";
 
+component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());   // commit 0c97638
+component.AddDisplay("Layer", () => tree.SelectedIndex);
+
 // cortes seguintes:
 // cor: o editor é escolhido explicitamente (P5.5); hoje System.Drawing.Color vira um grupo
 // component["Text"].VisibleWhen = c => ((ComponentPreset)c).IsText;   // sucessor do VariablePool
-// component.AddButton("LayerUp", "▲", () => tree.OnLayerUp());
-// component.AddDisplay("Layer", () => tree.SelectedIndex);    // decidido (P1.6)
 
 component.Rebind(selected);  // a cada seleção: Unbind + Bind (commit 4dec125)
-component.AddBind(other);    // cortes seguintes: multi-bind
+component.AddBind(other);    // multi-bind (commit c201877)
 ```
 
 No modo automático (o padrão), os membros refletidos entram sozinhos, os atributos ajustam e a
@@ -787,12 +798,13 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 386 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+O `Inspector` tem 397 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
 `RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o
-`Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o indexador, a
-enumeração, as `Rows`, o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`, `AddBind`,
-`RemoveBind`, `Unbind()` e `Rebind`, com os eventos) e o controle do binder (`Apply()`,
-`Reload()`, `HasPendingValues` e os três métodos de força, com os eventos).
+`Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o indexador e o
+seletor por expressão (`Node<T>`), a enumeração, as `Rows`, os nós manuais (`AddButton` e
+`AddDisplay`), o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`, `AddBind`, `RemoveBind`,
+`Unbind()` e `Rebind`, com os eventos) e o controle do binder (`Apply()`, `Reload()`,
+`HasPendingValues` e os três métodos de força, com os eventos).
 Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
 desenho, com as decisões de 27/09 e 29/09 no fim.
 
@@ -841,7 +853,8 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   métodos de força, cada um com o seu evento, não se confundem com esse fluxo nem com o `Refresh()`.
   Aplicado no commit `18dc069` (3.3).
 - `TypeBinderMode` continua (P1.7), e sai do jeito de criar (P1.12). Nós manuais: botão com ação e
-  campo só de exibição com getter, sim; cabeçalho, não (P1.6).
+  campo só de exibição com getter, sim; cabeçalho, não (P1.6). Os nós manuais entraram no commit
+  `0c97638`.
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
   injetado está em aberto (P6.7). A visibilidade condicional ficou para o final (P6.2).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
@@ -988,7 +1001,7 @@ está numerado em `perguntas-em-aberto.md`.
 3. **Cultura** (resolvida em 27/09 e 29/09): configurável no inspector inteiro (P2.7), com a atual
    como padrão (P2.11). Aplicada no commit `e136f82`.
 4. **Nós manuais** (resolvida em 27/09 e 29/09): o botão entra, com uma ação no clique, e o campo
-   só de exibição, com um getter; o cabeçalho não (P1.6).
+   só de exibição, com um getter; o cabeçalho não (P1.6). Aplicada no commit `0c97638`.
 5. **Permissão de expandir** (resolvida em 27/09): vale só para o membro ou tipo marcado, como hoje
    e como no `TypeSafeLock` (P4.3).
 6. **ReadOnly num objeto aninhado (class)** (resolvida em 27/09): passa para os filhos, e forçar a
@@ -1062,7 +1075,8 @@ Núcleo (portar a essência)
       global (P1.5) vale quando uma opção existir nas duas camadas; hoje nenhuma existe.
 - [x] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4,
       P1.11; commit `ffee3a7`).
-- [ ] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra.
+- [x] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra
+      (commit `0c97638`).
 - [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
       (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem; P6.3, para o final).
 - [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`; P6.2, para o
@@ -1233,6 +1247,7 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: itens de escolha, visibilidade condicional, nós manuais (botão e campo só de
-exibição) e o layout no `InspectorOptions`. Já entraram o `ValueChanged` (commit `eb497c6`) e os
-sanitizadores (commit `e136f82`); o gancho de conversão saiu da lista (P2.9).
+**Próximos cortes**: itens de escolha, visibilidade condicional e o layout no `InspectorOptions`.
+Já entraram o `ValueChanged` (commit `eb497c6`), os sanitizadores (commit `e136f82`) e os nós
+manuais, botão e campo só de exibição (commit `0c97638`); o gancho de conversão saiu da lista
+(P2.9).
