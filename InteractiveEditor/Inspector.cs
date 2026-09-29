@@ -41,6 +41,9 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // What went wrong during the Create, for whoever checks after it.
     public InspectorReport Report { get; } = new();
 
+    // The options of this inspector, between the global ones and those of each node.
+    public InspectorOptions Options { get; } = new();
+
     public string Name => Root.Name;
 
     // The first bound object, or null. A struct at the root is the inspector's own copy, read back

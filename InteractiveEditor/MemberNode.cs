@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
+using InteractiveEditor.Model;
 
 namespace InteractiveEditor;
 
@@ -32,6 +33,9 @@ public sealed class MemberNode : InspectorNode
 
         ThrowIfCompromised();
 
+        if (ReadOnly)
+            throw new InvalidOperationException($"'{Name}' is read-only.");
+
         // With nothing bound, the write fails like any other null owner.
         if (Root.Instances.Count == 0)
             WriteTo(null, value);
@@ -43,12 +47,15 @@ public sealed class MemberNode : InspectorNode
                 throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
         }
 
+        if (!TryPrepare(value, out var prepared))
+            return;
+
         Writing = true;
 
         try
         {
             foreach (var instance in Root.Instances)
-                WriteTo(instance, value);
+                WriteTo(instance, prepared);
 
             OnWritten();
         }
@@ -74,6 +81,56 @@ public sealed class MemberNode : InspectorNode
             Root.Owner.Rewire();
 
         Update(ValueSource.Write);
+    }
+
+    // Turns what came in into what the member takes: text through the text rules and the parser, a
+    // number into the member's number type, then the value rules and the range. A value of an
+    // unrelated type is a mistake of the caller, and throws; anything else that fails here (text that
+    // does not convert, a number too big, a rule that throws) is reported on the node, and nothing is
+    // written.
+    private bool TryPrepare(object? value, out object? prepared)
+    {
+        var culture = Inspector.Options.CultureInUse;
+        prepared = null;
+
+        if (value is not string)
+            ValueConverter.CheckFits(value, ValueType, Path);
+
+        try
+        {
+            if (value is string text)
+            {
+                foreach (var rule in TextRules)
+                    text = rule.Apply(text);
+
+                if (!ValueConverter.TryParse(text, ValueType, culture, out value))
+                {
+                    OnBindFailed(FailureSeverity.Recovered, new FormatException($"'{text}' is not a {ValueType.Name}."),
+                        $"'{Path}' could not take the text '{text}'.",
+                        $"Type a {ValueType.Name} in the format of the culture {culture.Name}.", onWrite: true);
+                    return false;
+                }
+            }
+            else
+            {
+                value = ValueConverter.Convert(value, ValueType, culture);
+            }
+
+            foreach (var rule in ValueRules)
+                value = rule.Apply(value);
+
+            if (Range is { } range)
+                value = ValueConverter.Clamp(value, range.Min, range.Max);
+
+            prepared = ValueConverter.Convert(value, ValueType, culture);
+            return true;
+        }
+        catch (Exception e)
+        {
+            OnBindFailed(FailureSeverity.Recovered, Unwrap(e), $"'{Path}' could not take the value.",
+                "Check the node's rules, and the value against the member's type.", onWrite: true);
+            return false;
+        }
     }
 
     internal override void Record()

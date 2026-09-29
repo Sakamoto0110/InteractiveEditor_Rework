@@ -61,6 +61,11 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public bool Expandable { get; set; }
     public bool Collapsed { get; set; }
 
+    // Applied in this order to what is written: the text rules before the text is converted, the
+    // value rules after it.
+    public List<TextRule> TextRules { get; } = [];
+    public List<ValueRule> ValueRules { get; } = [];
+
     #endregion
 
     #region State
