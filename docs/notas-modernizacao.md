@@ -95,7 +95,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   `ObjectDisposedException`.
 - **`TypeBinderMode` continua** (P1.7), porque nem todo inspector vai ser tipado. O modo sai do
   jeito de criar: tipado é automático, e sem tipo é manual; o modo explícito continua para o
-  inspector tipado e manual (P1.12).
+  inspector tipado e manual (P1.12). O tipado e manual entrou no commit `f12ebf9`
+  (`Create<T>(TypeBinderMode.Manual)` e `Add("X")`); o sem tipo tem detalhes em aberto (P1.14).
 - **Nós manuais** (P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá para
   resolver de outro jeito. O campo só de exibição também entra, com um getter (29/09). Aplicado no
   commit `0c97638`: `AddButton(nome, texto, ação)` e `AddDisplay(nome, getter)`, no inspector ou em
@@ -471,7 +472,15 @@ DataAnnotations; aplicados no commit `5319247`)
 - O `TypeBinderMode` do original (`Automatic` / `Manual`, declarado e nunca usado lá) continua
   existindo para quando se quer só os campos declarados, porque nem todo inspector vai ser tipado
   (decidido, P1.7). O modo sai do jeito de criar: tipado é automático, sem tipo é manual, e o modo
-  explícito continua para o inspector tipado e manual (P1.12).
+  explícito continua para o inspector tipado e manual (P1.12). Aplicado no commit `f12ebf9` para o
+  inspector tipado: `Create<T>(TypeBinderMode.Manual)` não acha nenhum membro, e `inspector.Mode`
+  diz qual modo montou a árvore. O `Add("X")`, no inspector ou em qualquer nó, põe um membro do
+  tipo que o nó guarda: o nome é conferido na hora, e o nó recebe o que a reflection e os atributos
+  dizem dele, como no `Create`, com a camada manual depois. Ele aparece mesmo onde elas o
+  esconderiam (setter não público, `[InspectorIgnore]`), porque foi posto de propósito, e vem sem os
+  membros de baixo, que entram do mesmo jeito (`inspector["Moo"].Add("MooX")`). Um tipo sem
+  membros para pôr (int, string) lança, como a descoberta, que nunca abre um. O inspector sem tipo
+  (`Inspector.Create()`) espera a P1.14.
 - Nós manuais (decidido, P1.6): o botão entra, com uma ação no clique; o cabeçalho não, porque dá
   para resolver de outro jeito. O campo só de exibição também entra, com um getter. Aplicado no
   commit `0c97638`, com dois tipos de nó sem membro atrás. O `ButtonNode` tem o texto do botão
@@ -798,13 +807,13 @@ vez.
 
 ### 3.10 O `Inspector`: hoje raso
 
-O `Inspector` tem 397 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
-`RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o
-`Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o indexador e o
-seletor por expressão (`Node<T>`), a enumeração, as `Rows`, os nós manuais (`AddButton` e
-`AddDisplay`), o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`, `AddBind`, `RemoveBind`,
-`Unbind()` e `Rebind`, com os eventos) e o controle do binder (`Apply()`, `Reload()`,
-`HasPendingValues` e os três métodos de força, com os eventos).
+O `Inspector` tem 409 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
+`RootNode` interno e expõe o `Create<T>()` com o modo (`Mode`), os eventos e o relatório da
+criação, o `Id`, o `Name`, as opções (`Options`), os objetos ligados (`Instance` e `Instances`), o
+indexador e o seletor por expressão (`Node<T>`), a enumeração, as `Rows`, os nós postos à mão
+(`Add`, `AddButton` e `AddDisplay`), o `Refresh()`, o `Dispose`, o bind inteiro (`Bind`,
+`AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos) e o controle do binder (`Apply()`,
+`Reload()`, `HasPendingValues` e os três métodos de força, com os eventos).
 Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
 desenho, com as decisões de 27/09 e 29/09 no fim.
 
@@ -854,7 +863,8 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   Aplicado no commit `18dc069` (3.3).
 - `TypeBinderMode` continua (P1.7), e sai do jeito de criar (P1.12). Nós manuais: botão com ação e
   campo só de exibição com getter, sim; cabeçalho, não (P1.6). Os nós manuais entraram no commit
-  `0c97638`.
+  `0c97638`, e o inspector tipado e manual, com o `Add`, no commit `f12ebf9` (3.2); o sem tipo
+  espera a P1.14.
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6); onde ele é
   injetado está em aberto (P6.7). A visibilidade condicional ficou para o final (P6.2).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
@@ -1063,7 +1073,10 @@ Núcleo (portar a essência)
       comum e o setter abstrato, `MemberNode` e `RootNode`, e um id por inspector (P1.1, P1.2, P1.9;
       P9.3; commit `0bc2f9d`).
 - [x] `IDisposable` no inspector e nos nós (P1.5; commit `ffee3a7`).
-- [ ] `TypeBinderMode`, com o modo tirado do jeito de criar (P1.7, P1.12).
+- [x] `TypeBinderMode` no inspector tipado: `Create<T>(TypeBinderMode.Manual)` e `Add("X")` (P1.7,
+      P1.12; commit `f12ebf9`).
+- [ ] Inspector sem tipo, manual, com o membro procurado pelo nome no bind (P1.12; em aberto,
+      P1.14).
 - [x] Enumeração: o inspector entrega todos os nós, e as linhas da view saem de `Rows` (P1.3; P9.4;
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).

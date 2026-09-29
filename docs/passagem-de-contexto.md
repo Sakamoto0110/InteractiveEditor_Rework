@@ -142,6 +142,9 @@ Pegadinhas já vistas:
 - Nós manuais (commit `0c97638`): `AddButton(nome, texto, ação)` e `AddDisplay(nome, getter)`, no
   inspector ou em qualquer nó; o `ButtonNode` roda a ação no `Press()`, e o `DisplayNode` lê o
   getter como um membro.
+- `TypeBinderMode` (commit `f12ebf9`): `Create<T>(TypeBinderMode.Manual)` começa sem membros, e o
+  `Add("X")` põe um membro com as camadas de reflection e de atributos; o inspector sem tipo espera
+  a 1.14 de `perguntas-em-aberto.md`.
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
