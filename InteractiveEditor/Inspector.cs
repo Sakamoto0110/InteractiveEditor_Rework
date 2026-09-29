@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
+using InteractiveEditor.Layout;
 using InteractiveEditor.Model;
 using InteractiveEditor.Options;
 using InteractiveEditor.Options.Policies;
@@ -128,6 +129,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
+
+    // The rectangles of those rows in an area this wide (P7.5), worked out here with no UI, from the
+    // collapsed groups and the layout options; a view only puts its controls on them.
+    public InspectorLayout Layout(double width) => InspectorLayout.Compute(Root, Options, width);
 
     // Nodes added by hand at the top of the tree (P1.6, P1.12); inspector["Moo"].Add("MooX") and the
     // like put one inside another node.
