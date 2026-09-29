@@ -16,7 +16,7 @@ internal static class ReflectionDiscovery
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
 
-        if (IsTerminal(type) || !ancestry.Add(type))
+        if (IsTerminal(type) || IsCollection(type) || !ancestry.Add(type))
             return;
 
         try
@@ -82,6 +82,15 @@ internal static class ReflectionDiscovery
             .Where(member => member is not PropertyInfo property || property.GetIndexParameters().Length == 0)
             .OrderByDescending(member => DeclarationOrder.Depth(member.DeclaringType!))
             .FirstOrDefault();
+    }
+
+    // A collection shows its content, not the members of its type (Capacity, Count, Length...), so the
+    // discovery does not open it (P5.2). How the content shows is open (P5.10); until then, it is a
+    // Display row. A string is text, not a collection of chars.
+    internal static bool IsCollection(Type type)
+    {
+        type = Nullable.GetUnderlyingType(type) ?? type;
+        return type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type);
     }
 
     internal static bool IsTerminal(Type type)

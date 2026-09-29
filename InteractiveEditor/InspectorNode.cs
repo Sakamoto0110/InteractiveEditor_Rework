@@ -186,6 +186,9 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         if (ReflectionDiscovery.IsTerminal(type))
             throw new InvalidOperationException($"'{Name}' holds a {type.Name}, which has no members to add.");
 
+        if (ReflectionDiscovery.IsCollection(type))
+            throw new InvalidOperationException($"'{Name}' holds a collection, which shows its content, not its members.");
+
         var member = ReflectionDiscovery.FindMember(type, name)
             ?? throw new ArgumentException($"'{type.Name}' has no public field or property named '{name}'.", nameof(name));
 
