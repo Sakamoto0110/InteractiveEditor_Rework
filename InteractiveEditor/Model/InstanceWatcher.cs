@@ -74,7 +74,7 @@ internal sealed class InstanceWatcher(RootNode root)
         foreach (var owner in owners.ToList())
         {
             // A notification with no name means that every member of the object may have changed.
-            foreach (var node in owner.ChildNodes.Where(n => string.IsNullOrEmpty(e.PropertyName) || n.Name == e.PropertyName))
+            foreach (var node in owner.OwnMembers.Where(n => string.IsNullOrEmpty(e.PropertyName) || n.Name == e.PropertyName))
             {
                 if (node.IsCompromised || node.Writing)
                     continue;

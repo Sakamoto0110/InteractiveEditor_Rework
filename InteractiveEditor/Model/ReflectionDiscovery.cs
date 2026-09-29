@@ -25,9 +25,26 @@ internal static class ReflectionDiscovery
 
         try
         {
-            foreach (var member in MembersOf(type, parent, inspector))
+            var members = MembersOf(type, parent, inspector);
+
+            // Names that more than one member has: a member hidden with new, and the one that hides
+            // it. Each goes into the group of the type that declares it (P5.9).
+            var hidden = members.GroupBy(m => m.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+            var groups = new Dictionary<Type, TypeGroupNode>();
+
+            foreach (var member in members)
             {
-                var node = new MemberNode(parent, member);
+                var owner = parent;
+
+                if (hidden.Contains(member.Name))
+                {
+                    if (!groups.TryGetValue(member.DeclaringType!, out var group))
+                        groups[member.DeclaringType!] = group = new TypeGroupNode(parent, member.DeclaringType!);
+
+                    owner = group;
+                }
+
+                var node = new MemberNode(owner, member);
 
                 try
                 {
@@ -41,7 +58,11 @@ internal static class ReflectionDiscovery
                     else
                         _ = node.ValueType;
 
-                    parent.AddChild(node);
+                    // A group goes in with its first member, so a member left out leaves no empty group.
+                    if (owner is TypeGroupNode { HasMembers: false })
+                        parent.AddChild(owner);
+
+                    owner.AddChild(node);
                 }
                 catch (Exception e)
                 {
