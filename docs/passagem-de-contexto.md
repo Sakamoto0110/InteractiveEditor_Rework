@@ -114,8 +114,8 @@ Pegadinhas já vistas:
   ela vale para os testes seguintes.
 - O `Refresh()` não faz nada sem `InstanceToView` (controle do binder); a leitura à mão é o
   `Reload()`. E a view mostra o `ViewValue`: o `GetValue()` lê o objeto na hora.
-- Com a ordem de declaração, o membro escondido com `new` vem depois do da base, e o indexador pega
-  o último com o nome, que é o do derivado.
+- Um membro escondido com `new` fica no grupo do tipo que o declara (`TypeGroupNode`, commit
+  `c9868a9`): o caminho é `Base.Value` ou `Derived.Value`, e `Value` sozinho acha o do derivado.
 - Os primitivos são em `double`: num teste, `(int)node.GetValue()` de um campo de `PxPoint` lança
   `InvalidCastException`.
 
@@ -181,9 +181,10 @@ Pegadinhas já vistas:
 
 O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
-- Decidido em 29/09, a aplicar, um conceito por commit: a árvore do membro escondido com `new`
-  (P5.9), o filtro por nome com `GlobalOptions.Hide<T>` (P6.7), o inspector sem tipo (P1.14), o
-  seletor das coleções e o editor de lista (P5.10) e o passo de layout no núcleo (P7.5).
+- Decidido em 29/09, a aplicar, um conceito por commit: o filtro por nome com
+  `GlobalOptions.Hide<T>` (P6.7), o inspector sem tipo (P1.14), o seletor das coleções e o editor
+  de lista (P5.10) e o passo de layout no núcleo (P7.5). A árvore do membro escondido com `new`
+  (P5.9) já entrou (commit `c9868a9`).
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
