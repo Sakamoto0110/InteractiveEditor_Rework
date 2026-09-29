@@ -13,14 +13,11 @@ internal static class ReflectionPolicy
         typeof(float), typeof(double), typeof(decimal),
     ];
 
-    public static void Apply(InspectorNode node)
+    public static void Apply(MemberNode node)
     {
-        if (node.Member is not { } member)
-            return;
-
-        node.Label = member.Name;
-        node.Editor = EditorFor(node.ValueType!);
-        node.ReadOnly = !IsPubliclyWritable(member);
+        node.Label = node.Member.Name;
+        node.Editor = EditorFor(node.ValueType);
+        node.ReadOnly = !IsPubliclyWritable(node.Member);
         node.Expandable = node.HasMembers && !GlobalOptions.RequireExpandableAttribute;
     }
 

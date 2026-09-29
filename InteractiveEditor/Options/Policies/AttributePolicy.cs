@@ -5,10 +5,9 @@ namespace InteractiveEditor.Options.Policies;
 
 internal static class AttributePolicy
 {
-    public static void Apply(InspectorNode node)
+    public static void Apply(MemberNode node)
     {
-        if (node.Member is not { } member)
-            return;
+        var member = node.Member;
 
         if (member.GetCustomAttribute<InspectorIgnoreAttribute>() != null)
             node.Ignored = true;
@@ -37,7 +36,7 @@ internal static class AttributePolicy
         if (member.GetCustomAttribute<InspectorOrderAttribute>() is { } order)
             node.Order = order.Order;
 
-        var fieldType = Nullable.GetUnderlyingType(node.ValueType!) ?? node.ValueType!;
+        var fieldType = Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType;
         var expandable = member.GetCustomAttribute<InspectorExpandableAttribute>()
             ?? fieldType.GetCustomAttribute<InspectorExpandableAttribute>();
 
