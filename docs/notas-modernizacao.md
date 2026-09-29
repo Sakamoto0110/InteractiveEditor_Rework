@@ -161,7 +161,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   devolve um valor por objeto (P2.10). Aplicado no commit `c201877`; o indicativo e o scrubbing
   ficam com a view.
 - **Objeto → UI** (P2.6): `INotifyPropertyChanged` para quem implementa, e o `Refresh()` do
-  inspector para o resto.
+  inspector para o resto. O `Refresh()` e o `ValueChanged` com a origem entraram no commit
+  `eb497c6`.
 - **Texto → valor** (P2.7): a cultura é configurável no inspector inteiro, e toda entrada de texto
   cru tenta virar o tipo do membro; quando não dá, a linha mostra a falha. O `SetValue("5")` num
   `int` também tenta converter antes de gravar (relatório, seção 6). A cultura padrão é a atual, e
@@ -520,7 +521,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
   O objeto deixa de guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
-  e não se confunde com os métodos de força (abaixo).
+  e não se confunde com os métodos de força (abaixo). Aplicado no commit `eb497c6`: cada nó guarda
+  o que os objetos tinham na última leitura, e o `ValueChanged` só dispara quando isso muda, com a
+  origem (`Write`, `Instance`, `Refresh` ou `Force`); ligar e desligar recomeça em silêncio.
 - **Controle do binder** (decidido, P1.8): um enum de controle no lugar de uma flag `AutoApply`
   (manual, ou automático num sentido ou nos dois) e métodos auxiliares de força: gravar os valores
   no objeto, recarregar do objeto e limpar a view, deixando tudo vazio ou zero. Eles também podem
@@ -701,11 +704,11 @@ vez.
 ### 3.10 O `Inspector`: hoje raso
 
 O `Inspector` tem 239 linhas e, desde o commit `0bc2f9d`, não é mais um nó: guarda a raiz num
-`RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o `Name`,
-os objetos ligados (`Instance` e `Instances`), o indexador, a enumeração, as `Rows`, o `Dispose` e o
-bind inteiro (`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos). Deveria ser
-uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o desenho, com
-as decisões de 27/09 e 29/09 no fim.
+`RootNode` interno e expõe o `Create<T>()` com os eventos e o relatório da criação, o `Id`, o
+`Name`, os objetos ligados (`Instance` e `Instances`), o indexador, a enumeração, as `Rows`, o
+`Dispose` e o bind inteiro (`Bind`, `AddBind`, `RemoveBind`, `Unbind()` e `Rebind`, com os eventos).
+Deveria ser uma das peças mais completas, porque é o que o host e a view usam. Levantamento para o
+desenho, com as decisões de 27/09 e 29/09 no fim.
 
 **Buracos no que já existe** (testado)
 
@@ -764,9 +767,9 @@ as decisões de 27/09 e 29/09 no fim.
   | inspector | `BindRegistered` | um ou mais objetos entraram no bind | `c201877` |
   | inspector | `BindRemoved` | objetos saíram do bind | `c201877` |
   | inspector | `Unbound` | o último objeto saiu | `c201877` |
-  | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | a fazer |
+  | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | `eb497c6` |
   | nó | objeto trocado | o objeto do grupo foi trocado por fora | a fazer |
-  | nó | falha de bind | com mensagem, motivo, sugestão e caminho | a fazer |
+  | nó | `BindFailed` | falha ao ler ou gravar, com mensagem, motivo, sugestão e caminho | `eb497c6` |
 
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
   caíram em fallback automático) e `CriticalErrorCount` (os graves, sem resolução, que não
@@ -820,8 +823,13 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   que falham deixam o nó com o nome como rótulo, também contornado. Só o fatal sobe, depois de
   soltar a trava das opções globais; uma exceção de quem assina o evento também sobe por ele.
   Testado com uma biblioteca cuja dependência é apagada antes de rodar.
-- **Falta**: a mesma proteção no binding (getters e setters que lançam, a leitura do objeto ligado)
-  e nas views, com os eventos do bind e dos nós.
+- **No objeto ligado** (commit `eb497c6`): um getter que lança não para a leitura nem o bind; o nó lê
+  null ali, guarda a falha em `Failure` e avisa por `BindFailed` (recuperado), e a próxima leitura
+  tenta de novo. Um setter que lança não para o `SetValue`; os objetos ficam com o que ele deixou, e
+  a falha vai para o nó (contornado). Uma leitura que funciona não limpa uma falha de gravação; uma
+  gravação que funciona limpa. O uso errado continua lançando: somente leitura, grupo, dono null e
+  valor do tipo errado.
+- **Falta**: a mesma proteção nas views, quando elas existirem.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
 - **O que continua lançando** (decidido, P0.2): o uso errado da API por quem chama (ligar duas
@@ -926,7 +934,9 @@ Núcleo (portar a essência)
 - [x] Premissa de erros no `Create`: severidade, falhas por evento com `Handled`, relatório no
       inspector, membro ilegível fora da árvore e atributo inválido pulado (3.11; P0.1, P0.2; commit
       `1535874`).
-- [ ] Premissa de erros no binding e nas views (3.11).
+- [x] Premissa de erros no objeto ligado: getter e setter que lançam viram falha no nó, com
+      `BindFailed` (3.11; commit `eb497c6`).
+- [ ] Premissa de erros nas views (3.11).
 - [x] Composição e tipos de nó: o `Inspector` guarda a raiz, `InspectorNode` abstrato com o getter
       comum e o setter abstrato, `MemberNode` e `RootNode`, e um id por inspector (P1.1, P1.2, P1.9;
       P9.3; commit `0bc2f9d`).
@@ -959,7 +969,8 @@ Núcleo (portar a essência)
       e `Rebind` (P9.1; commit `4dec125`).
 - [x] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10;
       commit `c201877`). O scrubbing por delta fica com a view.
-- [ ] Objeto → UI por `INotifyPropertyChanged`, com `Refresh()` manual (P2.6).
+- [x] `Refresh()` com o `ValueChanged` dizendo a origem (P2.6, P1.10; commit `eb497c6`).
+- [ ] Objeto → UI por `INotifyPropertyChanged` (P2.6).
 - [ ] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
       força, cada um com o seu evento (P1.8; P1.13).
 - [ ] Conversão de texto para valor, com a cultura do inspector e a falha indicada na linha; o
@@ -973,7 +984,8 @@ Núcleo (portar a essência)
       `1535874`).
 - [x] Eventos do bind no inspector: `BindRegistered`, `BindRemoved` e `Unbound` (P1.4; commit
       `c201877`).
-- [ ] Eventos dos nós, com o `ValueChanged` dizendo a origem (P1.4, P1.10).
+- [x] Eventos dos nós: `ValueChanged`, com a origem, e `BindFailed` (P1.4, P1.10; commit `eb497c6`).
+- [ ] Evento do objeto do grupo trocado por fora (P1.4, P3.6).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
