@@ -198,7 +198,8 @@ notas. O que ainda depende de resposta continua naquele arquivo.
   numa leitura. No ramo comprometido, `GetValue` e `SetValue` lançam, e religar restaura o objeto
   inteiro. O raio é só o ramo trocado, e o resto do dono continua funcionando; o ramo fica
   desativado, e um evento deixa quem assina aceitar o objeto novo na hora (P3.6). O grupo de uma
-  struct fica fora da detecção, porque a struct não tem identidade para comparar (P3.2).
+  struct fica fora da detecção, porque a struct não tem identidade para comparar (P3.2). Aplicado
+  no commit `55e7173`.
 
 ### Descoberta
 
@@ -768,7 +769,7 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   | inspector | `BindRemoved` | objetos saíram do bind | `c201877` |
   | inspector | `Unbound` | o último objeto saiu | `c201877` |
   | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | `eb497c6` |
-  | nó | objeto trocado | o objeto do grupo foi trocado por fora | a fazer |
+  | nó | `ObjectReplaced` | o objeto do grupo foi trocado por fora; dá para aceitar | `55e7173` |
   | nó | `BindFailed` | falha ao ler ou gravar, com mensagem, motivo, sugestão e caminho | `eb497c6` |
 
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
@@ -798,6 +799,13 @@ desenho, com as decisões de 27/09 e 29/09 no fim.
   outros membros dele seguem certos), e a reação é desativar o ramo e avisar por evento, em que
   quem assina pode aceitar o objeto novo na hora. O grupo de uma struct fica fora da detecção
   (P3.2).
+- Aplicado no commit `55e7173`. No bind, todo grupo de tipo class guarda o objeto que tem em cada
+  objeto ligado. Numa leitura, numa gravação e no `Refresh()`, os grupos no caminho são
+  comparados, de cima para baixo. Num grupo aberto, a troca dispara `ObjectReplaced` (com o objeto
+  ligado, o anterior e o atual); sem aceite, o ramo fica com `IsCompromised`, `GetValue`,
+  `GetValues` e `SetValue` lançam dizendo qual grupo foi trocado, `IsMixed` lê false, e o
+  `Refresh()` deixa o ramo de fora. Um objeto fechado é valor: trocá-lo é edição, e quando o
+  próprio inspector troca um, o ramo dele guarda o objeto novo. Qualquer mudança no bind restaura.
 
 **Em aberto** (em `perguntas-em-aberto.md`): onde o filtro por nome é injetado (P6.7).
 
@@ -823,12 +831,12 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   que falham deixam o nó com o nome como rótulo, também contornado. Só o fatal sobe, depois de
   soltar a trava das opções globais; uma exceção de quem assina o evento também sobe por ele.
   Testado com uma biblioteca cuja dependência é apagada antes de rodar.
-- **No objeto ligado** (commit `eb497c6`): um getter que lança não para a leitura nem o bind; o nó lê
-  null ali, guarda a falha em `Failure` e avisa por `BindFailed` (recuperado), e a próxima leitura
-  tenta de novo. Um setter que lança não para o `SetValue`; os objetos ficam com o que ele deixou, e
-  a falha vai para o nó (contornado). Uma leitura que funciona não limpa uma falha de gravação; uma
-  gravação que funciona limpa. O uso errado continua lançando: somente leitura, grupo, dono null e
-  valor do tipo errado.
+- **No objeto ligado** (commit `eb497c6`): um getter que lança não para a leitura nem o bind; o nó
+  lê null ali, guarda a falha em `Failure` e avisa por `BindFailed` (recuperado), e a próxima
+  leitura tenta de novo. Um setter que lança não para o `SetValue`; os objetos ficam com o que ele
+  deixou, e a falha vai para o nó (contornado). Uma leitura que funciona não limpa uma falha de
+  gravação; uma gravação que funciona limpa. O uso errado continua lançando: somente leitura, grupo,
+  dono null e valor do tipo errado.
 - **Falta**: a mesma proteção nas views, quando elas existirem.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
@@ -841,7 +849,8 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   dele) nos args, e o resultado da criação fica guardado no inspector para conferir depois.
 - **Estado no nó**: com o ramo comprometido e os erros, o nó passa a ter estado além das opções.
   Sugestão sua (relatório, seção 8): separar no arquivo o que é informação do nó (as opções) do que
-  é estado, em duas regiões.
+  é estado, em duas regiões. Aplicado nos commits `eb497c6` e `55e7173`: `#region Options` e
+  `#region State` no `InspectorNode`.
 - O payload de falha do original (mensagem, motivo, possível solução, linha e membro de origem;
   1.1, item 9) continua valendo para os eventos de falha.
 
@@ -946,9 +955,9 @@ Núcleo (portar a essência)
       commit `b456398`).
 - [x] Objeto de grupo: o inspector não troca, nem o da raiz (P3.1, P3.5; P9.2; commit `a2d8ffe`).
       A proteção do main tinha se perdido no commit `2a1cf94`.
-- [ ] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
+- [x] Troca por fora compromete o ramo, detectada no `Refresh()` e numa leitura, com `GetValue` e
       `SetValue` lançando até religar (P3.3, P3.4); só o ramo trocado, com um evento que aceita o
-      objeto novo (P3.6), e sem struct (P3.2).
+      objeto novo (P3.6), e sem struct (P3.2). Commit `55e7173`.
 - [ ] `InspectorOptions` (por inspector), sobrescrevendo o global (P1.5), com a cultura (P2.7).
 - [x] Trava do `GlobalOptions` enquanto houver um inspector vivo, solta no `Dispose` (P1.5, P4.4,
       P1.11; commit `ffee3a7`).
@@ -985,7 +994,7 @@ Núcleo (portar a essência)
 - [x] Eventos do bind no inspector: `BindRegistered`, `BindRemoved` e `Unbound` (P1.4; commit
       `c201877`).
 - [x] Eventos dos nós: `ValueChanged`, com a origem, e `BindFailed` (P1.4, P1.10; commit `eb497c6`).
-- [ ] Evento do objeto do grupo trocado por fora (P1.4, P3.6).
+- [x] Evento do objeto do grupo trocado por fora: `ObjectReplaced` (P1.4, P3.6; commit `55e7173`).
 - [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
 - [ ] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1).
 - [ ] Coleções pelo conteúdo, com um seletor (combo box) ou um editor de lista (P5.2; P5.10).
