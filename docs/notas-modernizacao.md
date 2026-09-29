@@ -242,9 +242,10 @@ tinha deixado para ele confirmar.
   aparece embaixo, para editar (P5.10): `Items[0]` ou `Items[1]`, com os campos dele. O editor de
   lista (uma linha por item, com adicionar, remover e reordenar) é uma escolha explícita, com um
   tipo de editor novo (`[InspectorEditor(EditorKind.List)]`). A primeira parte entrou no commit
-  `1b9fcf6`: a descoberta não
-  abre mais uma coleção (qualquer coisa enumerável que não seja string), o `Add` recusa os membros
-  dela, e ela fica numa linha `Display` até o seletor existir.
+  `1b9fcf6`: a descoberta não abre mais uma coleção (qualquer coisa enumerável que não seja
+  string), e o `Add` recusa os membros dela. O seletor entrou no commit `eb58a3e` (3.2): a coleção
+  é um `CollectionNode`, com o editor `Selector`, e o item escolhido aparece na linha logo abaixo,
+  `Items.Item` (um `ItemNode`), com os campos do item embaixo dela. O editor de lista vem depois.
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
@@ -502,8 +503,8 @@ DataAnnotations; aplicados no commit `5319247`)
   guarda, ou um de que ele deriva; outro tipo, ou qualquer coisa além de uma cadeia de membros do
   parâmetro, lança `ArgumentException`.
 - Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (`EditorKind`: `Text`,
-  `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator`). Cada
-  view decide o controle.
+  `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator` e,
+  desde o commit `eb58a3e`, `Selector`). Cada view decide o controle.
 - O que a configuração guarda: rótulo, editor, flags (`ReadOnly`, `Disabled`, scrubbing),
   multiplicadores (scrubbing e slider), sanitizadores, visível, recolhido e ação pós-bind.
 - A ideia do `TypeSafeLock` (opt-in de quais tipos podem ser expandidos) continua, como atributo do
@@ -537,6 +538,41 @@ DataAnnotations; aplicados no commit `5319247`)
   depois dos nós que já estão ali, com `Order` valendo como em qualquer linha, e um nome que um
   irmão já usa lança, porque o indexador acha os nós pelo nome. Confirmado em 29/09: um
   membro que recebe um nó à mão abre (`Expandable`), porque o filho foi posto ali de propósito.
+- Coleções (decidido, P5.2 e P5.10): o conteúdo, e não os membros do tipo da coleção. Aplicado no
+  commit `eb58a3e`. Uma coleção (qualquer coisa enumerável que não seja string) é um
+  `CollectionNode`, com o editor `Selector`. O `Items` lista o que a coleção do primeiro objeto
+  ligado tinha na última leitura (como o `ViewValue`, segue o controle do binder), e o
+  `SelectedIndex` escolhe o lugar que a linha logo abaixo, `Item` (um `ItemNode`), lê em cada objeto
+  ligado. A linha do item é lida e gravada como um membro (conversão, regras, faixa e valor
+  pendente) e tem embaixo os membros do tipo do item: um `List<Moo>` mostra `Items.Item.MooX`, e um
+  `List<int>` mostra `Items.Item` como um número. `Item` é o nome que o C# dá ao indexador. A linha
+  do item existe para toda coleção, porque assim um item sem campos (número, texto) também tem onde
+  ser editado, e um item de tipo com mais de um editor fica fechado como um membro ficaria.
+
+  Escolher larga o que as linhas de baixo guardavam e as lê de novo, com a origem `Selection`; um
+  lugar fora dos itens listados lança. A escolha segue os itens: o primeiro quando a coleção ganha
+  itens depois de não ter nenhum (no bind, por exemplo), o último quando o lugar escolhido passa do
+  fim, e -1 para nenhum. O `Unbind()` esvazia a lista, então o `Rebind` volta ao primeiro item. No
+  multi-bind, o lugar escolhido vale em cada objeto: um objeto sem aquele lugar lê null, e uma
+  gravação para antes de mudar qualquer objeto, dizendo qual lugar falta.
+
+  Outro objeto no lugar escolhido não é troca: a linha mostra o que estiver lá, e larga o que as
+  linhas de baixo guardavam. Uma troca por fora abaixo do item, ou da própria coleção, continua
+  desativando o ramo (P3.3). Um item struct volta para o lugar dele, como uma struct volta para o
+  dono. Uma coleção que não aceita um item no lugar de outro (`IEnumerable<T>`,
+  `IReadOnlyList<T>`, um dicionário) tem o item somente leitura; uma lista que só é somente leitura
+  em tempo de execução recusa o item antes de mudar qualquer coisa. Uma coleção só com getter deixa
+  os itens somente leitura, como um objeto aninhado (P4.1). Uma coleção que avisa das próprias
+  mudanças (`ObservableCollection`) atualiza os itens sem `Refresh()`, e a gravação do próprio
+  inspector não volta como mudança de fora.
+
+  A coleção sempre mostra a linha do item, mesmo com o `RequireExpandableAttribute`; o item abre
+  como um membro abriria, e um tipo com mais de um editor espera a escolha (P5.8), que ali só pode
+  ser no nó (`inspector["Palette.Item"].Editor`), porque o item não tem membro para levar atributo.
+  Os atributos do membro da coleção (faixa, scrubbing) ficam no nó da coleção, e a linha do item
+  recebe só o que o tipo do item diz; por enquanto, o resto vai à mão
+  (`inspector["Items.Item"].Range`). No inspector sem tipo, e como item de outra coleção, uma
+  coleção continua uma linha `Display`.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
 são de cortes seguintes, com nomes provisórios:
@@ -616,7 +652,9 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   commit `b6a99d8`, um vigia interno (`InstanceWatcher`) assina o `PropertyChanged` dos objetos
   ligados e dos objetos dos grupos: o aviso relê o membro (`Instance`), um aviso sem nome relê
   todos, e a troca do objeto de um grupo é conferida na hora. A gravação feita pelo próprio
-  inspector continua `Write`, e o que o mesmo setter muda de tabela chega como `Instance`.
+  inspector continua `Write`, e o que o mesmo setter muda de tabela chega como `Instance`. Desde o
+  commit `eb58a3e`, o vigia assina também a coleção que avisa (`ObservableCollection`) e o item
+  escolhido nela, e a escolha de outro item chega como `Selection` (3.2).
   Corrigido no commit `0602d0a`: a gravação e o aviso releem também o que muda junto, que é a
   struct mais de cima do campo gravado, com o ramo dela, e os membros de baixo de uma struct ou de
   um objeto fechado; e o aviso da struct que o inspector grava de volta no dono não chega mais como
@@ -1180,8 +1218,10 @@ Núcleo (portar a essência)
       `6c17a15`).
 - [x] Coleções sem os membros do tipo delas (`Capacity`, `Count`, `Length`...) (P5.2; commit
       `1b9fcf6`).
-- [ ] Coleções pelo conteúdo: o seletor (combo box) escolhe o item que aparece embaixo, e o
-      editor de lista é uma escolha explícita, `EditorKind.List` (P5.2; P5.10).
+- [x] Coleções pelo conteúdo: o seletor (combo box) escolhe o item que aparece na linha de baixo
+      (P5.2; P5.10; commit `eb58a3e`).
+- [ ] Editor de lista, uma linha por item, com adicionar, remover e reordenar: uma escolha
+      explícita, `EditorKind.List` (P5.2; P5.10).
 - [x] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
       `Display` com aviso (P5.5; P5.8; commit `7482c5f`).
 
@@ -1243,9 +1283,10 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
    `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
    público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
    flag global exija o atributo. Um setter não público esconde o membro (relatório, 3.6; P4.5;
-   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta. Uma coleção não abre (P5.2;
-   commit `1b9fcf6`), e um tipo com mais de um editor fica fechado até a escolha (P5.5; commit
-   `7482c5f`).
+   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta. Uma coleção não abre nos membros
+   do tipo dela (P5.2; commit `1b9fcf6`): é um seletor, sempre aberto na linha do item escolhido
+   (P5.10; commit `eb58a3e`). Um tipo com mais de um editor fica fechado até a escolha (P5.5;
+   commit `7482c5f`).
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
    no membro ou no tipo. Para um tipo com mais de um editor, o `[InspectorEditor]` e o
    `[InspectorExpandable]` são a escolha; sem nenhum dos dois, o `Create` avisa (P5.8). O filtro por
