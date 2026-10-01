@@ -47,11 +47,12 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: só a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Em
-  29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu
-  tinha deixado para ele confirmar, e em 01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5
-  (4.7, 5.11, 5.12, 5.13 e 7.6); tudo isso está na seção 0 das notas. Os números antigos valem, e
-  os novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: só a 6.2 e a 6.3, que ficaram para o final, a pedido dele, agora
+  com a explicação que ele pediu (o `VariablePool` e o `EditField()` lidos no 0.7.1a e no
+  OverlayApplication) e a pergunta no fim de cada uma. Em 29/09 ele aceitou as sugestões das que
+  sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha deixado para ele confirmar, e em
+  01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5 (4.7, 5.11, 5.12, 5.13 e 7.6); tudo isso
+  está na seção 0 das notas. Os números antigos valem, e os novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -215,7 +216,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - O que foi decidido em 01/10 também: a coleção só com getter com o conteúdo editável (P4.7, commit
   `53e915c`) e a faixa e o scrubbing do membro da coleção na linha do item (P5.11, commit
   `2b5d24d`); a P5.12, a P5.13 e a P7.6 confirmaram o que o código já fazia.
-- Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
+- Esperando resposta: 6.2 (visibilidade condicional, sugestão `VisibleWhen` no nó) e 6.3 (o que o
+  `EditField()` fazia, sugestão `Choices` no nó), explicadas em 01/10.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
   premissa de erros nas views e as conversões dos primitivos com o WinForms e o WPF.
@@ -223,7 +225,6 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como funcionavam, se
-   são necessários, a importância e o estrago se saírem). Para isso, adicionar à sessão
-   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
-   `Sakamoto0110/OverlayApplication`; ele passou os links em 01/10.
+1. Aplicar as respostas da 6.2 e da 6.3, cada conceito com o seu commit de notas. Para reler o
+   original: `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
