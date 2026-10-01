@@ -212,7 +212,8 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6).
 - **Coleção só com getter** (P4.7, 01/10): numa coleção guardada por referência, o getter sozinho
   só impede trocar a coleção inteira; os itens e as operações da lista continuam editáveis, e o
   `[InspectorReadOnly]` continua travando tudo. O objeto aninhado fica como a P4.1 decidiu, e a
-  coleção struct também, porque mudar um item dela é gravá-la inteira.
+  coleção struct também, porque mudar um item dela é gravá-la inteira. Aplicado no commit
+  `53e915c` (3.2).
 
 ### O objeto do grupo
 
@@ -254,8 +255,9 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6).
   escolhido quando ele muda de lugar (commit `a5abdad`), e o editor de lista entrou no commit
   `5395dea`: `EditorKind.List`, com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)` no nó da
   coleção. Respostas de 01/10: a linha do item fica, uma regra só para toda coleção (P5.12); a
-  faixa e o scrubbing do membro da coleção passam para a linha do item (P5.11); e as operações da
-  lista gravam na hora, qualquer que seja o controle do binder, como o botão (P5.13).
+  faixa e o scrubbing do membro da coleção passam para a linha do item (P5.11; aplicado no commit
+  `2b5d24d`); e as operações da lista gravam na hora, qualquer que seja o controle do binder, como
+  o botão (P5.13).
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
@@ -577,19 +579,27 @@ DataAnnotations; aplicados no commit `5319247`)
   desativando o ramo (P3.3). Um item struct volta para o lugar dele, como uma struct volta para o
   dono. Uma coleção que não aceita um item no lugar de outro (`IEnumerable<T>`, `IReadOnlyList<T>`,
   um dicionário) tem o item somente leitura; uma lista que só é somente leitura em tempo de execução
-  recusa o item antes de mudar qualquer coisa. Uma coleção só com getter fica somente leitura, como
-  um objeto aninhado (P4.1), com os itens e as operações da lista; decidido em 01/10 que não (P4.7),
-  a aplicar. Uma coleção que avisa das próprias mudanças (`ObservableCollection`) atualiza os itens
-  sem `Refresh()`, e a gravação do próprio inspector não volta como mudança de fora.
+  recusa o item antes de mudar qualquer coisa. Uma coleção guardada por referência sem setter
+  público (só getter, `init` ou campo `readonly`) não fica somente leitura (P4.7; commit `53e915c`):
+  os itens e as operações da lista continuam editáveis, e só a troca da coleção inteira é recusada,
+  no `SetValue`, no `Apply()` e no `ForceApply()`, até com `init`, que a reflection conseguiria
+  chamar. Isso passa por um gancho novo do `MemberNode`, o `Locked`, que diz por que o valor do
+  próprio nó não pode ser gravado. O `[InspectorReadOnly]` trava tudo, os itens junto, e a coleção
+  struct sem setter continua somente leitura, como qualquer struct (P4.1), porque mudar um item
+  dela é gravá-la inteira. Uma coleção que avisa das próprias mudanças (`ObservableCollection`)
+  atualiza os itens sem `Refresh()`, e a gravação do próprio inspector não volta como mudança de
+  fora.
 
   A coleção sempre mostra a linha do item, mesmo com o `RequireExpandableAttribute`; o item abre
   como um membro abriria, e um tipo com mais de um editor espera a escolha (P5.8), que ali só pode
   ser no nó (`inspector["Palette.Item"].Editor`), porque o item não tem membro para levar atributo.
-  Os atributos do membro da coleção (faixa, scrubbing) ficam no nó da coleção, e a linha do item
-  recebe só o que o tipo do item diz; por enquanto, o resto vai à mão
-  (`inspector["Items.Item"].Range`); decidido em 01/10 que a faixa e o scrubbing do membro passam
-  para o item (P5.11), a aplicar. No inspector sem tipo, e como item de outra coleção, uma coleção
-  continua uma linha `Display`.
+  A faixa e o scrubbing do membro da coleção (`[InspectorRange]` e `[InspectorScrub]`) vão para a
+  linha do item, que é onde há número para limitar (P5.11; commit `2b5d24d`): com
+  `[InspectorRange(0, 255)]` num `List<int>`, cada item fica nessa faixa. O `[InspectorEditor]`
+  continua escolhendo o editor da coleção (seletor ou lista), e o rótulo, a dica e a ordem ficam na
+  linha dela. Na camada manual, as opções do item vão direto na linha dele
+  (`inspector["Items.Item"].Range`). No inspector sem tipo, e como item de outra coleção, uma
+  coleção continua uma linha `Display`.
 
   O editor de lista (P5.10) entrou no commit `5395dea`: `EditorKind.List`, escolhido pelo
   `[InspectorEditor(EditorKind.List)]` ou no nó, mostra uma linha por item, e o item escolhido
@@ -1274,6 +1284,9 @@ Núcleo (portar a essência)
       (P5.2; P5.10; commit `eb58a3e`).
 - [x] Editor de lista, uma linha por item, com adicionar, remover e reordenar: uma escolha
       explícita, `EditorKind.List` (P5.2; P5.10; commit `5395dea`).
+- [x] Coleção só com getter com o conteúdo editável, e só a troca dela recusada (P4.7; commit
+      `53e915c`).
+- [x] Faixa e scrubbing do membro da coleção na linha do item (P5.11; commit `2b5d24d`).
 - [x] Tipos com mais de um editor, como o `Color`: escolha explícita e, sem ela, uma linha
       `Display` com aviso (P5.5; P5.8; commit `7482c5f`).
 
@@ -1335,17 +1348,19 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 
 1. `ReflectionPolicy`: rótulo = nome do membro; editor pelo tipo (números → `Number`, `bool` →
    `Toggle`, enum → `Choice`, texto → `Text`, objetos → `Display`); `ReadOnly` quando não há setter
-   público (setter privado, `init`, campo `readonly`); objeto aninhado expansível, a menos que a
-   flag global exija o atributo. Um setter não público esconde o membro (relatório, 3.6; P4.5;
-   commit `13534b0`), e o `[InspectorReadOnly]` o traz de volta. Uma coleção não abre nos membros
-   do tipo dela (P5.2; commit `1b9fcf6`): é um seletor, sempre aberto na linha do item escolhido
-   (P5.10; commit `eb58a3e`). Um tipo com mais de um editor fica fechado até a escolha (P5.5;
-   commit `7482c5f`).
+   público (setter privado, `init`, campo `readonly`), menos numa coleção por referência, em que só
+   a troca dela é recusada (P4.7; commit `53e915c`); objeto aninhado expansível, a menos que a flag
+   global exija o atributo. Um setter não público esconde o membro (relatório, 3.6; P4.5; commit
+   `13534b0`), e o `[InspectorReadOnly]` o traz de volta. Uma coleção não abre nos membros do tipo
+   dela (P5.2; commit `1b9fcf6`): é um seletor, sempre aberto na linha do item escolhido (P5.10;
+   commit `eb58a3e`). Um tipo com mais de um editor fica fechado até a escolha (P5.5; commit
+   `7482c5f`).
 2. `AttributePolicy`: os dez atributos `[Inspector*]` da seção 3.2. O `[InspectorExpandable]` vale
    no membro ou no tipo. Para um tipo com mais de um editor, o `[InspectorEditor]` e o
    `[InspectorExpandable]` são a escolha; sem nenhum dos dois, o `Create` avisa (P5.8). O filtro por
    nome do `GlobalOptions.Hide<T>` entra aqui, logo depois do `[InspectorIgnore]` (P6.7; commit
-   `f2ec855`).
+   `f2ec855`). A faixa e o scrubbing de uma coleção vão para a linha do item (P5.11; commit
+   `2b5d24d`).
 3. Manual: o que for definido no inspector depois do `Create`.
 
 `Ignored`, `Visible`, `Order` e `Expandable` valem nas linhas (`Rows`, commit `b456398`), que são o

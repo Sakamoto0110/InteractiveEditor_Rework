@@ -1,9 +1,8 @@
 # Passagem de contexto
 
 Para retomar o trabalho num contexto novo. Estado de 1º de outubro de 2026, na branch
-`rework-claude`, com as respostas do Rafael de 27/09, 29/09 e 01/10; o último commit de código é o
-`166ec4a`, e a P4.7 e a P5.11 (01/10) ainda não estão no código. Ler isto inteiro antes de mexer em
-qualquer coisa.
+`rework-claude`, com as respostas do Rafael de 27/09, 29/09 e 01/10 aplicadas; o último commit de
+código é o `2b5d24d`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -88,7 +87,7 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 598 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 611 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
@@ -178,10 +177,11 @@ Pegadinhas já vistas:
   lê e grava o item escolhido como um membro, com os membros do tipo do item embaixo. A escolha
   segue os itens (o primeiro ao ganhar itens; um objeto que muda de lugar leva a escolha junto,
   commit `a5abdad`; o último se o escolhido sair), outro objeto no lugar escolhido não é troca, e
-  uma `ObservableCollection` avisa sozinha. As opções do item ainda vão à mão; os atributos do
-  membro da coleção ficam no nó dela. O editor de lista (commit `5395dea`) é o `EditorKind.List`,
-  com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)` no `CollectionNode`, que gravam na hora
-  em cada objeto ligado.
+  uma `ObservableCollection` avisa sozinha. A faixa e o scrubbing do membro vão para a linha do item
+  (commit `2b5d24d`), e uma coleção por referência sem setter público fica com o conteúdo editável,
+  só a troca dela é recusada (commit `53e915c`, pelo `Locked` do `MemberNode`). O editor de lista
+  (commit `5395dea`) é o `EditorKind.List`, com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)`
+  no `CollectionNode`, que gravam na hora em cada objeto ligado.
 - Controle do binder (commit `18dc069`): `inspector.Options.BinderControl`, `Automatic` por padrão.
   Sem `ViewToInstance`, o `SetValue` guarda o valor no nó e o `Apply()` grava; sem
   `InstanceToView`, os avisos do objeto e o `Refresh()` não chegam à view, e o `Reload()` relê. A
@@ -212,9 +212,9 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem tipo (P1.14, commit
   `4e6b3d0`), o seletor das coleções e o editor de lista (P5.10, commits `eb58a3e`, `a5abdad` e
   `5395dea`) e o passo de layout (P7.5, commit `166ec4a`).
-- Decidido em 01/10, a aplicar: a coleção só com getter com o conteúdo editável (P4.7) e a faixa e o
-  scrubbing do membro da coleção na linha do item (P5.11). A P5.12, a P5.13 e a P7.6 confirmaram o
-  que o código já fazia.
+- O que foi decidido em 01/10 também: a coleção só com getter com o conteúdo editável (P4.7, commit
+  `53e915c`) e a faixa e o scrubbing do membro da coleção na linha do item (P5.11, commit
+  `2b5d24d`); a P5.12, a P5.13 e a P7.6 confirmaram o que o código já fazia.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
@@ -223,8 +223,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. Aplicar a P4.7 e a P5.11, cada uma com o seu commit de notas.
-2. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
-   funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
-   sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+1. 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como funcionavam, se
+   são necessários, a importância e o estrago se saírem). Para isso, adicionar à sessão
+   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`; ele passou os links em 01/10.
