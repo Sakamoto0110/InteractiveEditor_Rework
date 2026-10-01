@@ -1012,7 +1012,8 @@ usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
   `0c97638`, o inspector tipado e manual, com o `Add`, no commit `f12ebf9` (3.2), e o sem tipo no
   commit `4e6b3d0` (P1.14).
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6), registrado de
-  fora antes do `Create` (P6.7). A visibilidade condicional ficou para o final (P6.2).
+  fora antes do `Create` (P6.7). A visibilidade condicional ficou para o final (6.2), e em 01/10
+  ganhou a explicação pedida, em `perguntas-em-aberto.md`, esperando a resposta.
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
   pelo próprio inspector. Os nomes seguem a convenção do .NET (P1.10): o evento sem o `On`, e o
   `On` no método que o dispara. Os da criação são estáticos (P1.9):
@@ -1237,10 +1238,11 @@ Núcleo (portar a essência)
       P1.11; commit `ffee3a7`).
 - [x] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra
       (commit `0c97638`).
-- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: itens de escolha, seletores
-      (cor, fonte) e ação de botão (faixa, passo e scrubbing já existem; P6.3, para o final).
-- [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`; P6.2, para o
-      final).
+- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: dos usos do
+      OverlayApplication, faltam a lista de escolha para um membro que não é enum e o seletor de
+      fonte (6.3, explicada em 01/10, esperando resposta).
+- [ ] Visibilidade condicional, por regra e por instância (sucessor do `VariablePool`; 6.2,
+      explicada em 01/10, esperando resposta).
 - [x] `Visible` só da view, passando para os filhos (P6.1; commit `13534b0`).
 - [x] Binding respeitar o `ReadOnly` das opções no `SetValue` (commit `6117bb1`).
 - [x] `ReadOnly` passando para os filhos, no lugar de um `ReadOnly` efetivo (P4.1, P4.2; P4.6;
