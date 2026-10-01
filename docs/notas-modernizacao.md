@@ -18,11 +18,12 @@ Convenção: **[original]** é como era no 0.7.1a, **[rework]** é como está ho
 
 ## 0. Decisões tomadas
 
-As respostas de 27/09 e de 29/09 às perguntas em aberto entraram aqui, com o número da pergunta:
-`P2.2` é a pergunta 2.2 de `perguntas-em-aberto.md`, e um número sem o `P` é uma seção destas
-notas. O que ainda depende de resposta continua naquele arquivo. A última rodada de 29/09 aceitou
-as sugestões das perguntas que sobravam (P1.14, P5.9, P5.10, P6.7 e P7.5) e as escolhas que eu
-tinha deixado para ele confirmar.
+As respostas de 27/09, de 29/09 e de 01/10 às perguntas em aberto entraram aqui, com o número da
+pergunta: `P2.2` é a pergunta 2.2 de `perguntas-em-aberto.md`, e um número sem o `P` é uma seção
+destas notas. O que ainda depende de resposta continua naquele arquivo. A última rodada de 29/09
+aceitou as sugestões das perguntas que sobravam (P1.14, P5.9, P5.10, P6.7 e P7.5) e as escolhas que
+eu tinha deixado para ele confirmar. A de 01/10 aceitou as sugestões das cinco escolhas que
+sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6).
 
 ### Premissa
 
@@ -208,6 +209,10 @@ tinha deixado para ele confirmar.
   protected ou internal deixa de aparecer, e o `[InspectorReadOnly]` o traz de volta, somente
   leitura. `init`, campo `readonly` e só getter continuam aparecendo, somente leitura. Aplicado no
   commit `13534b0`; o `Boo.Secret` saiu da saída do TuxHost, que ficou com 67 linhas.
+- **Coleção só com getter** (P4.7, 01/10): numa coleção guardada por referência, o getter sozinho
+  só impede trocar a coleção inteira; os itens e as operações da lista continuam editáveis, e o
+  `[InspectorReadOnly]` continua travando tudo. O objeto aninhado fica como a P4.1 decidiu, e a
+  coleção struct também, porque mudar um item dela é gravá-la inteira.
 
 ### O objeto do grupo
 
@@ -248,7 +253,9 @@ tinha deixado para ele confirmar.
   `Items.Item` (um `ItemNode`), com os campos do item embaixo dela. A escolha segue o objeto
   escolhido quando ele muda de lugar (commit `a5abdad`), e o editor de lista entrou no commit
   `5395dea`: `EditorKind.List`, com `AddItem()`, `RemoveItem(i)` e `MoveItem(de, para)` no nó da
-  coleção. O que ficou para ele confirmar está nas perguntas 4.7, 5.11, 5.12 e 5.13.
+  coleção. Respostas de 01/10: a linha do item fica, uma regra só para toda coleção (P5.12); a
+  faixa e o scrubbing do membro da coleção passam para a linha do item (P5.11); e as operações da
+  lista gravam na hora, qualquer que seja o controle do binder, como o botão (P5.13).
 - **Propriedades calculadas** (P5.3; relatório, seção 2) entram, e o acessor roda por inteiro, como
   em `int X { get { DoSomething(); return _x; } set => _x = value; }`. Para esconder, só o
   `[InspectorIgnore]`.
@@ -287,8 +294,9 @@ tinha deixado para ele confirmar.
   (a linha, o rótulo e o editor), e a view só os aplica; as opções de layout (altura da linha,
   espaçamento, recuo por nível) ficam no `InspectorOptions`. Assim ele é testado no Linux, sem
   WinForms nem WPF. Aplicado no commit `166ec4a` (3.4): `inspector.Layout(largura)`, com o
-  resultado em árvore, um painel por grupo, como a view vai percorrer (P7.3). O alinhamento dos
-  editores e os valores padrão ficaram para ele confirmar, na pergunta 7.6.
+  resultado em árvore, um painel por grupo, como a view vai percorrer (P7.3). Confirmado em 01/10
+  (P7.6): os editores numa coluna só, com o rótulo perdendo o recuo a cada nível, e os valores
+  padrão como estão.
 
 ### Primitivos e PixieLib
 
@@ -550,8 +558,8 @@ DataAnnotations; aplicados no commit `5319247`)
   `SelectedIndex` escolhe o lugar que a linha logo abaixo, `Item` (um `ItemNode`), lê em cada objeto
   ligado. A linha do item é lida e gravada como um membro (conversão, regras, faixa e valor
   pendente) e tem embaixo os membros do tipo do item: um `List<Moo>` mostra `Items.Item.MooX`, e um
-  `List<int>` mostra `Items.Item` como um número. `Item` é o nome que o C# dá ao indexador. Escolha
-  minha, a confirmar (5.12): a linha do item existe para toda coleção, porque assim um item sem
+  `List<int>` mostra `Items.Item` como um número. `Item` é o nome que o C# dá ao indexador.
+  Confirmado em 01/10 (P5.12): a linha do item existe para toda coleção, porque assim um item sem
   campos (número, texto) também tem onde ser editado, e um item de tipo com mais de um editor fica
   fechado como um membro ficaria.
 
@@ -570,18 +578,18 @@ DataAnnotations; aplicados no commit `5319247`)
   dono. Uma coleção que não aceita um item no lugar de outro (`IEnumerable<T>`, `IReadOnlyList<T>`,
   um dicionário) tem o item somente leitura; uma lista que só é somente leitura em tempo de execução
   recusa o item antes de mudar qualquer coisa. Uma coleção só com getter fica somente leitura, como
-  um objeto aninhado (P4.1), com os itens e as operações da lista; a pergunta 4.7 é se deve ser
-  assim. Uma coleção que avisa das próprias mudanças (`ObservableCollection`) atualiza os itens sem
-  `Refresh()`, e a gravação do próprio inspector não volta como mudança de fora.
+  um objeto aninhado (P4.1), com os itens e as operações da lista; decidido em 01/10 que não (P4.7),
+  a aplicar. Uma coleção que avisa das próprias mudanças (`ObservableCollection`) atualiza os itens
+  sem `Refresh()`, e a gravação do próprio inspector não volta como mudança de fora.
 
   A coleção sempre mostra a linha do item, mesmo com o `RequireExpandableAttribute`; o item abre
   como um membro abriria, e um tipo com mais de um editor espera a escolha (P5.8), que ali só pode
   ser no nó (`inspector["Palette.Item"].Editor`), porque o item não tem membro para levar atributo.
   Os atributos do membro da coleção (faixa, scrubbing) ficam no nó da coleção, e a linha do item
   recebe só o que o tipo do item diz; por enquanto, o resto vai à mão
-  (`inspector["Items.Item"].Range`), e a pergunta 5.11 é se a faixa e o scrubbing do membro passam
-  para o item. No inspector sem tipo, e como item de outra coleção, uma coleção continua uma linha
-  `Display`.
+  (`inspector["Items.Item"].Range`); decidido em 01/10 que a faixa e o scrubbing do membro passam
+  para o item (P5.11), a aplicar. No inspector sem tipo, e como item de outra coleção, uma coleção
+  continua uma linha `Display`.
 
   O editor de lista (P5.10) entrou no commit `5395dea`: `EditorKind.List`, escolhido pelo
   `[InspectorEditor(EditorKind.List)]` ou no nó, mostra uma linha por item, e o item escolhido
@@ -594,7 +602,7 @@ DataAnnotations; aplicados no commit `5319247`)
   coleção null, uma que não muda os itens (nem cresce ou diminui, para pôr e tirar) e um lugar além
   dos itens listados ou dos itens de um dos objetos. Uma coleção que dois objetos guardam muda uma
   vez só, o que a coleção lança no meio vira falha no nó, e o aviso de uma `ObservableCollection`
-  sobre a própria operação não volta como mudança de fora. Escolha minha, a confirmar (5.13): as
+  sobre a própria operação não volta como mudança de fora. Confirmado em 01/10 (P5.13): as
   operações gravam na hora, qualquer que seja o controle do binder, como o botão.
 
 Esboço do editor de componentes do OverlayApplication na configuração atual. As linhas marcadas
@@ -777,7 +785,7 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   (16), `LabelWidth` (120, no nível de cima), `LabelSpacing` (4), `Padding` (4 em volta) e
   `ListRows` (5). Uma altura que não é maior que zero, ou um comprimento que não é um número de
   zero para cima, lança. A largura é do `Layout`, e não uma opção, porque é a da view na hora.
-  Escolhas minhas, a confirmar (7.6): os editores numa coluna só e os valores padrão.
+  Confirmado em 01/10 (P7.6): os editores numa coluna só e os valores padrão.
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 

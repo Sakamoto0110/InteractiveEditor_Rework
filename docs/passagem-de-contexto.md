@@ -1,8 +1,9 @@
 # Passagem de contexto
 
-Para retomar o trabalho num contexto novo. Estado de 29 de setembro de 2026, na branch
-`rework-claude`, depois de aplicar no código o que a segunda rodada de respostas do Rafael (29/09)
-decidiu; o último commit de código é o `7482c5f`. Ler isto inteiro antes de mexer em qualquer coisa.
+Para retomar o trabalho num contexto novo. Estado de 1º de outubro de 2026, na branch
+`rework-claude`, com as respostas do Rafael de 27/09, 29/09 e 01/10; o último commit de código é o
+`166ec4a`, e a P4.7 e a P5.11 (01/10) ainda não estão no código. Ler isto inteiro antes de mexer em
+qualquer coisa.
 
 ---
 
@@ -47,11 +48,11 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: as quatro escolhas que sobraram ao aplicar a 5.10 (4.7, 5.11,
-  5.12 e 5.13), e a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Na última rodada de 29/09
-  ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha
-  deixado para ele confirmar; tudo isso está na seção 0 das notas. Os números antigos valem, e os
-  novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: só a 6.2 e a 6.3, que ficaram para o final, a pedido dele. Em
+  29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu
+  tinha deixado para ele confirmar, e em 01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5
+  (4.7, 5.11, 5.12, 5.13 e 7.6); tudo isso está na seção 0 das notas. Os números antigos valem, e
+  os novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -211,9 +212,9 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   `c9868a9`), o filtro por nome (P6.7, commit `f2ec855`), o inspector sem tipo (P1.14, commit
   `4e6b3d0`), o seletor das coleções e o editor de lista (P5.10, commits `eb58a3e`, `a5abdad` e
   `5395dea`) e o passo de layout (P7.5, commit `166ec4a`).
-- Esperando resposta: 4.7, 5.11, 5.12, 5.13 e 7.6 (`perguntas-em-aberto.md`), as escolhas que
-  sobraram da 5.10 e da 7.5. Na 5.12, na 5.13 e na 7.6, o código já está como a sugestão; na 4.7
-  (coleção só com getter) e na 5.11 (faixa e scrubbing do membro no item), aplicar a resposta.
+- Decidido em 01/10, a aplicar: a coleção só com getter com o conteúdo editável (P4.7) e a faixa e o
+  scrubbing do membro da coleção na linha do item (P5.11). A P5.12, a P5.13 e a P7.6 confirmaram o
+  que o código já fazia.
 - Para o final, a pedido dele: 6.2 e 6.3, as explicações do `VariablePool` e do `EditField()`.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
@@ -222,9 +223,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. Aplicar as respostas da 4.7, da 5.11, da 5.12, da 5.13 e da 7.6 quando vierem, cada conceito com
-   o seu commit de notas.
+1. Aplicar a P4.7 e a P5.11, cada uma com o seu commit de notas.
 2. Depois do código, 6.2 e 6.3: explicar o `VariablePool` e o `EditField()` (por que existiam, como
    funcionavam, se são necessários, a importância e o estrago se saírem). Para isso, adicionar à
    sessão `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
-   `Sakamoto0110/OverlayApplication`.
+   `Sakamoto0110/OverlayApplication`; ele passou os links em 01/10.
