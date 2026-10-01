@@ -129,13 +129,13 @@ public class MemberNode : InspectorNode
     }
 
     // Writes what the view held into every bound object, as taken before anything was written. Groups
-    // are written through their fields, and read-only or disabled nodes are never written; a node whose
+    // are written through their fields, and locked or disabled nodes are never written; a node whose
     // last read failed holds nothing the view knows, and an object where the node has nowhere to go
     // (nothing above it, no place for an item) is left alone. A setter that throws is reported on the
     // node. True when a pending value went.
     internal override bool ForceWrite(object?[] held)
     {
-        if (IsGroup || ReadOnly || IsCompromised || ReadFailed)
+        if (IsGroup || Locked != null || IsCompromised || ReadFailed)
             return false;
 
         var wrote = false;
@@ -178,8 +178,8 @@ public class MemberNode : InspectorNode
     // it before any of them changes.
     private string? CannotWrite()
     {
-        if (ReadOnly)
-            return $"'{Name}' is read-only.";
+        if (Locked is { } locked)
+            return locked;
 
         if (Root.Instances.Count == 0)
             return $"Cannot set '{Name}': '{Parent!.Name}' is null.";
@@ -188,6 +188,11 @@ public class MemberNode : InspectorNode
             ? $"Cannot set '{Name}': {reason}"
             : null;
     }
+
+    // Why the node's own value cannot be written, whatever the objects hold, or null when it can: a
+    // read-only node. A collection with no public setter is not read-only, since its items stay
+    // editable, but it cannot be replaced (P4.7).
+    private protected virtual string? Locked => ReadOnly ? $"'{Name}' is read-only." : null;
 
     // Why the node has nowhere to go in a bound object, or null when it has: a member needs the object
     // above it, and the item of a collection a place to take it.
@@ -376,8 +381,8 @@ public class MemberNode : InspectorNode
 
     internal override void WriteTo(object? instance, object? value)
     {
-        if (ReadOnly)
-            throw new InvalidOperationException($"'{Name}' is read-only.");
+        if (Locked is { } locked)
+            throw new InvalidOperationException(locked);
 
         var owner = Parent!.Resolve(instance)
             ?? throw new InvalidOperationException($"Cannot set '{Name}': '{Parent.Name}' is null.");
