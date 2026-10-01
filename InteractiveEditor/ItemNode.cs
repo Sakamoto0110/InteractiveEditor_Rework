@@ -28,8 +28,8 @@ public sealed class ItemNode : MemberNode
 
     internal override void WriteTo(object? instance, object? value)
     {
-        if (ReadOnly)
-            throw new InvalidOperationException($"'{Name}' is read-only.");
+        if (Locked is { } locked)
+            throw new InvalidOperationException(locked);
 
         Collection.Put(instance, value);
     }

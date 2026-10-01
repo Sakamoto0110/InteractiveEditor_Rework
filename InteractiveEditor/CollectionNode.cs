@@ -3,6 +3,7 @@ using System.Reflection;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
@@ -22,6 +23,7 @@ public sealed class CollectionNode : MemberNode
         var type = Nullable.GetUnderlyingType(ValueType) ?? ValueType;
         ItemType = ItemTypeOf(type);
         TakesItems = TakesItemsOf(type);
+        Replaceable = ReflectionPolicy.IsPubliclyWritable(member);
         Item = AddChild(new ItemNode(this));
     }
 
@@ -34,6 +36,13 @@ public sealed class CollectionNode : MemberNode
     // Whether the collection takes an item in place of another; when it does not, the row of the item
     // is read-only.
     internal bool TakesItems { get; }
+
+    // Whether the collection itself can be replaced: its member has a public setter. Without one, a
+    // collection held by reference keeps its items editable (P4.7), and only replacing it is refused.
+    private bool Replaceable { get; }
+
+    private protected override string? Locked =>
+        base.Locked ?? (Replaceable ? null : $"'{Name}' cannot be replaced: it has no public setter.");
 
     // What the selector lists: the items of the first bound object's collection at the last read. Like
     // ViewValue, it does not read the object, so it follows the binder control.

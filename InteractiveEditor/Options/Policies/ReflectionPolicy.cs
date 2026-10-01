@@ -14,10 +14,12 @@ internal static class ReflectionPolicy
             node.Label = node.Name;
             node.Editor = EditorFor(node);
 
-            // The item of a collection has no member to say these (P5.10).
+            // The item of a collection has no member to say these (P5.10). A collection held by
+            // reference keeps its content editable without a public setter, which only replaces the
+            // collection itself (P4.7); one that is a struct is written whole, as any struct.
             if (node.Member is { } member)
             {
-                node.ReadOnly = !IsPubliclyWritable(member);
+                node.ReadOnly = !IsPubliclyWritable(member) && node is not CollectionNode { ValueType.IsValueType: false };
                 node.Ignored = HasHiddenSetter(member);
             }
 
