@@ -25,7 +25,8 @@ aceitou as sugestões das perguntas que sobravam (P1.14, P5.9, P5.10, P6.7 e P7.
 eu tinha deixado para ele confirmar. A de 01/10 aceitou as sugestões das cinco escolhas que
 sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02/10, as da 6.2 e da
 6.3, explicadas a partir do código original (3.12). Ainda em 02/10, ele aceitou a direção do que
-falta: as views antes das sessões próprias, na ordem da seção Views abaixo.
+falta (as views antes das sessões próprias, na ordem da seção Views abaixo) e as sugestões das
+escolhas da view WinForms (P7.7 a P7.13).
 
 ### Premissa
 
@@ -315,6 +316,25 @@ falta: as views antes das sessões próprias, na ordem da seção Views abaixo.
   substitutas e sem o tema visual, ele confere no Windows, uma vez no fim de cada corte.
 - **Fábricas com nomes distintos** por plataforma (P7.2), como `CreateWinFormsView` e
   `CreateWpfView`.
+- **A forma da view WinForms** (P7.7, 02/10): `WinFormsInspectorView`, um `UserControl`, criado por
+  `inspector.CreateWinFormsView()`, um método de extensão, para o `Inspector` ficar igual nos dois
+  alvos; o código numa pasta `Views/WinForms`, que o `net10.0` deixa de fora inteira. Descartar a
+  view tira as assinaturas dela e não mexe no inspector, que é de quem o criou. O do WPF vai ser o
+  `WpfInspectorView`, com nome distinto, para um arquivo que importa os dois não ter ambiguidade.
+- **Uma opção mudada depois de a view montar** (P7.8, 02/10): um evento no inspector quando muda
+  uma opção que a view mostra, com o nó e qual opção, e só quando o valor muda de fato; a view refaz
+  o layout ou a linha. As listas de regras (`TextRules` e `ValueRules`) ficam de fora. Pelo mesmo
+  motivo da P6.2: mostrar de novo não pode depender de alguém lembrar.
+- **O controle de cada editor** (P7.9, 02/10): a tabela da 3.5.
+- **Recolher um grupo** (P7.10, 02/10): uma seta antes do rótulo do grupo (▶ fechado, ▼ aberto), e
+  o clique no rótulo ou na seta alterna o `Collapsed` do nó; o painel do grupo sem borda, só com o
+  recuo, como no original.
+- **A falha na linha** (P7.11, 02/10): o fundo do editor fica vermelho claro, e a mensagem vai no
+  tooltip dele, dentro do retângulo do layout. A proteção das próprias views fica para o corte 4.
+- **Avisos de outra thread** (P7.12, 02/10): a view repassa para a thread da interface o que recebe
+  (`BeginInvoke`), e o núcleo continua sem saber de threads.
+- **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
+  view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view.
 - **A view percorre a árvore** (P7.3): um painel por grupo, que recolhe junto.
 - **Válvulas de escape** (P7.4): um callback por plataforma quando um controle é criado, e um
   terceiro, agnóstico, quando a linha inteira termina de ser montada. Se ele não puder ser
@@ -909,7 +929,22 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   dela.
 - Cada plataforma traduz o enum de editor para controles (`TextBox`, `ComboBox` preenchido com os
   valores do enum, `TrackBar`/`Slider`, `CheckBox`...) e implementa o scrubbing com captura de mouse
-  no rótulo.
+  no rótulo. No WinForms (decidido, P7.9):
+
+  | Editor | Controle | Observação |
+  |---|---|---|
+  | `Text` | `TextBox` | grava no Enter e ao perder o foco, e o Esc volta (P2.12) |
+  | `Number` | `TextBox` | como o texto; a conversão e a faixa são do núcleo, e o `NumericUpDown` (em `decimal`, com limites próprios) duplicaria isso |
+  | `Toggle` | `CheckBox` | grava na hora |
+  | `Choice` | `ComboBox` só de escolha | a lista vem do `GetChoices()` cada vez que abre (P6.3) |
+  | `Slider` | `TrackBar` | posições pela faixa e pelo passo (o `TrackBar` só conta em int); sem faixa, vira um `Number` |
+  | `Color` | botão pintado com a cor | o clique abre o `ColorDialog` do sistema |
+  | `Button` | `Button` | com o `Text` do nó, chama o `Press()` |
+  | `Display` | `TextBox` só leitura | dá para selecionar e copiar |
+  | `Header` | só o rótulo, em negrito | o grupo de um tipo (P5.9) |
+  | `Separator` | uma linha horizontal | |
+  | `Selector` | `ComboBox` só de escolha | os itens, e a escolha vai para o `SelectedIndex` |
+  | `List` | `ListBox` e quatro botões | adicionar, remover, subir e descer, na linha a mais que o layout reserva |
 - Fábricas com nomes distintos por plataforma (decidido, P7.2; por exemplo `CreateWinFormsView` /
   `CreateWpfView`). Com overloads que diferem só pelo tipo `Control`, um projeto só WinForms que
   referencia a DLL diretamente não compila (CS0012, pede `PresentationFramework`); com nomes
