@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
 `rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `b92267c`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `ccc3a5d`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -66,9 +66,10 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
   depois desta rodada; atualizar só se o Rafael pedir.
-- Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0`), `DemoObjects` (os tipos de
-  teste: `Foo`, `Moo`, `Doo`, `Boo`), `TuxHost` (o console de verificação, roda no Linux),
-  `NoHost` (local do Rafael, `net10.0-windows`), `WindowsHost` e `WpfHost`.
+- Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0` e `net10.0-windows`),
+  `DemoObjects` (os tipos de teste: `Foo`, `Moo`, `Doo`, `Boo`), `TuxHost` (o console de
+  verificação, roda no Linux), `NoHost` (local do Rafael, `net10.0-windows`), `WindowsHost` e
+  `WpfHost`.
 
 ## 4. Como verificar uma mudança
 
@@ -102,11 +103,14 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
   lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo, layout,
-  visibilidade condicional e lista de escolha. Um segundo console testa a assembly ausente. Os dois
-  ficam no scratchpad da sessão e não passam para a próxima, mas o Rafael recebeu uma cópia deles
-  em 02/10 (`console-de-testes.zip`, com um `LEIA-ME.txt` que diz como rodar). Se ele mandar o zip,
-  descompactar fora do repositório e corrigir o caminho do clone no `Probe.csproj`, se for outro;
-  se não, a lista acima serve de roteiro para refazer o que for preciso.
+  visibilidade condicional e lista de escolha. Um segundo console testa a assembly ausente, e um
+  terceiro, o `probe-windows` (`net10.0-windows`, desde o commit `ccc3a5d`), as conversões dos
+  primitivos com o WinForms e o WPF (21 checagens), rodando no Wine (abaixo). Os três ficam no
+  scratchpad da sessão e não passam para a próxima, mas o Rafael recebeu uma cópia deles
+  (`console-de-testes.zip`, com um `LEIA-ME.txt` que diz como rodar; a de 02/10 depois do
+  `ccc3a5d` já tem os três). Se ele mandar o zip, descompactar fora do repositório e corrigir o
+  caminho do clone nos `.csproj`, se for outro; se não, a lista acima serve de roteiro para refazer
+  o que for preciso.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -158,6 +162,10 @@ Pegadinhas já vistas:
   file or assembly System.Runtime.dll"). Sem o `fonts-wine`, o WPF cai no mapeamento de fontes
   (`TypefaceMap.MapUnresolvedCharacters`). E não é o Windows: as fontes são substitutas e não há
   tema visual.
+- No alvo `-windows` não há `System.IO` nem `System.Net.Http` nos usings implícitos (o SDK de
+  desktop tira os dois), e a biblioteca tira os do WinForms (commit `ccc3a5d`). Um arquivo do núcleo
+  que use `File` ou `Path` precisa do `using`, senão o `-windows` não compila; o mesmo vale num
+  console de teste com `UseWPF`.
 - O `.gitignore` só cobre o `bin/Debug` de cada projeto: um `dotnet publish` (Release) a partir do
   repositório deixa pastas `bin/Release` sem ignorar. Apagar antes de commitar.
 
@@ -238,13 +246,17 @@ Pegadinhas já vistas:
 - Primitivos em `InteractiveEditor/Primitives` (commits `2951ce3`, `3544a8e` e `f1de920`):
   `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxDock`, `PxColorArgb` e `PxColorHsl`,
   sem conversão implícita entre as cores. O `PxRect`, o `PxSize` e o `PxPadding` são usados pelo
-  passo de layout.
+  passo de layout. As conversões com o `System.Drawing` ficam nos dois alvos, e as com o WinForms e
+  o WPF (o `Point`, o `Size`, o `Rect`, a `Thickness` e a `Color` do WPF, o `Padding` e o
+  `DockStyle` do WinForms) só no `-windows`, nos arquivos `*.Windows.cs` (commit `ccc3a5d`).
 - Passo de layout (commit `166ec4a`): `inspector.Layout(largura)` devolve as linhas de cima e o
   tamanho; cada `LayoutRow` tem os retângulos da linha, do rótulo e do editor nas coordenadas de
   onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As
   opções (`RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`, `LabelSpacing`, `Padding` e `ListRows`)
   ficam no `InspectorOptions`. Não lê os objetos, e roda no Linux.
-- Um alvo só, `net10.0`: uma DLL, sem código de Windows na biblioteca.
+- Dois alvos, `net10.0` e `net10.0-windows` (P7.1, commit `ccc3a5d`): cada consumidor recebe uma
+  DLL, a do alvo dele. O código de Windows fica em arquivos `*.Windows.cs`, que o `net10.0` não
+  compila; hoje são só as conversões dos primitivos, e as views vão entrar do mesmo jeito.
 
 ## 6. O que falta
 
@@ -258,16 +270,18 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   `53e915c`) e a faixa e o scrubbing do membro da coleção na linha do item (P5.11, commit
   `2b5d24d`); a P5.12, a P5.13 e a P7.6 confirmaram o que o código já fazia.
 - O que foi decidido em 02/10 também: o `VisibleWhen` no nó (P6.2, commit `c589e2a`) e o `Choices`
-  no nó (P6.3, commit `b92267c`). Não há pergunta em aberto, nem decisão esperando código.
-- Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
-  view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
-  premissa de erros nas views e as conversões dos primitivos com o WinForms e o WPF.
+  no nó (P6.3, commit `b92267c`). Ainda em 02/10, a direção do que falta: as views antes das
+  sessões próprias, em cinco cortes (seção 0 das notas, Views). O corte 1, os dois alvos e as
+  conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`.
+- Com as views: as fábricas com nomes distintos (P7.2), a view percorrendo a árvore (P7.3), os
+  callbacks por plataforma e o agnóstico por linha (P7.4) e a premissa de erros nas views.
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
 
 ## 7. Próximo passo
 
 1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
-   (Views), um por vez: os dois alvos e as conversões (P7.1), a view WinForms (P7.2, P7.3), o
-   scrubbing e os valores mistos, as válvulas e a premissa de erros (P7.4), e o WPF. Para reler o
-   original: `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
-   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
+   (Views), um por vez. O corte 1, os dois alvos e as conversões (P7.1), entrou no commit
+   `ccc3a5d`. Faltam a view WinForms (P7.2, P7.3), o scrubbing e os valores mistos, as válvulas e a
+   premissa de erros (P7.4), e o WPF. Para reler o original: `Sakamoto0110/InteractiveEditor`
+   (branch `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só
+   para leitura.
