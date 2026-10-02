@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
 `rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `0578057`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `41b636c`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -100,16 +100,16 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 699 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 726 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
   lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo, layout,
-  visibilidade condicional, lista de escolha, os eventos `OptionChanged` e `Disposed`, e o
-  espaçador, a largura máxima e o `(?)` no layout. Um segundo
+  visibilidade condicional, lista de escolha, os eventos `OptionChanged` e `Disposed`, o espaçador,
+  a largura máxima e o `(?)` no layout, e um valor por objeto (`SetValues`). Um segundo
   console testa a assembly ausente; um terceiro, o `probe-windows` (`net10.0-windows`, desde o
   commit `ccc3a5d`), as conversões dos primitivos com o WinForms e o WPF (21 checagens); e um
-  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 93 checagens. Os dois
+  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 117 checagens. Os dois
   últimos rodam no Wine (abaixo). Os quatro ficam no scratchpad da sessão e não passam para a
   próxima, mas o Rafael recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
   diz como rodar; a última de 02/10 tem os quatro). Se ele mandar o zip, descompactar fora do
@@ -182,6 +182,13 @@ Pegadinhas já vistas:
   `/tmp/.X11-unix/X99` e o `/tmp/.X99-lock`.
 - Um `Label` estreito quebra o texto em duas linhas em vez de cortar: foi o que fez o `(?)` sair
   "(?" e mais alto nos 16 px; por isso ele é desenhado (`HelpMark`).
+- No Wine, o Shift e o Ctrl simulados (`keybd_event`) se perdem no movimento do mouse, porque o
+  Wine relê as teclas no servidor X a cada evento do mouse. O `probe-view` pede a tecla de verdade
+  ("ASK shift-down") a quem o roda: o `run-wine.sh`, ao lado dele, roda o programa, aperta a tecla
+  com o `xdotool` e responde com um arquivo; sem a variável `PROBE_FLAGS` (no Windows), o teste usa
+  o `keybd_event`. A saída do programa no Wine termina as linhas com `\r\n`, e o script tira o `\r`.
+- Um teste da view que muda uma opção de um nó (a faixa, o editor) precisa desfazer no fim: o
+  `Count` ficou com uma faixa de 0 a 10 e prendeu o segundo objeto no máximo, dois testes depois.
 - Texto num `int`: "7.6" é recusado, porque o texto vira o tipo do membro (P2.7); o "7,6 grava 8"
   das notas é para um número, não para texto.
 - Um `dotnet publish` a partir do repositório compila em Release; desde o commit `02329ca`, o
@@ -293,6 +300,16 @@ Pegadinhas já vistas:
   (`MaxWidth`, sem limite por padrão), e dá o retângulo `Help` (16 px) a um nó com `Help`, colado
   no editor, numa faixa que toda linha reserva quando algum nó da árvore tem `Help`. A view pinta o
   fundo da linha sob o mouse e mostra o `(?)` em cinza, que abre uma janela modal com o texto.
+- Um valor por objeto (P7.16, commit `d1d4c13`): `ViewValues` (o que a view mostra de cada objeto)
+  e `SetValues(valores)` (um para cada, preparados todos antes de gravar); o valor guardado sem
+  `ViewToInstance` é um por objeto, e o `IsMixed` lê o que a view mostra. `ScrubAxis` (horizontal ou
+  vertical) é uma opção do nó, ao lado do `ScrubMultiplier`.
+- Scrubbing e mistos na view (P7.17 a P7.19, commit `5a0f6e8`): o rótulo de um número com
+  `ScrubMultiplier` arrasta no eixo dele (`LabelScrub`), gravando "o começo de cada objeto + a
+  distância × o passo", com Shift ×10, Ctrl ×0,1 e Esc voltando ao começo. Com objetos diferentes, o
+  rótulo fica em itálico e o editor neutro (vazio com "—", indeterminado, sem escolha); um número
+  que faz scrubbing mostra o do primeiro. O WindowsHost liga um segundo `Gadget` por um botão
+  (commit `41b636c`).
 
 ## 6. O que falta
 
@@ -310,22 +327,25 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   sessões próprias, em cinco cortes (seção 0 das notas, Views). O corte 1, os dois alvos e as
   conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`. As escolhas do corte 2, a view
   WinForms, foram respondidas com as sugestões (P7.7 a P7.13), e ele entrou nos commits `569525a`
-  (os eventos) e `60d4203` (a view).
-- Com as views: o scrubbing e o indicativo de valores mistos (corte 3), os callbacks por plataforma
-  e o agnóstico por linha (P7.4) com a premissa de erros nas views (corte 4), e a view WPF, com a
-  fábrica dela (corte 5).
+  (os eventos) e `60d4203` (a view). O corte 3, o scrubbing e os mistos (P7.16 a P7.19), entrou nos
+  commits `d1d4c13` e `5a0f6e8`.
+- Com as views: os callbacks por plataforma e o agnóstico por linha (P7.4) com a premissa de erros
+  nas views (corte 4), e a view WPF, com a fábrica dela (corte 5).
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
 
 ## 7. Próximo passo
 
 1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
-   (Views), um por vez. Os cortes 1 (os dois alvos e as conversões, commit `ccc3a5d`) e 2 (a view
-   WinForms, commits `569525a` e `60d4203`) entraram. O próximo é o 3, o scrubbing no rótulo e o
-   indicativo de valores mistos (P2.4), na view WinForms; depois as válvulas (P7.4) com a premissa
-   de erros nas views, e o WPF. Verificar no Wine, com o `probe-view`. Para reler o original:
-   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
-   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
+   (Views), um por vez. Entraram o corte 1 (os dois alvos e as conversões, commit `ccc3a5d`), o 2 (a
+   view WinForms, commits `569525a` e `60d4203`, com o espaçador e o `(?)` depois) e o 3 (o
+   scrubbing e os mistos, commits `d1d4c13` e `5a0f6e8`). O próximo é o 4: as válvulas de escape
+   (P7.4), um callback por plataforma quando um controle é criado e um agnóstico quando a linha
+   termina, com a premissa de erros nas views (3.11); depois o WPF. Verificar no Wine, com o
+   `probe-view` e o `run-wine.sh`. Para reler o original: `Sakamoto0110/InteractiveEditor` (branch
+   `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só para
+   leitura.
 2. O Rafael viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)`
    (P7.14, P7.15), aplicados nos commits `b3aaad0`, `79e936b` e `c71255c`; depois preferiu o `(?)`
-   colado no editor (commit `0578057`). Falta ele conferir essa parte no WindowsHost: o espaçador, o
-   `(?)` e a janela dele, e o fundo da linha sob o mouse.
+   colado no editor (commit `0578057`). Falta ele conferir no WindowsHost o espaçador, o `(?)` e a
+   janela dele, o fundo da linha sob o mouse, o scrubbing (`Count` na horizontal, `Ratio` na
+   vertical) e os mistos (o botão "Bind a second gadget", no fim).
