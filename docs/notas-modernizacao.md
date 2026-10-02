@@ -24,7 +24,8 @@ destas notas. O que ainda depende de resposta continua naquele arquivo. A últim
 aceitou as sugestões das perguntas que sobravam (P1.14, P5.9, P5.10, P6.7 e P7.5) e as escolhas que
 eu tinha deixado para ele confirmar. A de 01/10 aceitou as sugestões das cinco escolhas que
 sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02/10, as da 6.2 e da
-6.3, explicadas a partir do código original (3.12).
+6.3, explicadas a partir do código original (3.12). Ainda em 02/10, ele aceitou a direção do que
+falta: as views antes das sessões próprias, na ordem da seção Views abaixo.
 
 ### Premissa
 
@@ -300,6 +301,17 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02
 
 ### Views
 
+- **A ordem** (02/10): as views vêm antes das sessões próprias (a PixieLib e o cache do modelo de
+  tipo), e o WinForms antes do WPF, porque o original e o OverlayApplication são WinForms. Em
+  cortes, um por vez: (1) os dois alvos de volta, com as conversões dos primitivos com o WinForms e
+  o WPF (P7.1); (2) a view WinForms percorrendo a árvore pelo passo de layout, com a fábrica, um
+  controle por `EditorKind` e a gravação da P2.12 (P7.2, P7.3); (3) o scrubbing no rótulo e o
+  indicativo de valores mistos (P2.4); (4) as válvulas de escape (P7.4) e a premissa de erros nas
+  views (3.11); (5) a view WPF, pelo mesmo caminho.
+- **Verificação das views** (02/10): o WinForms e o WPF rodam no Linux pelo Wine, numa tela
+  virtual, com print e com clique e digitação simulados (testado com um app de cada, montado pelo
+  `Layout`). O comportamento é verificado aqui; a aparência final, que no Wine sai com fontes
+  substitutas e sem o tema visual, ele confere no Windows, uma vez no fim de cada corte.
 - **Fábricas com nomes distintos** por plataforma (P7.2), como `CreateWinFormsView` e
   `CreateWpfView`.
 - **A view percorre a árvore** (P7.3): um painel por grupo, que recolhe junto.
