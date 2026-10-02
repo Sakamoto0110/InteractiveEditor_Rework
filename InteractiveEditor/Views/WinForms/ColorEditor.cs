@@ -74,6 +74,6 @@ internal sealed class ColorEditor : WinFormsEditor
 
         var picked = Color.FromArgb(current?.A ?? 255, dialog.Color);
         Row.Write(() => Node.SetValue(FromColor(picked)));
-        ShowValue();
+        Row.Show();
     }
 }

@@ -40,8 +40,23 @@ public sealed class WinFormsInspectorView : UserControl
         inspector.ForcedClear += OnBindChanged;
         inspector.Disposed += OnInspectorDisposed;
 
-        LayOutRows();
+        // The rows are made when the view gets its window, so whoever subscribes to the valves right
+        // after CreateWinFormsView sees every control.
+        LayoutPending = true;
     }
+
+    // The escape valves (P7.4): a control the view made for a node, and then the node's row, whole,
+    // placed and showing its value. Each comes once, and again only for a row made anew (a node that
+    // changed its editor). An exception of a subscriber goes up through the view, as one of the
+    // inspector's events does (3.11).
+    public event EventHandler<ControlCreatedEventArgs<Control>>? ControlCreated;
+
+    public event EventHandler<RowCreatedEventArgs<Control>>? RowCreated;
+
+    // What failed in the view itself (3.11): a row that could not be made or placed is left out until
+    // the next layout (critical); one that could not show its objects keeps what it showed, in light
+    // red (worked around).
+    public event EventHandler<InspectorFailureEventArgs>? RowFailed;
 
     // The inspector shown; null once it was disposed.
     public Inspector? Inspector { get; private set; }
@@ -122,27 +137,28 @@ public sealed class WinFormsInspectorView : UserControl
         SuspendLayout();
         Content.SuspendLayout();
 
-        Place(Content, layout.Rows, seen, grouped);
-
-        foreach (var node in RowsByNode.Keys.Where(node => !seen.Contains(node)).ToList())
+        // A valve that throws stops the layout where it is; the view stays usable, and the next change
+        // lays out the rest.
+        try
         {
-            if (Hovered == RowsByNode[node])
-                Hovered = null;
+            Place(Content, layout.Rows, seen, grouped);
 
-            RowsByNode[node].Dispose();
-            RowsByNode.Remove(node);
+            foreach (var node in RowsByNode.Keys.Where(node => !seen.Contains(node)).ToList())
+                Drop(node);
+
+            foreach (var node in Panels.Keys.Where(node => !grouped.Contains(node)).ToList())
+            {
+                Panels[node].Dispose();
+                Panels.Remove(node);
+            }
+
+            Content.Bounds = new Rectangle(AutoScrollPosition, (Size)layout.Size);
         }
-
-        foreach (var node in Panels.Keys.Where(node => !grouped.Contains(node)).ToList())
+        finally
         {
-            Panels[node].Dispose();
-            Panels.Remove(node);
+            Content.ResumeLayout();
+            ResumeLayout();
         }
-
-        Content.Bounds = new Rectangle(AutoScrollPosition, (Size)layout.Size);
-
-        Content.ResumeLayout();
-        ResumeLayout();
 
         // The rows may have moved under the mouse.
         UpdateHover();
@@ -157,39 +173,100 @@ public sealed class WinFormsInspectorView : UserControl
             var node = layout.Node;
             seen.Add(node);
 
-            if (!RowsByNode.TryGetValue(node, out var row) || !row.Fits())
+            var made = !RowsByNode.TryGetValue(node, out var row) || !row.Fits();
+            var madePanel = node.IsGroup && !Panels.ContainsKey(node);
+            Panel? panel;
+
+            // A row that cannot be made or placed (a control the platform refuses) is left out with its
+            // branch, and made again at the next layout (3.11).
+            try
             {
-                row?.Dispose();
-                row = new WinFormsRow(this, node);
-                RowsByNode[node] = row;
+                if (made)
+                {
+                    Drop(node);
+                    row = new WinFormsRow(this, node);
+                    RowsByNode[node] = row;
+                }
+
+                row!.Place(container, layout, ref tab);
+                panel = node.IsGroup ? PlacePanel(container, layout, ref tab) : null;
+            }
+            catch (Exception e)
+            {
+                Drop(node);
+                OnRowFailed(node, FailureSeverity.Critical, e, $"The row of '{node.Path}' could not be made; it is left out until the next layout.");
+                continue;
             }
 
-            row.Place(container, layout, ref tab);
-            row.ShowValue();
-            row.ShowState();
+            row.Show();
 
-            if (!node.IsGroup)
+            if (made || madePanel)
+                Announce(node, made ? row : null, panel, madePanel);
+
+            if (panel == null)
                 continue;
 
             grouped.Add(node);
-
-            if (!Panels.TryGetValue(node, out var panel))
-            {
-                panel = new Panel { Name = node.Path + "#panel" };
-                panel.Paint += PaintHover;
-                Follow(panel);
-                Panels[node] = panel;
-            }
-
-            if (panel.Parent != container)
-                container.Controls.Add(panel);
-
-            panel.Bounds = (Rectangle)layout.Panel;
-            panel.Visible = !node.Collapsed;
-            panel.TabIndex = tab++;
-
             Place(panel, layout.Rows, seen, grouped);
         }
+    }
+
+    // The panel that holds a group's rows (P7.3), hidden while the group is collapsed.
+    private Panel PlacePanel(Control container, LayoutRow layout, ref int tab)
+    {
+        var node = layout.Node;
+
+        if (!Panels.TryGetValue(node, out var panel))
+        {
+            panel = new Panel { Name = node.Path + "#panel" };
+            panel.Paint += PaintHover;
+            Follow(panel);
+            Panels[node] = panel;
+        }
+
+        if (panel.Parent != container)
+            container.Controls.Add(panel);
+
+        panel.Bounds = (Rectangle)layout.Panel;
+        panel.Visible = !node.Collapsed;
+        panel.TabIndex = tab++;
+        return panel;
+    }
+
+    // Takes a node's row off the view.
+    private void Drop(InspectorNode node)
+    {
+        if (!RowsByNode.Remove(node, out var row))
+            return;
+
+        if (Hovered == row)
+            Hovered = null;
+
+        row.Dispose();
+    }
+
+    // The valves for what this layout made for a node (P7.4): each new control, and then the new row.
+    private void Announce(InspectorNode node, WinFormsRow? row, Panel? panel, bool madePanel)
+    {
+        if (row != null)
+        {
+            ControlCreated?.Invoke(this, new(node, RowPart.Label, row.LabelControl));
+            ControlCreated?.Invoke(this, new(node, RowPart.Help, row.HelpControl));
+
+            if (row.EditorControl is { } editor)
+                ControlCreated?.Invoke(this, new(node, RowPart.Editor, editor));
+        }
+
+        if (madePanel && panel != null)
+            ControlCreated?.Invoke(this, new(node, RowPart.Panel, panel));
+
+        if (row != null)
+            RowCreated?.Invoke(this, new(node, row.LabelControl, row.HelpControl, row.EditorControl, panel));
+    }
+
+    internal void OnRowFailed(InspectorNode node, FailureSeverity severity, Exception exception, string message)
+    {
+        RowFailed?.Invoke(this, new InspectorFailureEventArgs(node.Inspector, node.Path, severity, exception, message, suggestion: null));
     }
 
     // Every node of the tree, also the hidden ones, whose rule can show them again; nodes added by hand
@@ -321,10 +398,7 @@ public sealed class WinFormsInspectorView : UserControl
     private void OnValueChanged(object? sender, ValueChangedEventArgs e) => OnUiThread(() =>
     {
         if (RowsByNode.TryGetValue(e.Node, out var row))
-        {
-            row.ShowValue();
-            row.ShowState();
-        }
+            row.Show();
 
         // The items of a collection decide the height of its list editor.
         if (e.Node is CollectionNode)

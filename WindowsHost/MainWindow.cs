@@ -1,11 +1,13 @@
 using DemoObjects.ViewObjects;
 using InteractiveEditor;
+using InteractiveEditor.Events;
 using InteractiveEditor.Views.WinForms;
 
 namespace WindowsHost;
 
 // The WinForms view of a Gadget, a member for each editor, with a button and a display added by hand,
-// and a button that binds a second gadget, for a look at the values they do not share (P7.19).
+// and a button that binds a second gadget, for a look at the values they do not share (P7.19). A valve
+// (P7.4) aligns the numbers to the right, which the agnostic configuration does not do.
 public partial class MainWindow : Form
 {
     private readonly Gadget gadget = new();
@@ -37,6 +39,11 @@ public partial class MainWindow : Form
         inspector.Bind(gadget);
 
         var view = inspector.CreateWinFormsView();
+        view.ControlCreated += (_, e) =>
+        {
+            if (e is { Path: nameof(Gadget.Count) or nameof(Gadget.Ratio), Part: RowPart.Editor, Control: TextBox box })
+                box.TextAlign = HorizontalAlignment.Right;
+        };
         view.Dock = DockStyle.Fill;
         Controls.Add(view);
 
