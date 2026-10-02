@@ -3,8 +3,9 @@
 namespace InteractiveEditor.Primitives;
 
 // A size in double, the only precision (P8.1), with the same conversions as PxPoint: implicit from
-// System.Drawing, explicit back to it.
-public struct PxSize : IEquatable<PxSize>
+// System.Drawing, explicit back to it. The Size of WPF throws on a negative width or height, which this
+// one takes, so from it the conversion is implicit and to it explicit (PxSize.Windows.cs).
+public partial struct PxSize : IEquatable<PxSize>
 {
     public static readonly PxSize Empty = new PxSize(0, 0);
 

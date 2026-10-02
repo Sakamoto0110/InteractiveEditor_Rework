@@ -5,8 +5,9 @@ using System.Collections.Generic;
 namespace InteractiveEditor.Primitives;
 
 // A point in double, the only precision (P8.1). From System.Drawing nothing is lost, so the conversion
-// is implicit; back to it the value is rounded (Point) or narrowed (PointF), so it is explicit.
-public struct PxPoint : IEquatable<PxPoint>
+// is implicit; back to it the value is rounded (Point) or narrowed (PointF), so it is explicit. The
+// Point of WPF is in double too, so both ways are implicit (PxPoint.Windows.cs, windows target only).
+public partial struct PxPoint : IEquatable<PxPoint>
 {
     public static readonly PxPoint Empty = new PxPoint(0, 0);
 
