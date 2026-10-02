@@ -232,6 +232,7 @@ public class MemberNode : InspectorNode
             Root.Owner.Rewire();
 
         UpdateAffected(source, dropped);
+        Root.CheckRules(source);
     }
 
     // A closed object replaced here was replaced by the inspector itself, not from outside: its branch

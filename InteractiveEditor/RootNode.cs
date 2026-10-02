@@ -1,4 +1,6 @@
-﻿namespace InteractiveEditor;
+﻿using InteractiveEditor.Events;
+
+namespace InteractiveEditor;
 
 // The top of the tree, kept inside the Inspector: the bound object lives here, and every member
 // resolves its owner from it.
@@ -29,6 +31,14 @@ internal sealed class RootNode : InspectorNode
     public override void SetValue(object? value)
     {
         throw new InvalidOperationException($"'{Name}' is the root; use Rebind() to change the bound object.");
+    }
+
+    // The rules of visibility read again, after a read or a write of the values: a rule can look at
+    // anything in the object, so they all go, once at the end (P6.2).
+    internal void CheckRules(ValueSource? source)
+    {
+        foreach (var node in this)
+            node.CheckRule(source);
     }
 
     internal override object? Resolve(object? instance) => instance;

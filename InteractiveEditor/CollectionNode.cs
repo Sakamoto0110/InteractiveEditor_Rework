@@ -300,6 +300,7 @@ public sealed class CollectionNode : MemberNode
         }
 
         UpdateAffected(ValueSource.Write, changed: worked);
+        Root.CheckRules(ValueSource.Write);
         Root.Owner.Rewire();
     }
 

@@ -104,6 +104,11 @@ internal sealed class InstanceWatcher(RootNode root)
             }
         }
 
+        // A rule of visibility can look at anything in the object, shown or not (P6.2). During the
+        // inspector's own write, the write reads them itself, as a Write.
+        if (!root.Any(node => node.Writing))
+            root.CheckRules(ValueSource.Instance);
+
         // A group's object may be a new one now (accepted, or replaced by a closed edit), and so may
         // the item chosen in a collection.
         if (groupChanged)

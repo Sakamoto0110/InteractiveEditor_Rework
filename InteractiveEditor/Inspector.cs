@@ -211,7 +211,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         ObjectDisposedException.ThrowIf(Disposed, this);
 
         if (Options.InstanceToView)
-            ReadAll(node => node.Update(ValueSource.Refresh));
+            ReadAll(node => node.Update(ValueSource.Refresh), ValueSource.Refresh);
     }
 
     // Writes the values the nodes hold while ViewToInstance is off: the normal flow for writing by
@@ -230,7 +230,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     public void Reload()
     {
         ObjectDisposedException.ThrowIf(Disposed, this);
-        ReadAll(node => node.Reload());
+        ReadAll(node => node.Reload(), ValueSource.Reload);
     }
 
     // Writes what the view holds (the pending values, and the values read last) into every bound
@@ -254,6 +254,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         foreach (var node in Root)
             node.Update(ValueSource.Force, dropped.Contains(node));
 
+        Root.CheckRules(ValueSource.Force);
         Watcher.Rewire();
         OnForcedApply();
     }
@@ -269,6 +270,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         foreach (var node in Root)
             node.Reset(ValueSource.Force);
 
+        Root.CheckRules(ValueSource.Force);
         Watcher.Rewire();
         OnForcedReload();
     }
@@ -358,8 +360,8 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     }
 
     // Replaced groups first, from the top down, so a parent is checked before its children (the tree
-    // comes in pre-order); then every node is read.
-    private void ReadAll(Action<InspectorNode> read)
+    // comes in pre-order); then every node is read, and then the rules of visibility.
+    private void ReadAll(Action<InspectorNode> read, ValueSource source)
     {
         foreach (var node in Root)
         {
@@ -370,15 +372,18 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         foreach (var node in Root)
             read(node);
 
+        Root.CheckRules(source);
         Watcher.Rewire();
     }
 
-    // The bound objects changed, so every node starts over from what they hold now.
+    // The bound objects changed, so every node starts over from what they hold now, and the rules of
+    // visibility are read again, with no event, as the values.
     private void ResetNodes()
     {
         foreach (var node in Root)
             node.Reset();
 
+        Root.CheckRules(null);
         Watcher.Rewire();
     }
 
