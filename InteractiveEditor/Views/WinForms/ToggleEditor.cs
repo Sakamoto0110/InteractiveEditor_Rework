@@ -23,10 +23,11 @@ internal sealed class ToggleEditor : WinFormsEditor
         Box.BackColor = failed ? FailedColor : Color.Transparent;
     }
 
+    // Objects that hold different values leave the box indeterminate (P7.19); a click sets all of them.
     public override void ShowValue()
     {
         Showing = true;
-        Box.Checked = Node.ViewValue is true;
+        Box.CheckState = Row.Mixed ? CheckState.Indeterminate : Node.ViewValue is true ? CheckState.Checked : CheckState.Unchecked;
         Showing = false;
     }
 
@@ -35,7 +36,7 @@ internal sealed class ToggleEditor : WinFormsEditor
         if (Showing)
             return;
 
-        var value = Box.Checked;
+        var value = Box.CheckState == CheckState.Checked;
         Row.Write(() => Node.SetValue(value));
         ShowValue();
     }
