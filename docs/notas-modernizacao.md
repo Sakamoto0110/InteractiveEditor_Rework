@@ -360,7 +360,8 @@ espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
   editar. Na cor de desabilitado, mas habilitado (no WinForms, um controle desabilitado nem mostra
   tooltip), com o cursor de mão; o clique abre uma janela modal, que bloqueia a de trás até fechar,
   com o rótulo como título, o texto do `Help` rolável e selecionável e um OK (Enter ou Esc fecham).
-  O tooltip curto continua no rótulo e no editor. A marca e a janela entraram no commit `79e936b`.
+  O tooltip curto continua no rótulo e no editor. A marca e a janela entraram no commit `79e936b`,
+  e a faixa antes dos editores, no `0578057`.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
@@ -896,10 +897,14 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   editor fica com o resto da linha até o `EditorMaxWidth`, encostado à direita, e o que sobra entre
   ele e o rótulo é o espaçador, que não tem retângulo; abaixo do limite, nada muda. O `MaxWidth`
   limita a largura que as linhas ocupam, com o espaço em volta, e o `Size` do layout fica com ela.
-  Um nó com `Help` ganha o retângulo `Help` na `LayoutRow`, tirado do fim da coluna do rótulo (o
-  rótulo encolhe, e o editor não se mexe), então os `(?)` formam uma coluna em qualquer
-  profundidade; numa coluna mais estreita que ele, fica com ela toda. Um cabeçalho e uma linha de
-  separação não têm. As três avisam pelo `OptionChanged`.
+  Um nó com `Help` ganha o retângulo `Help` na `LayoutRow`. Revisto no commit `0578057` (P7.15):
+  quando algum nó da árvore tem `Help`, toda linha deixa antes do editor uma faixa de `HelpWidth`
+  mais `LabelSpacing`, e o `(?)` vai nela, colado no editor; o rótulo fica com a coluna inteira, e
+  os editores e os `(?)` formam colunas em qualquer profundidade. Numa linha larga, a faixa sai do
+  espaçador; numa estreita, tira a mesma largura de todos os editores, e numa linha sem espaço
+  nenhum o `(?)` fica sem largura, sem passar por cima do rótulo. Antes, no commit `b3aaad0`, ele
+  ficava no fim da coluna do rótulo, que encolhia. Um cabeçalho e uma linha de separação não têm. As
+  três opções avisam pelo `OptionChanged`.
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
@@ -1041,7 +1046,7 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   de propósito (o texto recusado sobrescrito, sem passar para a thread da interface, sem layout nas
   opções, sem esvaziar no `Disposed` e sem a cor da falha), 13 falham. O WindowsHost mostra um
   `Gadget`, do `DemoObjects`, com um membro por editor (commit `4445761`), para a conferência no
-  Windows. Com o espaçador, o `(?)` e a linha sob o mouse, o app passou a 92 checagens (as posições,
+  Windows. Com o espaçador, o `(?)` e a linha sob o mouse, o app passou a 93 checagens (as posições,
   o `MaxWidth`, a marca na tela, a janela modal, que desabilita o form de trás, e o fundo pela cor
   dos pixels na tela); quebrando cada parte de propósito, 6 falham, e a marca como `Label` também
   falha. Dois membros do `Gadget` ganharam `Help` (commit `c71255c`).
@@ -1605,8 +1610,8 @@ Apresentação
       percorrendo a árvore (P7.3; P7.7 a P7.13; commits `569525a` e `60d4203`).
 - [x] Espaçador e largura máxima: o editor até 200, o resto entre ele e o rótulo, um limite para as
       linhas e o fundo da linha sob o mouse (P7.14; commits `b3aaad0` e `79e936b`).
-- [x] O `(?)` da ajuda longa, no fim da coluna do rótulo, com a janela modal (P7.15; commits
-      `b3aaad0` e `79e936b`).
+- [x] O `(?)` da ajuda longa, colado no editor, numa faixa antes dos editores, com a janela modal
+      (P7.15; commits `b3aaad0`, `79e936b` e `0578057`).
 - [ ] Scrubbing no rótulo e indicativo de valores mistos (P2.4; o corte 3).
 - [ ] View WPF, pelo mesmo caminho (o corte 5).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
