@@ -75,6 +75,30 @@ public sealed class InspectorOptions
         }
     } = new(4);
 
+    // The widest an editor gets (P7.14): in a wider row, what is left over goes to a space between the
+    // label and the editor, and the editors line up on the right. Null lets the editor take the whole
+    // rest of the row.
+    public double? EditorMaxWidth
+    {
+        get;
+        set => Change(ref field, value is { } width ? Length(width, nameof(EditorMaxWidth)) : null);
+    } = 200;
+
+    // The widest the rows get, the padding included (P7.14); a wider view leaves the rest empty, on the
+    // right. Null, the default, takes the width the view gives.
+    public double? MaxWidth
+    {
+        get;
+        set => Change(ref field, value is { } width ? Length(width, nameof(MaxWidth)) : null);
+    }
+
+    // The width of the help mark, (?), which a node with Help has at the end of its label column (P7.15).
+    public double HelpWidth
+    {
+        get;
+        set => Change(ref field, Length(value, nameof(HelpWidth)));
+    } = 16;
+
     // The item lines a list editor shows before it scrolls; it has one more line, for its buttons.
     public int ListRows
     {

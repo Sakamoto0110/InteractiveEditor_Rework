@@ -17,7 +17,8 @@ public sealed class InspectorLayout
     // The rows at the top, in the inspector's area; a group holds the rows inside it.
     public IReadOnlyList<LayoutRow> Rows { get; }
 
-    // The area the rows take, with the padding: the width given, and the height they need.
+    // The area the rows take, with the padding: the width given, up to MaxWidth, and the height they
+    // need.
     public PxSize Size { get; }
 
     // The layout of the rows below the root, in an area this wide. It does not read the bound objects:
@@ -26,6 +27,9 @@ public sealed class InspectorLayout
     {
         if (!double.IsFinite(width) || width < 0)
             throw new ArgumentOutOfRangeException(nameof(width), width, "The width is a number from zero up.");
+
+        // The rows take the width given, up to MaxWidth (P7.14); a wider view leaves the rest empty.
+        width = Math.Min(width, options.MaxWidth ?? double.PositiveInfinity);
 
         var padding = options.Padding;
         var rows = Stack(root, options, 0, padding.Left, padding.Top, Math.Max(0, width - padding.Horizontal), out var height);
@@ -58,15 +62,23 @@ public sealed class InspectorLayout
     {
         var row = new PxRect(x, y, width, HeightOf(node, options));
 
-        var labelWidth = node.Editor is EditorKind.Header or EditorKind.Separator
-            ? width
-            : Math.Clamp(options.LabelWidth - depth * options.Indent, 0, width);
-        var editorX = Math.Min(x + labelWidth + options.LabelSpacing, row.Right);
-        var label = new PxRect(x, y, labelWidth, options.RowHeight);
-        var editor = new PxRect(editorX, y, row.Right - editorX, row.Height);
+        var across = node.Editor is EditorKind.Header or EditorKind.Separator;
+        var labelWidth = across ? width : Math.Clamp(options.LabelWidth - depth * options.Indent, 0, width);
+
+        // The help mark takes the end of the label column, so neither the labels nor the editors move,
+        // and the marks of all the rows line up (P7.15).
+        var helpWidth = !across && !string.IsNullOrEmpty(node.Help) ? Math.Min(options.HelpWidth, labelWidth) : 0;
+        var label = new PxRect(x, y, labelWidth - helpWidth, options.RowHeight);
+        var help = helpWidth > 0 ? new PxRect(label.Right, y, helpWidth, options.RowHeight) : PxRect.Empty;
+
+        // The editor takes the rest of the row up to EditorMaxWidth; what is left over is the space
+        // between the label and the editor, so the editors line up on the right (P7.14).
+        var start = Math.Min(x + labelWidth + options.LabelSpacing, row.Right);
+        var editorWidth = Math.Min(row.Right - start, options.EditorMaxWidth ?? double.PositiveInfinity);
+        var editor = new PxRect(row.Right - editorWidth, y, editorWidth, row.Height);
 
         if (!node.IsGroup)
-            return new LayoutRow(node, depth, row, label, editor, PxRect.Empty, []);
+            return new LayoutRow(node, depth, row, label, help, editor, PxRect.Empty, []);
 
         // The panel goes in by one indent, and its rows are laid out from its corner. They are there even
         // while the group is collapsed, when the panel has no height, so a view can build them once.
@@ -74,7 +86,7 @@ public sealed class InspectorLayout
         var rows = Stack(node, options, depth + 1, 0, 0, inner, out var content);
         var panel = new PxRect(x + options.Indent, row.Bottom + options.RowSpacing, inner, node.Collapsed ? 0 : content);
 
-        return new LayoutRow(node, depth, row, label, editor, panel, rows);
+        return new LayoutRow(node, depth, row, label, help, editor, panel, rows);
     }
 
     // A row is one line high; a list editor has a line for each item it shows, up to ListRows, and one
