@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
 `rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `c71255c`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `0578057`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -100,7 +100,7 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 695 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 699 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
@@ -109,7 +109,7 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   espaçador, a largura máxima e o `(?)` no layout. Um segundo
   console testa a assembly ausente; um terceiro, o `probe-windows` (`net10.0-windows`, desde o
   commit `ccc3a5d`), as conversões dos primitivos com o WinForms e o WPF (21 checagens); e um
-  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 92 checagens. Os dois
+  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 93 checagens. Os dois
   últimos rodam no Wine (abaixo). Os quatro ficam no scratchpad da sessão e não passam para a
   próxima, mas o Rafael recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
   diz como rodar; a última de 02/10 tem os quatro). Se ele mandar o zip, descompactar fora do
@@ -288,11 +288,11 @@ Pegadinhas já vistas:
   thread passam para a da interface, e o `Disposed` do inspector esvazia a view. Os editores são
   `internal`, e cada controle tem como `Name` o caminho do nó (o rótulo, `caminho#label`; o `(?)`,
   `caminho#help`; o painel do grupo, `caminho#panel`).
-- Espaçador e ajuda (P7.14, P7.15; commits `b3aaad0` e `79e936b`): o layout limita o editor
-  (`EditorMaxWidth`, 200, encostado à direita, com o resto entre ele e o rótulo) e as linhas
-  (`MaxWidth`, sem limite por padrão), e dá o retângulo `Help` (16 px, no fim da coluna do rótulo)
-  a um nó com `Help`. A view pinta o fundo da linha sob o mouse e mostra o `(?)` em cinza, que abre
-  uma janela modal com o texto.
+- Espaçador e ajuda (P7.14, P7.15; commits `b3aaad0`, `79e936b` e `0578057`): o layout limita o
+  editor (`EditorMaxWidth`, 200, encostado à direita, com o resto entre ele e o rótulo) e as linhas
+  (`MaxWidth`, sem limite por padrão), e dá o retângulo `Help` (16 px) a um nó com `Help`, colado
+  no editor, numa faixa que toda linha reserva quando algum nó da árvore tem `Help`. A view pinta o
+  fundo da linha sob o mouse e mostra o `(?)` em cinza, que abre uma janela modal com o texto.
 
 ## 6. O que falta
 
@@ -326,5 +326,6 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
    `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
 2. O Rafael viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)`
-   (P7.14, P7.15), aplicados nos commits `b3aaad0`, `79e936b` e `c71255c`. Falta ele conferir essa
-   parte no WindowsHost: o espaçador, o `(?)` e a janela dele, e o fundo da linha sob o mouse.
+   (P7.14, P7.15), aplicados nos commits `b3aaad0`, `79e936b` e `c71255c`; depois preferiu o `(?)`
+   colado no editor (commit `0578057`). Falta ele conferir essa parte no WindowsHost: o espaçador, o
+   `(?)` e a janela dele, e o fundo da linha sob o mouse.
