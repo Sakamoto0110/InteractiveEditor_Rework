@@ -20,7 +20,16 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   ```
 
 - No fim da mensagem, os trailers de coautoria e de sessão que a própria sessão indicar.
-- Depois do push, conferir no GitHub que o commit aparece com o login `Sakamoto0110`.
+- Depois do push, conferir no GitHub que os commits aparecem com o login `Sakamoto0110`. Com `N`
+  sendo quantos commits olhar, devem sair duas linhas por commit (author e committer), todas com
+  `Sakamoto0110`:
+
+  ```
+  repo=Sakamoto0110/InteractiveEditor_Rework
+  curl -s "https://api.github.com/repos/$repo/commits?sha=rework-claude&per_page=N" |
+    grep '"login"'
+  ```
+
 - A branch de trabalho é a `rework-claude`, a pedido do Rafael, mesmo que a sessão sugira outra:
   `git push -u origin rework-claude`. Na dúvida, perguntar.
 - Mensagens de commit em inglês, com prefixo: `(refactor)`, `(docs)`, `(fix)`, `(feat)`. Mudança
@@ -94,8 +103,10 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
   lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo, layout,
   visibilidade condicional e lista de escolha. Um segundo console testa a assembly ausente. Os dois
-  ficam no scratchpad da sessão e não passam para a próxima; a lista acima serve de roteiro para
-  refazer o que for preciso.
+  ficam no scratchpad da sessão e não passam para a próxima, mas o Rafael recebeu uma cópia deles
+  em 02/10 (`console-de-testes.zip`, com um `LEIA-ME.txt` que diz como rodar). Se ele mandar o zip,
+  descompactar fora do repositório e corrigir o caminho do clone no `Probe.csproj`, se for outro;
+  se não, a lista acima serve de roteiro para refazer o que for preciso.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
