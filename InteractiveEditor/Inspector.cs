@@ -18,7 +18,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     private readonly RootNode Root;
     private readonly InstanceWatcher Watcher;
-    private bool Disposed;
+    private bool IsDisposed;
 
     private Inspector(Type target, TypeBinderMode mode, bool typed)
     {
@@ -26,6 +26,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         Mode = mode;
         Root = new RootNode(target, this, typed);
         Watcher = new InstanceWatcher(Root);
+        Options.Changed += option => OnOptionChanged(null, option);
     }
 
     // Raised inside the Create, before anyone can subscribe to the new inspector, so they are
@@ -50,6 +51,14 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     public event EventHandler<InspectorEventArgs>? ForcedApply;
     public event EventHandler<InspectorEventArgs>? ForcedReload;
     public event EventHandler<InspectorEventArgs>? ForcedClear;
+
+    // An option of a node, or of the inspector (Node null), changed: what a view built before the change
+    // needs to show it (P7.8). Only a real change raises it.
+    public event EventHandler<OptionChangedEventArgs>? OptionChanged;
+
+    // The inspector was disposed: the objects were unbound and the tree disposed, so a view that
+    // still shows it lets it go (P7.13).
+    public event EventHandler<InspectorEventArgs>? Disposed;
 
     // What went wrong during the Create, for whoever checks after it.
     public InspectorReport Report { get; } = new();
@@ -145,7 +154,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // Binding over a bound object throws: the swap is explicit (Rebind), and adding one is AddBind.
     public void Bind(object instance)
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         if (Root.Instances.Count > 0)
             throw new InvalidOperationException($"'{Name}' is already bound; call Unbind(), Rebind() or AddBind().");
@@ -156,14 +165,14 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // Puts more objects in the bind (multi-bind). With nothing bound, it binds them.
     public void AddBind(params object[] instances)
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         Register(instances, CheckBindable(instances, Root.Instances));
     }
 
     // Takes one object out of the bind; taking the last one out is the same as Unbind().
     public void RemoveBind(object instance)
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         var index = Root.Instances.FindIndex(bound => ReferenceEquals(bound, instance));
 
@@ -195,7 +204,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     {
         // Checked before unbinding, so a refused instance leaves the current ones bound; the current
         // ones are about to leave, so binding one of them again is fine.
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         var found = CheckBindable(instances, []);
 
         Unbind();
@@ -208,7 +217,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // objects to the view on its own, so without InstanceToView it does nothing; pending values stay.
     public void Refresh()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         if (Options.InstanceToView)
             ReadAll(node => node.Update(ValueSource.Refresh), ValueSource.Refresh);
@@ -218,7 +227,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // hand. A node that cannot take its value now keeps it, and the row shows why.
     public void Apply()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         foreach (var node in Root)
             node.ApplyPending();
@@ -229,7 +238,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // found first, as in Refresh().
     public void Reload()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         ReadAll(node => node.Reload(), ValueSource.Reload);
     }
 
@@ -239,7 +248,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // a value a setter changed on its way in.
     public void ForceApply()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         // Taken before anything is written, because a write reads its branch again.
         var held = Root.Select(node => (Node: node, Values: node.HeldValues())).ToList();
@@ -265,7 +274,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // again.
     public void ForceReload()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         foreach (var node in Root)
             node.Reset(ValueSource.Force);
@@ -279,7 +288,7 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // The objects keep their values, and the next read brings them back.
     public void ForceClear()
     {
-        ObjectDisposedException.ThrowIf(Disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         foreach (var node in Root)
             node.Clear();
@@ -301,10 +310,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // Unbinds, disposes the nodes and releases this inspector's hold on the global options.
     public void Dispose()
     {
-        if (Disposed)
+        if (IsDisposed)
             return;
 
-        Disposed = true;
+        IsDisposed = true;
 
         try
         {
@@ -315,6 +324,13 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
         {
             GlobalOptions.Unlock(Id);
         }
+
+        OnDisposed();
+    }
+
+    internal void OnOptionChanged(InspectorNode? node, string option)
+    {
+        OptionChanged?.Invoke(this, new OptionChangedEventArgs(this, node, option));
     }
 
     // Keeps a failure of the Create in the report and raises DiscoveryFailed with it.
@@ -465,5 +481,10 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     private void OnForcedClear()
     {
         ForcedClear?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnDisposed()
+    {
+        Disposed?.Invoke(this, new InspectorEventArgs(this));
     }
 }

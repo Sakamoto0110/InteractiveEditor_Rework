@@ -16,8 +16,12 @@ public sealed class ButtonNode : InspectorNode
         Editor = EditorKind.Button;
     }
 
-    // What the button says; the row's label is apart from it.
-    public string Text { get; set; }
+    // What the button says; the row's label is apart from it. An option like the others (P7.8).
+    public string Text
+    {
+        get;
+        set => Change(ref field, value);
+    }
 
     // Runs the action. A read-only button, or one in a disabled branch, is pressed by mistake, and
     // throws; an action that throws does not bring the inspector down, and the row shows why.
