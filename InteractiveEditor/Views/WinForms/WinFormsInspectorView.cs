@@ -13,6 +13,10 @@ namespace InteractiveEditor.Views.WinForms;
 // alone; when the inspector is disposed, the view empties (P7.13).
 public sealed class WinFormsInspectorView : UserControl
 {
+    // The light background of the row under the mouse (P7.14): a little of the highlight over the
+    // background, so it follows the system's colors.
+    internal static readonly Color HoverColor = Blend(SystemColors.Control, SystemColors.Highlight, 0.15);
+
     private readonly Panel Content = new() { Name = "content" };
     private readonly Dictionary<InspectorNode, WinFormsRow> RowsByNode = [];
     private readonly Dictionary<InspectorNode, Panel> Panels = [];
@@ -24,6 +28,8 @@ public sealed class WinFormsInspectorView : UserControl
         Inspector = inspector;
         AutoScroll = true;
         Controls.Add(Content);
+        Content.Paint += PaintHover;
+        Follow(Content);
 
         inspector.OptionChanged += OnOptionChanged;
         inspector.BindRegistered += OnBindChanged;
@@ -42,6 +48,20 @@ public sealed class WinFormsInspectorView : UserControl
 
     // The tooltips of every row: the node's Tooltip, or the failure of the row (P7.11).
     internal ToolTip Tips { get; } = new();
+
+    // The row under the mouse, whose background is lit (P7.14).
+    internal WinFormsRow? Hovered { get; private set; }
+
+    // Follows the mouse over a control and the ones inside it: a control covers its container, so the
+    // container alone would not know when the mouse is over a row's label or editor.
+    internal void Follow(Control control)
+    {
+        control.MouseMove += OnMouseMoved;
+        control.MouseLeave += OnMouseMoved;
+
+        foreach (Control child in control.Controls)
+            Follow(child);
+    }
 
     // At once, with the width the view got from its parent: laid out later, a focused text box would
     // keep the scroll it took while it was still narrow, showing only the end of its text.
@@ -106,6 +126,9 @@ public sealed class WinFormsInspectorView : UserControl
 
         foreach (var node in RowsByNode.Keys.Where(node => !seen.Contains(node)).ToList())
         {
+            if (Hovered == RowsByNode[node])
+                Hovered = null;
+
             RowsByNode[node].Dispose();
             RowsByNode.Remove(node);
         }
@@ -120,6 +143,9 @@ public sealed class WinFormsInspectorView : UserControl
 
         Content.ResumeLayout();
         ResumeLayout();
+
+        // The rows may have moved under the mouse.
+        UpdateHover();
     }
 
     private void Place(Control container, IReadOnlyList<LayoutRow> rows, HashSet<InspectorNode> seen, HashSet<InspectorNode> grouped)
@@ -150,6 +176,8 @@ public sealed class WinFormsInspectorView : UserControl
             if (!Panels.TryGetValue(node, out var panel))
             {
                 panel = new Panel { Name = node.Path + "#panel" };
+                panel.Paint += PaintHover;
+                Follow(panel);
                 Panels[node] = panel;
             }
 
@@ -213,8 +241,56 @@ public sealed class WinFormsInspectorView : UserControl
 
         RowsByNode.Clear();
         Panels.Clear();
+        Hovered = null;
         Content.Size = Size.Empty;
         Inspector = null;
+    }
+
+    private void OnMouseMoved(object? sender, EventArgs e)
+    {
+        UpdateHover();
+    }
+
+    // Finds the row under the mouse, inside the view and in a container on screen (not in a collapsed
+    // group), and lights it instead of the last one.
+    private void UpdateHover()
+    {
+        var point = Cursor.Position;
+        var inside = IsHandleCreated && RectangleToScreen(ClientRectangle).Contains(point);
+        var found = inside
+            ? RowsByNode.Values.FirstOrDefault(row => row.Container is { Visible: true } container
+                && container.RectangleToScreen(row.Bounds).Contains(point))
+            : null;
+
+        if (found == Hovered)
+            return;
+
+        var last = Hovered;
+        Hovered = found;
+
+        foreach (var row in new[] { last, found })
+        {
+            if (row?.Container == null)
+                continue;
+
+            row.ShowHover(row == found);
+            row.Container.Invalidate(row.Bounds, true);
+        }
+    }
+
+    private void PaintHover(object? sender, PaintEventArgs e)
+    {
+        if (Hovered is not { } row || row.Container != sender)
+            return;
+
+        using var brush = new SolidBrush(HoverColor);
+        e.Graphics.FillRectangle(brush, row.Bounds);
+    }
+
+    private static Color Blend(Color under, Color over, double amount)
+    {
+        int Mix(int a, int b) => (int)Math.Round(a + (b - a) * amount);
+        return Color.FromArgb(Mix(under.R, over.R), Mix(under.G, over.G), Mix(under.B, over.B));
     }
 
     // The inspector raises its events on the thread that changed something; WinForms only lets the UI

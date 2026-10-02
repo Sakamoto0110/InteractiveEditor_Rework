@@ -5,14 +5,17 @@ using InteractiveEditor.Options;
 
 namespace InteractiveEditor.Views.WinForms;
 
-// One row of the view: the label and the editor of a node, on the rectangles the layout gives them. A
-// group's label carries the arrow that collapses it (P7.10).
+// One row of the view: the label, the help mark and the editor of a node, on the rectangles the layout
+// gives them. A group's label carries the arrow that collapses it (P7.10); the help mark, (?), opens
+// the long help (P7.15). The label and the mark let the row's background through, so the light one of
+// the row under the mouse shows behind them (P7.14).
 internal sealed class WinFormsRow : IDisposable
 {
     private const int ArrowWidth = 14;
 
     private readonly WinFormsInspectorView View;
     private readonly Label Label;
+    private readonly HelpMark Mark;
     private readonly Font? Bold;
     private readonly WinFormsEditor? Editor;
 
@@ -33,7 +36,11 @@ internal sealed class WinFormsRow : IDisposable
             TextAlign = ContentAlignment.MiddleLeft,
             UseMnemonic = false,
             Visible = Kind != EditorKind.Separator,
+            BackColor = Color.Transparent,
         };
+
+        Mark = new HelpMark { Name = node.Path + "#help", Visible = false };
+        Mark.Click += ShowHelp;
 
         if (Kind == EditorKind.Header)
         {
@@ -53,9 +60,21 @@ internal sealed class WinFormsRow : IDisposable
 
         if (Editor != null)
             Editor.Control.Name = node.Path;
+
+        view.Follow(Label);
+        view.Follow(Mark);
+
+        if (Editor != null)
+            view.Follow(Editor.Control);
     }
 
     public InspectorNode Node { get; }
+
+    // Where the row is: the control it sits in, and its rectangle there, the one the background of the
+    // row under the mouse fills.
+    public Control? Container { get; private set; }
+
+    public Rectangle Bounds { get; private set; }
 
     // The editor the row was made for, null for none; a node that changes it gets a new row.
     public EditorKind? Kind { get; }
@@ -85,8 +104,15 @@ internal sealed class WinFormsRow : IDisposable
 
     public void Place(Control container, LayoutRow layout, ref int tab)
     {
+        Container = container;
+        Bounds = (Rectangle)layout.Row;
+
         Move(Label, container);
         Label.Bounds = (Rectangle)layout.Label;
+
+        Move(Mark, container);
+        Mark.Bounds = (Rectangle)layout.Help;
+        Mark.Visible = layout.Help.Width > 0;
 
         if (Editor == null)
             return;
@@ -99,6 +125,13 @@ internal sealed class WinFormsRow : IDisposable
     public void ShowValue()
     {
         Editor?.ShowValue();
+    }
+
+    // The row under the mouse, or not: the container paints the background, and an editor that cannot
+    // let it through (a track bar) takes it.
+    public void ShowHover(bool hovered)
+    {
+        Editor?.ShowHover(hovered);
     }
 
     // The label, the tooltips, and the state of the editor: read-only, disabled in a branch whose group
@@ -144,6 +177,7 @@ internal sealed class WinFormsRow : IDisposable
     public void Dispose()
     {
         Label.Dispose();
+        Mark.Dispose();
         Bold?.Dispose();
         Editor?.Dispose();
     }
@@ -160,6 +194,16 @@ internal sealed class WinFormsRow : IDisposable
     {
         if (control.Parent != container)
             container.Controls.Add(control);
+    }
+
+    private void ShowHelp(object? sender, EventArgs e)
+    {
+        using var dialog = new HelpDialog(Node.Label, Node.Help ?? string.Empty);
+
+        if (View.FindForm() is { } owner)
+            dialog.ShowDialog(owner);
+        else
+            dialog.ShowDialog();
     }
 
     private void ToggleCollapsed(object? sender, EventArgs e)

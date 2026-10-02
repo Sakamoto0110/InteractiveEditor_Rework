@@ -8,7 +8,7 @@ namespace InteractiveEditor.Views.WinForms;
 // shown in the row below; the operations write at once, whatever the binder control (P5.13).
 internal sealed class ListEditor : WinFormsEditor
 {
-    private readonly Panel Frame = new();
+    private readonly Panel Frame = new() { BackColor = Color.Transparent };
     private readonly ListBox Lines = new() { IntegralHeight = false };
     private readonly Button AddButton = new() { Text = "+", Name = "add" };
     private readonly Button RemoveButton = new() { Text = "\u2212", Name = "remove" };
