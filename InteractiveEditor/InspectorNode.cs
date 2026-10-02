@@ -89,6 +89,22 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         }
     }
     public NumericRange? Range { get; set; }
+
+    // The values a Choice editor lists, for a member that is not an enum (P6.3), as in
+    // node.Choices = () => Enum.GetNames<Keys>(). The function is read when the view opens the list
+    // (GetChoices), so the list can change with the objects; setting one makes the editor Choice. The
+    // value chosen is written as any other, converted to the member's type.
+    public Func<IEnumerable>? Choices
+    {
+        get;
+        set
+        {
+            field = value;
+
+            if (value != null)
+                Editor = EditorKind.Choice;
+        }
+    }
     public double? ScrubMultiplier { get; set; }
     public bool Expandable { get; set; }
     public bool Collapsed { get; set; }
@@ -219,6 +235,29 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public bool IsMixed => !IsCompromised && !HasPendingValue && Known.Distinct().Skip(1).Any();
 
     public abstract void SetValue(object? value);
+
+    // What a Choice editor lists now: what Choices gives, read at once, or else the values of the enum
+    // the node holds, and nothing for anything else. A function that throws lists nothing, and the
+    // node reports it; the next time the list opens, it tries again.
+    public IReadOnlyList<object?> GetChoices()
+    {
+        if (Choices is { } choices)
+        {
+            try
+            {
+                return choices()?.Cast<object?>().ToArray() ?? [];
+            }
+            catch (Exception e)
+            {
+                OnBindFailed(FailureSeverity.Recovered, Unwrap(e), $"The choices of '{Path}' could not be read.",
+                    "Check the Choices function; the list tries again when it opens.", onWrite: false);
+                return [];
+            }
+        }
+
+        var type = ValueType is { } held ? Nullable.GetUnderlyingType(held) ?? held : null;
+        return type is { IsEnum: true } ? Enum.GetValues(type).Cast<object?>().ToArray() : [];
+    }
 
     // A member of the type this node holds, added by hand (P1.12). The name is checked at once, and the
     // node gets what the reflection and the attributes say about it, as in the Create, with the manual
