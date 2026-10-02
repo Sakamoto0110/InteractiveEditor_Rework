@@ -4,8 +4,9 @@ namespace InteractiveEditor.Layout;
 
 // One row of the layout (P7.5): the node, its depth, and the rectangles of the row, its label, its help
 // mark and its editor, in the coordinates of what the row sits in: the inspector's area for the rows at
-// the top, the panel of a group for the rows inside it. The help mark, (?), is empty for a node with no
-// Help (P7.15); between the label and the editor there can be a space, which has no rectangle (P7.14).
+// the top, the panel of a group for the rows inside it. The help mark, (?), sits right before the editor,
+// and is empty for a node with no Help (P7.15); between the label and the editor there can be a space,
+// which has no rectangle (P7.14).
 // A group has its panel right below its row, one indent in, with its own rows; a collapsed group keeps
 // them, and its panel has no height. A leaf has neither.
 public sealed record LayoutRow(
