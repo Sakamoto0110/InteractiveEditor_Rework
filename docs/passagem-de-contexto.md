@@ -1,9 +1,8 @@
 # Passagem de contexto
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
-`rework-claude`, com as respostas do Rafael de 27/09, 29/09 e 01/10 aplicadas, e as de 02/10 (P6.2
-e P6.3) a aplicar; o último commit de código é o `2b5d24d`. Ler isto inteiro antes de mexer em
-qualquer coisa.
+`rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
+commit de código é o `b92267c`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -89,13 +88,14 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 611 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 646 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
-  lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo e layout. Um
-  segundo console testa a assembly ausente. Os dois ficam no scratchpad da sessão e não passam para
-  a próxima; a lista acima serve de roteiro para refazer o que for preciso.
+  lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo, layout,
+  visibilidade condicional e lista de escolha. Um segundo console testa a assembly ausente. Os dois
+  ficam no scratchpad da sessão e não passam para a próxima; a lista acima serve de roteiro para
+  refazer o que for preciso.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -171,6 +171,11 @@ Pegadinhas já vistas:
 - Filtro por nome (commit `f2ec855`): `GlobalOptions.Hide<T>(nomes)` antes do `Create`, travado
   como as outras opções globais; conta como um `[InspectorIgnore]`, e os testes precisam chamar
   `Unhide<T>()` no fim, porque o registro é global.
+- Visibilidade condicional (commit `c589e2a`): o `VisibleWhen` do nó é uma regra sobre o objeto
+  ligado, relida no fim de cada leitura ou gravação pelo `CheckRules` do `RootNode`, e guardada; o
+  `Visible` junta a regra, o valor à mão e os pais, e uma resposta nova dispara o `VisibleChanged`.
+- Lista de escolha (commit `b92267c`): o `Choices` do nó é uma função lida pelo `GetChoices()`
+  quando a view abre a lista; sem ela, um enum lista os próprios valores.
 - Descoberta: ordem de declaração (commit `6c17a15`), coleções sem os membros do tipo delas
   (commit `1b9fcf6`) e cor numa linha `Display` fechada até escolherem o editor, com um aviso
   (commit `7482c5f`). O seletor por expressão é o `Node<T>` (commit `e06b6f7`).
@@ -217,7 +222,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - O que foi decidido em 01/10 também: a coleção só com getter com o conteúdo editável (P4.7, commit
   `53e915c`) e a faixa e o scrubbing do membro da coleção na linha do item (P5.11, commit
   `2b5d24d`); a P5.12, a P5.13 e a P7.6 confirmaram o que o código já fazia.
-- Decidido em 02/10, a aplicar: o `VisibleWhen` no nó (P6.2) e o `Choices` no nó (P6.3).
+- O que foi decidido em 02/10 também: o `VisibleWhen` no nó (P6.2, commit `c589e2a`) e o `Choices`
+  no nó (P6.3, commit `b92267c`). Não há pergunta em aberto, nem decisão esperando código.
 - Com as views: os dois alvos no mesmo projeto (P7.1), as fábricas com nomes distintos (P7.2), a
   view percorrendo a árvore (P7.3), os callbacks por plataforma e o agnóstico por linha (P7.4), a
   premissa de erros nas views e as conversões dos primitivos com o WinForms e o WPF.
@@ -225,6 +231,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. Aplicar a P6.2 e a P6.3, cada conceito com o seu commit de notas. Para reler o
-   original: `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+1. Perguntar ao Rafael por onde seguir: o que resta no checklist são as views (P7.1 a P7.4) e as
+   sessões próprias (a PixieLib e o cache do modelo de tipo). Para reler o original:
+   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
