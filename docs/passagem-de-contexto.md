@@ -56,12 +56,13 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: sem pergunta em aberto. Em 29/09 ele aceitou as sugestões das que
-  sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha deixado para ele confirmar, em
-  01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5 (4.7, 5.11, 5.12, 5.13 e 7.6), e em
-  02/10 as da 6.2 e da 6.3; tudo isso está na seção 0 das notas, e a explicação que ele pediu da 6.2
-  e da 6.3 (o `VariablePool` e o `EditField()` lidos no 0.7.1a e no OverlayApplication) está na
-  seção 3.12. Os números antigos valem, e os novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: as perguntas 7.7 a 7.13, da view WinForms (o corte 2), esperam
+  resposta; nenhuma tem código. Em 29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10,
+  6.7 e 7.5) e as escolhas que eu tinha deixado para ele confirmar, em 01/10 as das cinco escolhas
+  que sobraram da 5.10 e da 7.5 (4.7, 5.11, 5.12, 5.13 e 7.6), e em 02/10 as da 6.2 e da 6.3; tudo
+  isso está na seção 0 das notas, e a explicação que ele pediu da 6.2 e da 6.3 (o `VariablePool` e o
+  `EditField()` lidos no 0.7.1a e no OverlayApplication) está na seção 3.12. Os números antigos
+  valem, e os novos seguem a numeração de cada seção.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -272,7 +273,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - O que foi decidido em 02/10 também: o `VisibleWhen` no nó (P6.2, commit `c589e2a`) e o `Choices`
   no nó (P6.3, commit `b92267c`). Ainda em 02/10, a direção do que falta: as views antes das
   sessões próprias, em cinco cortes (seção 0 das notas, Views). O corte 1, os dois alvos e as
-  conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`.
+  conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`. O corte 2, a view WinForms, espera
+  as respostas de 7.7 a 7.13.
 - Com as views: as fábricas com nomes distintos (P7.2), a view percorrendo a árvore (P7.3), os
   callbacks por plataforma e o agnóstico por linha (P7.4) e a premissa de erros nas views.
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
@@ -280,8 +282,9 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 ## 7. Próximo passo
 
 1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
-   (Views), um por vez. O corte 1, os dois alvos e as conversões (P7.1), entrou no commit
-   `ccc3a5d`. Faltam a view WinForms (P7.2, P7.3), o scrubbing e os valores mistos, as válvulas e a
-   premissa de erros (P7.4), e o WPF. Para reler o original: `Sakamoto0110/InteractiveEditor`
-   (branch `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só
-   para leitura.
+   (Views), um por vez. O corte 1, os dois alvos e as conversões (P7.1), entrou no commit `ccc3a5d`.
+   Faltam a view WinForms (P7.2, P7.3), o scrubbing e os valores mistos, as válvulas e a premissa de
+   erros (P7.4), e o WPF. A view WinForms espera as respostas de 7.7 a 7.13: aplicar as respostas
+   nas notas (seção 0) e só então escrever a view, verificando no Wine. Para reler o original:
+   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
