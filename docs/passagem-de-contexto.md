@@ -4,6 +4,10 @@ Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na br
 `rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
 commit de código é o `41b636c`. Ler isto inteiro antes de mexer em qualquer coisa.
 
+Em 02/10 o Rafael pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
+para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
+(`docs/passagem-pixielib.md`, seção 3).
+
 ---
 
 ## 1. Antes de qualquer commit
@@ -63,6 +67,11 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   7.6), e em 02/10 as da 6.2 e da 6.3; tudo isso está na seção 0 das notas, e a explicação que ele
   pediu da 6.2 e da 6.3 (o `VariablePool` e o `EditField()` lidos no 0.7.1a e no OverlayApplication)
   está na seção 3.12. Os números antigos valem, e os novos seguem a numeração de cada seção.
+- `docs/passagem-pixielib.md`: a passagem da PixieLib em C# (02/10), para uma sessão própria, no
+  repositório `Sakamoto0110/PixieLib`. Ela fica aqui porque a sessão que a escreveu podia ler a
+  PixieLib, mas não subir nada nela (o app do Claude no GitHub sem permissão de escrita); o lugar
+  dela é lá. Não é trabalho desta passagem: a troca dos primitivos do InteractiveEditor pelos da
+  PixieLib é a pergunta 6.8 de lá, e vem depois dos cortes das views.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
@@ -349,3 +358,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
    colado no editor (commit `0578057`). Falta ele conferir no WindowsHost o espaçador, o `(?)` e a
    janela dele, o fundo da linha sob o mouse, o scrubbing (`Count` na horizontal, `Ratio` na
    vertical) e os mistos (o botão "Bind a second gadget", no fim).
+3. Faltam dois cortes das views: o 4 (as válvulas e a premissa de erros) e o 5 (a view WPF, o
+   maior, mas quase só tradução, porque o núcleo está pronto). Para o corte 4, eu ofereci trazer só
+   as escolhas sem resposta óbvia e aplicar o resto com o padrão que eu recomendaria, mostrando tudo
+   no fim; ele não respondeu antes de pedir a troca de contexto, então perguntar de novo.
