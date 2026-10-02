@@ -7,8 +7,9 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
-  <!-- The code for WinForms and WPF (the conversions of the primitives, and the views to come) is only
-       in the windows target, in *.Windows.cs files (P7.1); the core builds and runs anywhere. -->
+  <!-- The code for WinForms and WPF is only in the windows target (P7.1): the conversions of the
+       primitives, in *.Windows.cs files, and the views, in the Views folder. The core builds and runs
+       anywhere. -->
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
@@ -22,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'windows'">
-    <Compile Remove="**/*.Windows.cs" />
+    <Compile Remove="**/*.Windows.cs;Views/**" />
   </ItemGroup>
 
 </Project>
