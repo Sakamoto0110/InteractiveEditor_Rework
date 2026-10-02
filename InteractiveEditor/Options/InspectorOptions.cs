@@ -92,7 +92,7 @@ public sealed class InspectorOptions
         set => Change(ref field, value is { } width ? Length(width, nameof(MaxWidth)) : null);
     }
 
-    // The width of the help mark, (?), which a node with Help has at the end of its label column (P7.15).
+    // The width of the help mark, (?), which a node with Help has right before its editor (P7.15).
     public double HelpWidth
     {
         get;
