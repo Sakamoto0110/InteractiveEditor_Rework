@@ -324,6 +324,16 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   view tira as assinaturas dela e não mexe no inspector, que é de quem o criou. O do WPF vai ser o
   `WpfInspectorView`, com nome distinto, para um arquivo que importa os dois não ter ambiguidade.
   Aplicado no commit `60d4203`, como as respostas de 7.9 a 7.12 (3.5).
+- **A view WPF** (o corte 5, 02/10; commit `9148c81`): `WpfInspectorView`, um `UserControl`, criado
+  por `inspector.CreateWpfView()`, a view WinForms traduzida, com o mesmo comportamento e as mesmas
+  checagens. O que o WPF não tem ou faz de outro jeito foi decidido por mim, sem a rodada de
+  perguntas, a pedido do neko ("pode fazer"), e fica para o neko confirmar: a view é `IDisposable`,
+  porque um controle WPF não tem `Dispose`; o caminho do nó vai no `AutomationId` dos controles,
+  porque o `Name` do WPF não aceita ponto e o `Tag` fica livre (P7.16); o botão de cor abre o
+  diálogo de cor do sistema pelo WinForms, porque o WPF não tem um; o "—" do texto misto é um texto
+  sobre a caixa, porque a caixa do WPF não tem placeholder; o slider usa a faixa em double, com o
+  passo como marca. O que as duas views decidem igual (o editor de cada linha, quem faz scrubbing,
+  quem mostra mistos) foi para `Views/ViewRules.cs` (3.5).
 - **Uma opção mudada depois de a view montar** (P7.8, 02/10): um evento no inspector quando muda
   uma opção que a view mostra, com o nó e qual opção, e só quando o valor muda de fato; a view refaz
   o layout ou a linha. As listas de regras (`TextRules` e `ValueRules`) ficam de fora. Pelo mesmo
@@ -1083,7 +1093,7 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   editor). Ficaram quatro, dois por plataforma, como a P7.4 previa: o terceiro só seria agnóstico
   com os controles como `object`, e quem assinasse teria de converter. O agnóstico são os args, no
   núcleo, genéricos no tipo do controle (`ControlCreatedEventArgs<TControl>` e
-  `RowCreatedEventArgs<TControl>`): o WinForms usa `Control`, e o WPF vai usar `FrameworkElement`. A
+  `RowCreatedEventArgs<TControl>`): o WinForms usa `Control`, e o WPF, `FrameworkElement`. A
   view continua dona do lugar, do valor e do estado (habilitado, a cor da falha, o tooltip); o resto
   é de quem assina. Para quem assina logo depois do `CreateWinFormsView` ver todos os controles, as
   linhas são feitas quando a view ganha a janela, e não mais no construtor. Uma exceção de quem
@@ -1123,6 +1133,46 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   uma válvula subindo com a view usável depois, e um `ToString` que lança deixando só a linha dele
   vermelha, avisada uma vez, até sarar. Sem a proteção da linha, o app para com a exceção sem
   tratamento; sem o painel na válvula, a checagem dele falha.
+
+**A view WPF** (o corte 5; commit `9148c81`), em `Views/Wpf`, um conceito por arquivo, como a
+WinForms: a fábrica (`WpfViewFactory`), a view (`WpfInspectorView`), a linha (`WpfRow`), a base dos
+editores e um arquivo por editor, a seta, a marca `(?)`, a janela de ajuda e o scrubbing. O que as
+duas decidem igual ficou em `Views/ViewRules.cs`: o editor de cada linha, quem faz scrubbing e quem
+mostra mistos, que antes estavam na linha e no scrubbing do WinForms.
+
+- **O layout.** As linhas vão nos retângulos do `Layout(largura)` num `Canvas`, um por grupo, dentro
+  de um `ScrollViewer`, com a largura do viewport. O canvas fica preso no canto de cima à esquerda:
+  com a altura do layout e o alinhamento padrão (`Stretch`), o WPF o centralizava numa view mais
+  alta, e as linhas começavam 110 px abaixo (visto no print do Wine, com uma checagem para isso). As
+  linhas são feitas no `Loaded`, o par da criação da janela no WinForms. A ordem do Tab segue as
+  linhas pelo `TabIndex`, com navegação local em cada canvas.
+- **A identidade dos controles.** O caminho do nó vai no `AutomationId` (o rótulo com `#label`, a
+  marca com `#help`, o painel com `#panel`), porque o `Name` do WPF não aceita o ponto dos caminhos,
+  e o `Tag` fica livre para quem usa a biblioteca (P7.16).
+- **O descarte.** Um controle WPF não tem `Dispose`, então a view é `IDisposable`: descartar tira as
+  assinaturas dela e deixa o inspector como está (P7.13). Sem isso, a view vive enquanto o inspector
+  viver.
+- **Os editores.** Os mesmos da tabela, com os controles do WPF (`TextBox`, `CheckBox`, `ComboBox`,
+  `Slider`, `Button`, `ListBox`). O slider usa a faixa em double, parando no passo, sem as posições
+  inteiras do `TrackBar`. A cor abre o diálogo de cor do sistema pelo WinForms, com a janela da view
+  como dona, porque o WPF não tem um. O "—" do texto misto é um `TextBlock` sobre a caixa, que deixa
+  o mouse passar, porque a caixa do WPF não tem placeholder. A lista de escolha recarrega quando
+  abre e quando a própria caixa ganha o foco; o foco dos itens da lista aberta, que também sobe até
+  a caixa, não conta.
+- **O fundo da linha sob o mouse.** Um retângulo atrás dos controles, no canvas da linha; os
+  controles do WPF deixam o fundo passar, inclusive o slider. Ao sair da view, o fundo apaga pelo
+  `MouseLeave`, porque fora das janelas dele o WPF guarda a última posição que o mouse teve dentro.
+- **O scrubbing.** O mesmo gesto, com a distância medida em relação à view, em unidades do WPF. O
+  Esc chega pelo `InputManager` durante o arraste, porque o rótulo não tem o foco do teclado.
+- **Verificado no Wine**, com um app de teste no molde do da view WinForms (`probe-wpf`): 139
+  checagens, as mesmas da WinForms traduzidas, com o mouse e o teclado de verdade (`mouse_event` e
+  `keybd_event`), e mais o canto do canvas e a lista aberta com o mouse. Quebrando a view de
+  propósito em seis pontos (o canto do canvas, o fundo da linha, o itálico, o limiar do arraste, o
+  Esc do texto e a proteção da linha), cada um falha; o limiar só falhou depois de uma checagem
+  nova, de 2 px num double, que entrou também no probe da view WinForms (136 checagens), onde o
+  mesmo buraco existia. No Wine sem gerenciador de janelas, o mouse que sai para onde não há janela
+  não avisa o WPF de que saiu (no Windows avisa), então a checagem sai para outra janela do app. O
+  WpfHost mostra o `Gadget` como o WindowsHost, com a mesma válvula (commit `9148c81`).
 
 ### 3.6 Serviços (decidido: descartados)
 
@@ -1392,7 +1442,7 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   leitura, grupo, dono null e valor de um tipo sem relação com o do membro.
 - **Nas views** (commit `2a17c8c`): na WinForms, uma linha que não pode ser feita fica de fora até o
   próximo layout, e uma que não consegue mostrar os objetos fica vermelho-claro, avisadas pelo
-  `RowFailed` (3.5). A WPF vem com a mesma proteção.
+  `RowFailed` (3.5). A WPF tem a mesma proteção (commit `9148c81`).
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
 - **O que continua lançando** (decidido, P0.2): o uso errado da API por quem chama (ligar duas
@@ -1565,9 +1615,9 @@ Estrutura
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
       O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
       `.gitignore`, como na `main`, sem sair do repositório (commit `9587e12` e o seguinte).
-- [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
+- [x] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5; decidido, P7.2). A do WinForms, `CreateWinFormsView()`, entrou no
-      commit `60d4203` (P7.7); a do WPF vem com a view dele.
+      commit `60d4203` (P7.7), e a do WPF, `CreateWpfView()`, no `9148c81`.
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
       `HslColor` (commit `21cbeda`).
 - [x] Primitivos: prefixo `Px` no lugar do `SK` provisório (`PxPoint`, `PxPointF`, `PxSize` e
@@ -1693,7 +1743,8 @@ Apresentação
 - [x] Válvulas de escape: o `ControlCreated` por controle e o `RowCreated` ao fim de cada linha,
       com os args agnósticos no núcleo, e as falhas da própria view na linha (P7.4; 3.11; commit
       `2a17c8c`).
-- [ ] View WPF, pelo mesmo caminho (o corte 5).
+- [x] View WPF, pelo mesmo caminho (o corte 5; commit `9148c81`), com as regras que as duas
+      views decidem igual em `Views/ViewRules.cs`.
 
 Pendências da primeira revisão (já conhecidas)
 
@@ -1829,9 +1880,10 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximo corte**: a view WPF; os dois alvos (P7.1), a view WinForms (P7.2, P7.3), o scrubbing com
-os valores mistos e as válvulas com a premissa de erros nas views entraram nos commits `ccc3a5d`,
-`60d4203`, `5a0f6e8` e `2a17c8c`. Já entraram o `ValueChanged` (commit `eb497c6`), os
-sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
-layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
-itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
+**As views**: os cinco cortes entraram, os dois alvos (P7.1), a view WinForms (P7.2, P7.3), o
+scrubbing com os valores mistos, as válvulas com a premissa de erros nas views e a view WPF, nos
+commits `ccc3a5d`, `60d4203`, `5a0f6e8`, `2a17c8c` e `9148c81`; o que vem depois são as sessões
+próprias (a PixieLib e o cache do modelo de tipo). Já entraram o `ValueChanged` (commit `eb497c6`),
+os sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit
+`0c97638`), o layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit
+`c589e2a`) e os itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
