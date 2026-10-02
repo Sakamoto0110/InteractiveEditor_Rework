@@ -40,6 +40,6 @@ internal sealed class SelectorEditor : WinFormsEditor
     {
         var index = Box.SelectedIndex;
         Row.Write(() => Collection.SelectedIndex = index);
-        ShowValue();
+        Row.Show();
     }
 }

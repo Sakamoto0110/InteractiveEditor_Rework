@@ -38,6 +38,6 @@ internal sealed class ToggleEditor : WinFormsEditor
 
         var value = Box.CheckState == CheckState.Checked;
         Row.Write(() => Node.SetValue(value));
-        ShowValue();
+        Row.Show();
     }
 }

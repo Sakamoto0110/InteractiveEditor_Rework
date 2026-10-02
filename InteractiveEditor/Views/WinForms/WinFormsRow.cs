@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Windows.Forms;
+using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Layout;
 using InteractiveEditor.Options;
 
@@ -9,7 +10,8 @@ namespace InteractiveEditor.Views.WinForms;
 // gives them. A group's label carries the arrow that collapses it (P7.10), and a number's label can be
 // dragged to scrub it (P7.18); the help mark, (?), opens the long help (P7.15). The label goes italic
 // when the objects hold different values (P7.19). The label and the mark let the row's background
-// through, so the light one of the row under the mouse shows behind them (P7.14).
+// through, so the light one of the row under the mouse shows behind them (P7.14). What fails while the
+// row shows its objects stays in the row (3.11).
 internal sealed class WinFormsRow : IDisposable
 {
     private const int ArrowWidth = 14;
@@ -24,6 +26,10 @@ internal sealed class WinFormsRow : IDisposable
 
     // What the core refused as a mistake at the last write, until a write goes through.
     private string? Error;
+
+    // What the row could not show (a ToString or an Equals of the objects that throws), until it shows
+    // whole again.
+    private string? Fault;
 
     public WinFormsRow(WinFormsInspectorView view, InspectorNode node)
     {
@@ -77,6 +83,13 @@ internal sealed class WinFormsRow : IDisposable
 
     public InspectorNode Node { get; }
 
+    // The controls the row made, for the escape valves (P7.4).
+    public Control LabelControl => Label;
+
+    public Control HelpControl => Mark;
+
+    public Control? EditorControl => Editor?.Control;
+
     // Where the row is: the control it sits in, and its rectangle there, the one the background of the
     // row under the mouse fills.
     public Control? Container { get; private set; }
@@ -93,8 +106,8 @@ internal sealed class WinFormsRow : IDisposable
 
     // Whether the row shows its objects as holding different values (P7.19): only a row with a value
     // of its own; the objects behind a group or a collection are always different ones.
-    public bool Mixed => Node.IsMixed && Kind is EditorKind.Text or EditorKind.Number or EditorKind.Toggle or EditorKind.Choice
-        or EditorKind.Slider or EditorKind.Color or EditorKind.Display;
+    public bool Mixed => Kind is EditorKind.Text or EditorKind.Number or EditorKind.Toggle or EditorKind.Choice
+        or EditorKind.Slider or EditorKind.Color or EditorKind.Display && Node.IsMixed;
 
     // The editor a row makes for a node (P7.9): none for a group, unless it is a collection (its
     // selector or its list); a slider with no range is a number, and an editor still to be chosen
@@ -137,9 +150,43 @@ internal sealed class WinFormsRow : IDisposable
         Editor.Control.TabIndex = tab++;
     }
 
-    public void ShowValue()
+    // The value and the state; a row that shows whole again leaves its fault behind.
+    public void Show()
     {
-        Editor?.ShowValue();
+        Try(() =>
+        {
+            Editor?.ShowValue();
+            ShowLabel();
+            Fault = null;
+        });
+
+        ShowEditorState();
+    }
+
+    // The label and the state of the editor, keeping the value shown.
+    public void ShowState()
+    {
+        Try(ShowLabel);
+        ShowEditorState();
+    }
+
+    // Runs the row's own work with the objects (their ToString in the editor, their Equals for the mixed
+    // values): what throws there turns the row light red with the message, as a failure of the node
+    // does, and the view goes on (3.11); the row tries again at the next change.
+    public void Try(Action show)
+    {
+        try
+        {
+            show();
+        }
+        catch (Exception e)
+        {
+            if (Fault == null)
+                View.OnRowFailed(Node, FailureSeverity.WorkedAround, e, $"The row of '{Node.Path}' could not show its objects; it keeps what it showed.");
+
+            Fault = $"This row could not show its objects.\n{e.Message}";
+            ShowEditorState();
+        }
     }
 
     // The row under the mouse, or not: the container paints the background, and an editor that cannot
@@ -149,31 +196,8 @@ internal sealed class WinFormsRow : IDisposable
         Editor?.ShowHover(hovered);
     }
 
-    // The label, the tooltips, and the state of the editor: read-only, disabled in a branch whose group
-    // was replaced (P3.4), light red with the message in its tooltip after a failure (P7.11).
-    public void ShowState()
-    {
-        Label.Text = Node.Label;
-        View.Tips.SetToolTip(Label, Node.Tooltip);
-
-        if (IsGroup)
-            Label.Invalidate();
-        else
-            Label.Cursor = !Scrubs ? Cursors.Default : Node.ScrubAxis == ScrubAxis.Vertical ? Cursors.SizeNS : Cursors.SizeWE;
-
-        ShowMixed();
-
-        if (Editor == null)
-            return;
-
-        var failure = Error ?? Describe(Node.Failure);
-        Editor.ShowState(Node.ReadOnly, !Node.IsCompromised, failure != null);
-        View.Tips.SetToolTip(Editor.Control, failure ?? Node.Tooltip);
-    }
-
     // Writes through the node: a value, a press, an operation of the list. What the core refuses as a
-    // mistake (a read-only node, a disabled branch) shows on the row instead of bringing the view down;
-    // the premise of errors in the views comes whole in the fourth cut.
+    // mistake (a read-only node, a disabled branch) shows on the row instead of bringing the view down.
     public bool Write(Action write)
     {
         try
@@ -203,6 +227,34 @@ internal sealed class WinFormsRow : IDisposable
         Editor?.Dispose();
     }
 
+    // The label: its text, the cursor of scrubbing, the italic of mixed values (P7.19).
+    private void ShowLabel()
+    {
+        Label.Text = Node.Label;
+
+        if (IsGroup)
+            Label.Invalidate();
+        else
+            Label.Cursor = !Scrubs ? Cursors.Default : Node.ScrubAxis == ScrubAxis.Vertical ? Cursors.SizeNS : Cursors.SizeWE;
+
+        ShowMixed();
+    }
+
+    // The tooltips and the state of the editor: read-only, disabled in a branch whose group was replaced
+    // (P3.4), light red with the message in its tooltip after a failure (P7.11), the row's own included.
+    // A row with no editor shows its fault on the label.
+    private void ShowEditorState()
+    {
+        View.Tips.SetToolTip(Label, Editor == null ? Fault ?? Node.Tooltip : Node.Tooltip);
+
+        if (Editor == null)
+            return;
+
+        var failure = Error ?? Fault ?? Describe(Node.Failure);
+        Editor.ShowState(Node.ReadOnly, !Node.IsCompromised, failure != null);
+        View.Tips.SetToolTip(Editor.Control, failure ?? Node.Tooltip);
+    }
+
     private void ShowMixed()
     {
         if (Kind == EditorKind.Header)
@@ -219,7 +271,7 @@ internal sealed class WinFormsRow : IDisposable
         }
     }
 
-    private static string? Describe(Diagnostics.InspectorFailureEventArgs? failure)
+    private static string? Describe(InspectorFailureEventArgs? failure)
     {
         if (failure == null)
             return null;

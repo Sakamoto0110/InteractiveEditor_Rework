@@ -11,8 +11,8 @@ internal sealed class ChoiceEditor : WinFormsEditor
 
     public ChoiceEditor(WinFormsRow row) : base(row)
     {
-        Box.DropDown += (_, _) => List();
-        Box.Enter += (_, _) => List();
+        Box.DropDown += (_, _) => Row.Try(List);
+        Box.Enter += (_, _) => Row.Try(List);
         Box.SelectionChangeCommitted += OnCommitted;
     }
 
@@ -65,7 +65,7 @@ internal sealed class ChoiceEditor : WinFormsEditor
             return;
 
         Row.Write(() => Node.SetValue(choice.Value));
-        ShowValue();
+        Row.Show();
     }
 
     private sealed record Choice(object? Value, string Text)
