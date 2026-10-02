@@ -26,7 +26,8 @@ eu tinha deixado para ele confirmar. A de 01/10 aceitou as sugestões das cinco 
 sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02/10, as da 6.2 e da
 6.3, explicadas a partir do código original (3.12). Ainda em 02/10, ele aceitou a direção do que
 falta (as views antes das sessões próprias, na ordem da seção Views abaixo) e as sugestões das
-escolhas da view WinForms (P7.7 a P7.13).
+escolhas da view WinForms (P7.7 a P7.13). Depois de ver a view no Windows, ele pediu e confirmou o
+espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
 
 ### Premissa
 
@@ -336,6 +337,24 @@ escolhas da view WinForms (P7.7 a P7.13).
   tooltip dele, dentro do retângulo do layout. A proteção das próprias views fica para o corte 4.
 - **Avisos de outra thread** (P7.12, 02/10): a view repassa para a thread da interface o que recebe
   (`BeginInvoke`), e o núcleo continua sem saber de threads.
+- **O espaçador e a largura máxima** (P7.14, 02/10): numa view larga, o editor não estica mais a
+  linha inteira. Duas opções no `InspectorOptions`, que valem no passo de layout, e por isso em
+  qualquer view: a largura máxima do editor (200 por padrão) e a largura máxima das linhas (sem
+  limite por padrão: o inspector usa a largura que o host dá, e o host liga o limite quando quiser).
+  Abaixo do máximo do editor, nada muda; o que passar dele vira um espaçador entre o rótulo e o
+  editor, e os editores ficam alinhados à direita dentro da largura das linhas. Com o limite das
+  linhas, o vão para de crescer numa janela muito larga, e o resto da view fica vazio à direita. A
+  linha sob o mouse ganha um fundo leve no retângulo dela (`Row`, o equivalente ao backpanel da
+  linha do original): o rótulo, o espaçador e o editor, a partir do recuo do nível; num grupo, só a
+  linha dele. Era o "largura maior = controle menor" que ele quis evitar: a opção é do editor, e o
+  espaçador é o que sobra.
+- **O `(?)` da ajuda longa** (P7.15, 02/10): só num nó com `Help`, numa posição fixa no fim da coluna
+  do rótulo, logo antes do espaçador, tirando a largura do rótulo, e não do editor, para nada se
+  desalinhar; numa posição fixa, e não colado ao texto, para os `(?)` formarem uma coluna e o layout
+  calcular o lugar sem medir a fonte. Na cor de desabilitado, mas habilitado (no WinForms, um
+  controle desabilitado nem mostra tooltip), com o cursor de mão; o clique abre uma janela modal,
+  que bloqueia a de trás até fechar, com o rótulo como título, o texto do `Help` rolável e
+  selecionável e um OK (Enter ou Esc fecham). O tooltip curto continua no rótulo e no editor.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
