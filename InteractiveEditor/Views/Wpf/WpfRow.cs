@@ -1,10 +1,13 @@
-﻿using System.Drawing;
-using System.Windows.Forms;
+﻿using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Layout;
 using InteractiveEditor.Options;
 
-namespace InteractiveEditor.Views.WinForms;
+namespace InteractiveEditor.Views.Wpf;
 
 // One row of the view: the label, the help mark and the editor of a node, on the rectangles the layout
 // gives them. A group's label carries the arrow that collapses it (P7.10), and a number's label can be
@@ -12,17 +15,20 @@ namespace InteractiveEditor.Views.WinForms;
 // when the objects hold different values (P7.19). The label and the mark let the row's background
 // through, so the light one of the row under the mouse shows behind them (P7.14). What fails while the
 // row shows its objects stays in the row (3.11).
-internal sealed class WinFormsRow : IDisposable
+internal sealed class WpfRow : IDisposable
 {
-    private const int ArrowWidth = 14;
+    private const double ArrowWidth = 14;
 
-    private readonly WinFormsInspectorView View;
-    private readonly Label Label;
+    private readonly WpfInspectorView View;
+
+    // The label's area takes the mouse in all of it, for the click of a group and the drag of scrubbing;
+    // its text is cut with an ellipsis.
+    private readonly Border Label;
+    private readonly TextBlock Text;
+    private readonly Polygon? Pointer;
     private readonly HelpMark Mark;
-    private readonly Font? Bold;
-    private readonly WinFormsEditor? Editor;
+    private readonly WpfEditor? Editor;
     private readonly LabelScrub? Scrub;
-    private Font? Italic;
 
     // What the core refused as a mistake at the last write, until a write goes through.
     private string? Error;
@@ -31,70 +37,73 @@ internal sealed class WinFormsRow : IDisposable
     // whole again.
     private string? Fault;
 
-    public WinFormsRow(WinFormsInspectorView view, InspectorNode node)
+    public WpfRow(WpfInspectorView view, InspectorNode node)
     {
         View = view;
         Node = node;
         Kind = ViewRules.KindFor(node);
         IsGroup = node.IsGroup;
 
-        Label = new Label
-        {
-            Name = node.Path + "#label",
-            AutoEllipsis = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            UseMnemonic = false,
-            Visible = Kind != EditorKind.Separator,
-            BackColor = Color.Transparent,
-        };
+        Text = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        var inside = new Grid();
+        inside.Children.Add(Text);
 
-        Mark = new HelpMark { Name = node.Path + "#help", Visible = false };
-        Mark.Click += ShowHelp;
+        Label = new Border
+        {
+            Background = Brushes.Transparent,
+            Child = inside,
+            Visibility = Kind == EditorKind.Separator ? Visibility.Collapsed : Visibility.Visible,
+        };
+        WpfInspectorView.AutomationId(Label, node.Path + "#label");
+
+        Mark = new HelpMark();
+        WpfInspectorView.AutomationId(Mark, node.Path + "#help");
+        Mark.Clicked += ShowHelp;
 
         if (Kind == EditorKind.Header)
-        {
-            Bold = new Font(Control.DefaultFont, FontStyle.Bold);
-            Label.Font = Bold;
-        }
+            Text.FontWeight = FontWeights.Bold;
 
         if (IsGroup)
         {
-            Label.Padding = new Padding(ArrowWidth, 0, 0, 0);
+            Pointer = new Polygon
+            {
+                Width = ArrowWidth,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            inside.Children.Add(Pointer);
+            Text.Margin = new Thickness(ArrowWidth, 0, 0, 0);
             Label.Cursor = Cursors.Hand;
-            Label.Click += ToggleCollapsed;
-            Label.Paint += PaintArrow;
+            Label.MouseLeftButtonUp += ToggleCollapsed;
         }
         else if (Kind is not (null or EditorKind.Header or EditorKind.Separator))
         {
-            Scrub = new LabelScrub(this, Label);
+            Scrub = new LabelScrub(this, Label, view);
         }
 
-        Editor = WinFormsEditor.For(this, Kind);
+        Editor = WpfEditor.For(this, Kind);
 
         if (Editor != null)
-            Editor.Control.Name = node.Path;
-
-        view.Follow(Label);
-        view.Follow(Mark);
-
-        if (Editor != null)
-            view.Follow(Editor.Control);
+        {
+            WpfInspectorView.AutomationId(Editor.Control, node.Path);
+            ToolTipService.SetShowOnDisabled(Editor.Control, true);
+        }
     }
 
     public InspectorNode Node { get; }
 
     // The controls the row made, for the escape valves (P7.4).
-    public Control LabelControl => Label;
+    public FrameworkElement LabelControl => Label;
 
-    public Control HelpControl => Mark;
+    public FrameworkElement HelpControl => Mark;
 
-    public Control? EditorControl => Editor?.Control;
+    public FrameworkElement? EditorControl => Editor?.Control;
 
-    // Where the row is: the control it sits in, and its rectangle there, the one the background of the
+    // Where the row is: the canvas it sits in, and its rectangle there, the one the background of the
     // row under the mouse fills.
-    public Control? Container { get; private set; }
+    public Canvas? Container { get; private set; }
 
-    public Rectangle Bounds { get; private set; }
+    public Rect Bounds { get; private set; }
 
     // The editor the row was made for, null for none; a node that changes it gets a new row.
     public EditorKind? Kind { get; }
@@ -109,24 +118,34 @@ internal sealed class WinFormsRow : IDisposable
 
     public bool Fits() => ViewRules.KindFor(Node) == Kind && Node.IsGroup == IsGroup;
 
-    public void Place(Control container, LayoutRow layout, ref int tab)
+    public void Place(Canvas container, LayoutRow layout, ref int tab)
     {
         Container = container;
-        Bounds = (Rectangle)layout.Row;
+        Bounds = (Rect)layout.Row;
 
-        Move(Label, container);
-        Label.Bounds = (Rectangle)layout.Label;
+        WpfInspectorView.Move(Label, container);
+        PlaceAt(Label, (Rect)layout.Label);
 
-        Move(Mark, container);
-        Mark.Bounds = (Rectangle)layout.Help;
-        Mark.Visible = layout.Help.Width > 0;
+        WpfInspectorView.Move(Mark, container);
+        PlaceAt(Mark, (Rect)layout.Help);
+        Mark.Visibility = layout.Help.Width > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         if (Editor == null)
             return;
 
-        Move(Editor.Control, container);
-        Editor.Place((Rectangle)(Kind == EditorKind.Separator ? layout.Row : layout.Editor));
-        Editor.Control.TabIndex = tab++;
+        foreach (var element in Editor.Elements)
+            WpfInspectorView.Move(element, container);
+
+        Editor.Place((Rect)(Kind == EditorKind.Separator ? layout.Row : layout.Editor));
+        KeyboardNavigation.SetTabIndex(Editor.Control, tab++);
+    }
+
+    public static void PlaceAt(FrameworkElement element, Rect bounds)
+    {
+        Canvas.SetLeft(element, bounds.X);
+        Canvas.SetTop(element, bounds.Y);
+        element.Width = bounds.Width;
+        element.Height = bounds.Height;
     }
 
     // The value and the state; a row that shows whole again leaves its fault behind.
@@ -168,8 +187,7 @@ internal sealed class WinFormsRow : IDisposable
         }
     }
 
-    // The row under the mouse, or not: the container paints the background, and an editor that cannot
-    // let it through (a track bar) takes it.
+    // The row under the mouse, or not: the container paints the background behind the controls.
     public void ShowHover(bool hovered)
     {
         Editor?.ShowHover(hovered);
@@ -199,24 +217,33 @@ internal sealed class WinFormsRow : IDisposable
     public void Dispose()
     {
         Scrub?.Dispose();
-        Italic?.Dispose();
-        Label.Dispose();
-        Mark.Dispose();
-        Bold?.Dispose();
-        Editor?.Dispose();
+        WpfInspectorView.Detach(Label);
+        WpfInspectorView.Detach(Mark);
+
+        if (Editor != null)
+        {
+            foreach (var element in Editor.Elements)
+                WpfInspectorView.Detach(element);
+        }
     }
 
-    // The label: its text, the cursor of scrubbing, the italic of mixed values (P7.19).
+    // The label: its text, the arrow of a group, the cursor of scrubbing, the italic of mixed values.
     private void ShowLabel()
     {
-        Label.Text = Node.Label;
+        Text.Text = Node.Label;
 
-        if (IsGroup)
-            Label.Invalidate();
-        else
-            Label.Cursor = !Scrubs ? Cursors.Default : Node.ScrubAxis == ScrubAxis.Vertical ? Cursors.SizeNS : Cursors.SizeWE;
+        if (Pointer != null)
+        {
+            Pointer.Points = Arrow.Points(Node.Collapsed ? Arrow.Pointing.Right : Arrow.Pointing.Down, ArrowWidth);
+            Pointer.Fill = Label.IsEnabled ? Text.Foreground : SystemColors.GrayTextBrush;
+        }
+        else if (Kind is not (null or EditorKind.Header or EditorKind.Separator))
+        {
+            Label.Cursor = !Scrubs ? null : Node.ScrubAxis == ScrubAxis.Vertical ? Cursors.SizeNS : Cursors.SizeWE;
+        }
 
-        ShowMixed();
+        if (Kind != EditorKind.Header)
+            Text.FontStyle = Mixed ? FontStyles.Italic : FontStyles.Normal;
     }
 
     // The tooltips and the state of the editor: read-only, disabled in a branch whose group was replaced
@@ -224,30 +251,14 @@ internal sealed class WinFormsRow : IDisposable
     // A row with no editor shows its fault on the label.
     private void ShowEditorState()
     {
-        View.Tips.SetToolTip(Label, Editor == null ? Fault ?? Node.Tooltip : Node.Tooltip);
+        Label.ToolTip = Editor == null ? Fault ?? Node.Tooltip : Node.Tooltip;
 
         if (Editor == null)
             return;
 
         var failure = Error ?? Fault ?? Describe(Node.Failure);
         Editor.ShowState(Node.ReadOnly, !Node.IsCompromised, failure != null);
-        View.Tips.SetToolTip(Editor.Control, failure ?? Node.Tooltip);
-    }
-
-    private void ShowMixed()
-    {
-        if (Kind == EditorKind.Header)
-            return;
-
-        if (Mixed)
-        {
-            Italic ??= new Font(Label.Font, FontStyle.Italic);
-            Label.Font = Italic;
-        }
-        else if (Italic != null && Label.Font == Italic)
-        {
-            Label.ResetFont();
-        }
+        Editor.Control.ToolTip = failure ?? Node.Tooltip;
     }
 
     private static string? Describe(InspectorFailureEventArgs? failure)
@@ -258,32 +269,14 @@ internal sealed class WinFormsRow : IDisposable
         return failure.Message.Contains(failure.Reason) ? failure.Message : $"{failure.Message}\n{failure.Reason}";
     }
 
-    private static void Move(Control control, Control container)
-    {
-        if (control.Parent != container)
-            container.Controls.Add(control);
-    }
-
     private void ShowHelp(object? sender, EventArgs e)
     {
-        using var dialog = new HelpDialog(Node.Label, Node.Help ?? string.Empty);
-
-        if (View.FindForm() is { } owner)
-            dialog.ShowDialog(owner);
-        else
-            dialog.ShowDialog();
+        var dialog = new HelpDialog(Node.Label, Node.Help ?? string.Empty) { Owner = Window.GetWindow(Label) };
+        dialog.ShowDialog();
     }
 
-    private void ToggleCollapsed(object? sender, EventArgs e)
+    private void ToggleCollapsed(object sender, MouseButtonEventArgs e)
     {
         Node.Collapsed = !Node.Collapsed;
-    }
-
-    // Pointing right when the group is collapsed, down when it is open.
-    private void PaintArrow(object? sender, PaintEventArgs e)
-    {
-        Arrow.Paint(e.Graphics, new Rectangle(0, 0, ArrowWidth, Label.Height),
-            Node.Collapsed ? ArrowDirection.Right : ArrowDirection.Down,
-            Label.Enabled ? Label.ForeColor : SystemColors.GrayText);
     }
 }

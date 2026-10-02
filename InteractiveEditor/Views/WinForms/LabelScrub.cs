@@ -1,5 +1,4 @@
 ﻿using System.Drawing;
-using System.Globalization;
 using System.Windows.Forms;
 using InteractiveEditor.Options;
 
@@ -45,13 +44,6 @@ internal sealed class LabelScrub : IMessageFilter, IDisposable
 
     private InspectorNode Node => Row.Node;
 
-    // Whether a node scrubs now: a number with a ScrubMultiplier (P7.17), which can be written.
-    public static bool CanScrub(InspectorNode node)
-    {
-        return !node.IsGroup && node.ScrubMultiplier is { } multiplier && multiplier != 0 && IsNumber(node.ValueType)
-            && !node.ReadOnly && !node.IsCompromised;
-    }
-
     // Esc while dragging puts every object back where the drag started, and goes no further.
     public bool PreFilterMessage(ref Message m)
     {
@@ -71,7 +63,7 @@ internal sealed class LabelScrub : IMessageFilter, IDisposable
 
     private void OnMouseDown(object? sender, MouseEventArgs e)
     {
-        if (e.Button != MouseButtons.Left || !CanScrub(Node))
+        if (e.Button != MouseButtons.Left || !ViewRules.CanScrub(Node))
             return;
 
         Start = Cursor.Position;
@@ -107,7 +99,7 @@ internal sealed class LabelScrub : IMessageFilter, IDisposable
             return;
 
         Written = delta;
-        var values = From.Select(value => (object?)(ToDouble(value) + delta)).ToArray();
+        var values = From.Select(value => (object?)(ViewRules.ToDouble(value) + delta)).ToArray();
         Row.Write(() => Node.SetValues(values));
     }
 
@@ -126,24 +118,5 @@ internal sealed class LabelScrub : IMessageFilter, IDisposable
 
         if (Label.Capture)
             Label.Capture = false;
-    }
-
-    // The numeric types and their nullable forms; an enum is a choice, not a number.
-    private static bool IsNumber(Type? type)
-    {
-        if (type == null)
-            return false;
-
-        type = Nullable.GetUnderlyingType(type) ?? type;
-
-        return !type.IsEnum && Type.GetTypeCode(type) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16
-            or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double
-            or TypeCode.Decimal;
-    }
-
-    // A null start (a nullable number with no value) counts as zero.
-    private static double ToDouble(object? value)
-    {
-        return value is IConvertible convertible ? convertible.ToDouble(CultureInfo.InvariantCulture) : 0;
     }
 }
