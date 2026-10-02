@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.Model;
@@ -41,12 +42,38 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     #region Options
 
-    // Options, in layers: reflection < attributes < whatever the caller sets afterwards.
-    public string Label { get; set; } = string.Empty;
-    public string? Tooltip { get; set; }
-    public string? Help { get; set; }
-    public int Order { get; set; }
-    public bool Ignored { get; set; }
+    // Options, in layers: reflection < attributes < whatever the caller sets afterwards. A change
+    // reaches the inspector's OptionChanged, so a view built before it shows it (P7.8); the lists of
+    // rules do not, since a view does not show them.
+    public string Label
+    {
+        get;
+        set => Change(ref field, value);
+    } = string.Empty;
+
+    public string? Tooltip
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    public string? Help
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    public int Order
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    public bool Ignored
+    {
+        get;
+        set => Change(ref field, value);
+    }
 
     // Visible and ReadOnly are read through the parents: hiding or locking a node takes its whole
     // branch along, and a child cannot be opened while something above it stays closed. Visible also
@@ -54,27 +81,32 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public bool Visible
     {
         get => field && RuleShows && Parent?.Visible != false;
-        set;
+        set => Change(ref field, value);
     } = true;
 
     // A rule on the bound object that decides, along with Visible, whether the row shows (P6.2), as
     // in node.VisibleWhen = c => ((Shape)c).Kind == "Text". It is read with the values, for every
     // bound object, and kept, so the view and the layout do not read the objects; with several bound,
-    // the row shows only when it holds for all of them. Setting it reads it at once, with no event.
+    // the row shows only when it holds for all of them. Setting it reads it at once, with no
+    // VisibleChanged; a new rule is an option changed, reported once the rule was read.
     public Func<object, bool>? VisibleWhen
     {
         get;
         set
         {
+            var changed = !Equals(field, value);
             field = value;
             CheckRule(null);
+
+            if (changed)
+                OnOptionChanged(nameof(VisibleWhen));
         }
     }
 
     public bool ReadOnly
     {
         get => field || FixedReadOnly || Parent?.ReadOnly == true;
-        set;
+        set => Change(ref field, value);
     }
 
     // In an inspector with no type, the bind can choose the editor while nobody else did (P1.14);
@@ -84,11 +116,16 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         get;
         set
         {
-            field = value;
             EditorFromBind = false;
+            Change(ref field, value);
         }
     }
-    public NumericRange? Range { get; set; }
+
+    public NumericRange? Range
+    {
+        get;
+        set => Change(ref field, value);
+    }
 
     // The values a Choice editor lists, for a member that is not an enum (P6.3), as in
     // node.Choices = () => Enum.GetNames<Keys>(). The function is read when the view opens the list
@@ -99,20 +136,50 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         get;
         set
         {
-            field = value;
+            Change(ref field, value);
 
             if (value != null)
                 Editor = EditorKind.Choice;
         }
     }
-    public double? ScrubMultiplier { get; set; }
-    public bool Expandable { get; set; }
-    public bool Collapsed { get; set; }
+
+    public double? ScrubMultiplier
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    public bool Expandable
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    public bool Collapsed
+    {
+        get;
+        set => Change(ref field, value);
+    }
 
     // Applied in this order to what is written: the text rules before the text is converted, the
     // value rules after it.
     public List<TextRule> TextRules { get; } = [];
     public List<ValueRule> ValueRules { get; } = [];
+
+    // Sets an option and, when the value really changed, tells the inspector (P7.8).
+    private protected void Change<T>(ref T field, T value, [CallerMemberName] string option = "")
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+            return;
+
+        field = value;
+        OnOptionChanged(option);
+    }
+
+    private protected void OnOptionChanged(string option)
+    {
+        Inspector.OnOptionChanged(this, option);
+    }
 
     #endregion
 

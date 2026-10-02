@@ -1,14 +1,21 @@
 ﻿using System.Globalization;
+using System.Runtime.CompilerServices;
 using InteractiveEditor.Primitives;
 
 namespace InteractiveEditor.Options;
 
-// The options of one inspector, between the global ones and those of each node.
+// The options of one inspector, between the global ones and those of each node. A change in the
+// culture or in the layout reaches the inspector's OptionChanged, with no node (P7.8), since a view
+// shows values and rows by them; the binder control does not change what the view shows.
 public sealed class InspectorOptions
 {
     // How text typed in the view is read into numbers, dates and the rest. Null means the current
     // culture at the time of each conversion.
-    public CultureInfo? Culture { get; set; }
+    public CultureInfo? Culture
+    {
+        get;
+        set => Change(ref field, value);
+    }
 
     // Which way values move on their own between the view and the objects.
     public BinderControlMode BinderControl { get; set; } = BinderControlMode.Automatic;
@@ -20,23 +27,23 @@ public sealed class InspectorOptions
     public double RowHeight
     {
         get;
-        set => field = double.IsFinite(value) && value > 0
+        set => Change(ref field, double.IsFinite(value) && value > 0
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(RowHeight), value, "The height of a row is more than zero.");
+            : throw new ArgumentOutOfRangeException(nameof(RowHeight), value, "The height of a row is more than zero."));
     } = 23;
 
     // The space between two rows, and between a group's row and the rows inside it.
     public double RowSpacing
     {
         get;
-        set => field = Length(value, nameof(RowSpacing));
+        set => Change(ref field, Length(value, nameof(RowSpacing)));
     } = 2;
 
     // How far the rows inside a group go in, at each level.
     public double Indent
     {
         get;
-        set => field = Length(value, nameof(Indent));
+        set => Change(ref field, Length(value, nameof(Indent)));
     } = 16;
 
     // The width of the labels at the top level; deeper ones lose the indent, so that the editors line
@@ -44,14 +51,14 @@ public sealed class InspectorOptions
     public double LabelWidth
     {
         get;
-        set => field = Length(value, nameof(LabelWidth));
+        set => Change(ref field, Length(value, nameof(LabelWidth)));
     } = 120;
 
     // The space between a label and its editor.
     public double LabelSpacing
     {
         get;
-        set => field = Length(value, nameof(LabelSpacing));
+        set => Change(ref field, Length(value, nameof(LabelSpacing)));
     } = 4;
 
     // The space around all the rows.
@@ -64,7 +71,7 @@ public sealed class InspectorOptions
             Length(value.Top, nameof(Padding));
             Length(value.Right, nameof(Padding));
             Length(value.Bottom, nameof(Padding));
-            field = value;
+            Change(ref field, value);
         }
     } = new(4);
 
@@ -72,16 +79,28 @@ public sealed class InspectorOptions
     public int ListRows
     {
         get;
-        set => field = value > 0
+        set => Change(ref field, value > 0
             ? value
-            : throw new ArgumentOutOfRangeException(nameof(ListRows), value, "A list editor shows at least one item line.");
+            : throw new ArgumentOutOfRangeException(nameof(ListRows), value, "A list editor shows at least one item line."));
     } = 5;
+
+    // The name of an option that changed; the inspector passes it on as OptionChanged.
+    internal event Action<string>? Changed;
 
     internal CultureInfo CultureInUse => Culture ?? CultureInfo.CurrentCulture;
 
     internal bool ViewToInstance => BinderControl.HasFlag(BinderControlMode.ViewToInstance);
 
     internal bool InstanceToView => BinderControl.HasFlag(BinderControlMode.InstanceToView);
+
+    private void Change<T>(ref T field, T value, [CallerMemberName] string option = "")
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+            return;
+
+        field = value;
+        Changed?.Invoke(option);
+    }
 
     private static double Length(double value, string name)
     {
