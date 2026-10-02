@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
 `rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `ccc3a5d`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `02329ca`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 ---
 
@@ -68,8 +68,9 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
   depois desta rodada; atualizar só se o Rafael pedir.
 - Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0` e `net10.0-windows`),
-  `DemoObjects` (os tipos de teste: `Foo`, `Moo`, `Doo`, `Boo`), `TuxHost` (o console de
-  verificação, roda no Linux), `NoHost` (local do Rafael, `net10.0-windows`), `WindowsHost` e
+  `DemoObjects` (os tipos de teste: `Foo`, `Moo`, `Doo`, `Boo`, e o `Gadget`, com um membro por
+  editor das views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do Rafael,
+  `net10.0-windows`), `WindowsHost` (mostra um `Gadget` na view WinForms, commit `4445761`) e
   `WpfHost`.
 
 ## 4. Como verificar uma mudança
@@ -99,19 +100,20 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
-  sessão chegou a 646 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
+  sessão chegou a 675 checagens, num arquivo por assunto: bind e multi-bind, grupo e raiz,
   enumeração, `ReadOnly` e `Visible`, falhas do `Create`, valores e `Refresh()`, troca por fora,
   `INotifyPropertyChanged`, o que muda junto, gravação, controle do binder, primitivos, seletor por
   expressão, ordem de declaração, nós manuais, modo manual, coleções (o seletor e o editor de
   lista), cores, membro escondido com `new`, filtro por nome, inspector sem tipo, layout,
-  visibilidade condicional e lista de escolha. Um segundo console testa a assembly ausente, e um
-  terceiro, o `probe-windows` (`net10.0-windows`, desde o commit `ccc3a5d`), as conversões dos
-  primitivos com o WinForms e o WPF (21 checagens), rodando no Wine (abaixo). Os três ficam no
-  scratchpad da sessão e não passam para a próxima, mas o Rafael recebeu uma cópia deles
-  (`console-de-testes.zip`, com um `LEIA-ME.txt` que diz como rodar; a de 02/10 depois do
-  `ccc3a5d` já tem os três). Se ele mandar o zip, descompactar fora do repositório e corrigir o
-  caminho do clone nos `.csproj`, se for outro; se não, a lista acima serve de roteiro para refazer
-  o que for preciso.
+  visibilidade condicional, lista de escolha e os eventos `OptionChanged` e `Disposed`. Um segundo
+  console testa a assembly ausente; um terceiro, o `probe-windows` (`net10.0-windows`, desde o
+  commit `ccc3a5d`), as conversões dos primitivos com o WinForms e o WPF (21 checagens); e um
+  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 71 checagens. Os dois
+  últimos rodam no Wine (abaixo). Os quatro ficam no scratchpad da sessão e não passam para a
+  próxima, mas o Rafael recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
+  diz como rodar; a última de 02/10 tem os quatro). Se ele mandar o zip, descompactar fora do
+  repositório e corrigir o caminho do clone nos `.csproj`, se for outro; se não, a lista acima
+  serve de roteiro para refazer o que for preciso.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -167,8 +169,14 @@ Pegadinhas já vistas:
   desktop tira os dois), e a biblioteca tira os do WinForms (commit `ccc3a5d`). Um arquivo do núcleo
   que use `File` ou `Path` precisa do `using`, senão o `-windows` não compila; o mesmo vale num
   console de teste com `UseWPF`.
-- O `.gitignore` só cobre o `bin/Debug` de cada projeto: um `dotnet publish` (Release) a partir do
-  repositório deixa pastas `bin/Release` sem ignorar. Apagar antes de commitar.
+- Testes da view no Wine: o `SendKeys.SendWait` funciona (Enter, Esc, Tab, setas, espaço), o
+  `Control.CheckForIllegalCrossThreadCalls = true` faz um acesso de outra thread lançar, e o
+  `Application.DoEvents()` deixa a view fazer o layout que ela agenda. Os tooltips ficam num
+  `ToolTip` interno da view (`Tips`), que o teste lê por reflection.
+- Texto num `int`: "7.6" é recusado, porque o texto vira o tipo do membro (P2.7); o "7,6 grava 8"
+  das notas é para um número, não para texto.
+- Um `dotnet publish` a partir do repositório compila em Release; desde o commit `02329ca`, o
+  `.gitignore` cobre as pastas `bin/Release` também.
 
 ## 5. O código hoje, em resumo
 
@@ -256,8 +264,21 @@ Pegadinhas já vistas:
   opções (`RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`, `LabelSpacing`, `Padding` e `ListRows`)
   ficam no `InspectorOptions`. Não lê os objetos, e roda no Linux.
 - Dois alvos, `net10.0` e `net10.0-windows` (P7.1, commit `ccc3a5d`): cada consumidor recebe uma
-  DLL, a do alvo dele. O código de Windows fica em arquivos `*.Windows.cs`, que o `net10.0` não
-  compila; hoje são só as conversões dos primitivos, e as views vão entrar do mesmo jeito.
+  DLL, a do alvo dele. O código de Windows fica em arquivos `*.Windows.cs` (as conversões dos
+  primitivos) e na pasta `Views` (as views), que o `net10.0` não compila.
+- Eventos para as views (commit `569525a`): o `OptionChanged` do inspector sai quando uma opção de
+  um nó (menos as listas de regras) ou de cultura e layout do `InspectorOptions` muda de fato, com
+  o nó (null para as do inspector) e o nome da opção (P7.8); o `Disposed`, no fim do `Dispose`
+  (P7.13).
+- View WinForms (commit `60d4203`, em `Views/WinForms`): `inspector.CreateWinFormsView()` dá um
+  `WinFormsInspectorView`, um `UserControl` que observa o inspector. As linhas vão nos retângulos
+  do `Layout`, um painel por grupo, com um controle por editor (a tabela da 3.5 das notas); o
+  layout é refeito a cada opção, bind, regra ou troca por fora, uma vez por rajada, e uma linha
+  guarda os controles enquanto o editor não muda. O texto grava no Enter e ao perder o foco, o Esc
+  volta, e uma falha deixa o editor vermelho claro, com a mensagem no tooltip. Avisos de outra
+  thread passam para a da interface, e o `Disposed` do inspector esvazia a view. Os editores são
+  `internal`, e cada controle tem como `Name` o caminho do nó (o rótulo, `caminho#label`; o painel
+  do grupo, `caminho#panel`).
 
 ## 6. O que falta
 
@@ -274,17 +295,22 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   no nó (P6.3, commit `b92267c`). Ainda em 02/10, a direção do que falta: as views antes das
   sessões próprias, em cinco cortes (seção 0 das notas, Views). O corte 1, os dois alvos e as
   conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`. As escolhas do corte 2, a view
-  WinForms, foram respondidas com as sugestões (P7.7 a P7.13).
-- Com as views: as fábricas com nomes distintos (P7.2), a view percorrendo a árvore (P7.3), os
-  callbacks por plataforma e o agnóstico por linha (P7.4) e a premissa de erros nas views.
+  WinForms, foram respondidas com as sugestões (P7.7 a P7.13), e ele entrou nos commits `569525a`
+  (os eventos) e `60d4203` (a view).
+- Com as views: o scrubbing e o indicativo de valores mistos (corte 3), os callbacks por plataforma
+  e o agnóstico por linha (P7.4) com a premissa de erros nas views (corte 4), e a view WPF, com a
+  fábrica dela (corte 5).
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
 
 ## 7. Próximo passo
 
 1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
-   (Views), um por vez. O corte 1, os dois alvos e as conversões (P7.1), entrou no commit `ccc3a5d`.
-   Faltam a view WinForms (P7.2, P7.3), o scrubbing e os valores mistos, as válvulas e a premissa de
-   erros (P7.4), e o WPF. A view WinForms segue as respostas de 7.7 a 7.13 (seção 0 das notas),
-   verificada no Wine. Para reler o original: `Sakamoto0110/InteractiveEditor` (branch
-   `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só para
-   leitura.
+   (Views), um por vez. Os cortes 1 (os dois alvos e as conversões, commit `ccc3a5d`) e 2 (a view
+   WinForms, commits `569525a` e `60d4203`) entraram. O próximo é o 3, o scrubbing no rótulo e o
+   indicativo de valores mistos (P2.4), na view WinForms; depois as válvulas (P7.4) com a premissa
+   de erros nas views, e o WPF. Verificar no Wine, com o `probe-view`. Para reler o original:
+   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
+2. O Rafael confere a aparência do corte 2 no Windows, rodando o WindowsHost: as fontes, o tema
+   visual, a seta dos grupos, o vermelho da falha e os botões do editor de lista. O que ele apontar
+   entra antes do corte 3.
