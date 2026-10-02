@@ -1,22 +1,28 @@
 # Passagem de contexto: a PixieLib em C#
 
 Para começar a parte em C# da PixieLib num contexto novo. Escrita em 2 de outubro de 2026, no fim de
-uma sessão do InteractiveEditor Rework, a pedido do Rafael ("dois handoffs, um para o projeto da
+uma sessão do InteractiveEditor Rework, a pedido do void ("dois handoffs, um para o projeto da
 PixieLib"), a partir das notas do rework e de uma leitura do repositório da PixieLib. Nada da parte
 em C# existe ainda: o protótipo de 26 e 27/09 foi feito fora de qualquer repositório e se perdeu com
 aquela sessão; o que sobrou dele são as conclusões, na seção 4. Ler isto inteiro antes de mexer em
 qualquer coisa.
 
+Esta passagem não é o começo. Antes dela, o void põe no repositório o contexto da PixieLib: a
+história, por que ela foi feita daquele jeito, outros repositórios com informação relevante e o
+jeito dele de programar. Depois, os dois definem o que a PixieLib é e, principalmente, o que ela não
+é; é nessa definição que esta passagem entra. Onde o contexto do void e esta passagem divergirem,
+vale o contexto: esta foi escrita olhando só o C++ e as notas do rework.
+
 Esta passagem fica no repositório do InteractiveEditor Rework
 (`Sakamoto0110/InteractiveEditor_Rework`, branch `rework-claude`, `docs/passagem-pixielib.md`),
 porque a sessão que a escreveu não tinha permissão de escrita na PixieLib (seção 1). O lugar dela é
-o repositório da PixieLib, quando houver acesso ou o Rafael a puser lá.
+o repositório da PixieLib, quando houver acesso ou o void a puser lá.
 
 ---
 
 ## 1. Antes de qualquer commit
 
-Regras do Rafael, as mesmas do rework: **só subir para o GitHub se o author for ele**.
+Regras do void, as mesmas do rework: **só subir para o GitHub se o author for ele**.
 
 - Author e committer: `Rafael Sakamoto <rafael.sakamoto1@hotmail.com>`. Num clone novo, antes do
   primeiro commit:
@@ -36,17 +42,20 @@ Regras do Rafael, as mesmas do rework: **só subir para o GitHub se o author for
   curl -s "https://api.github.com/repos/$repo/commits?sha=BRANCH&per_page=N" | grep '"login"'
   ```
 
-- A branch: **perguntar ao Rafael antes do primeiro push**. O repositório tem a `master` e a
+- A branch: **perguntar ao void antes do primeiro push**. O repositório tem a `master` e a
   `indev`; no rework, a regra é a `rework-claude`, mesmo que a sessão sugira outra, e o natural
   seria repetir a regra aqui, mas isso é ele quem decide.
 - O acesso: em 02/10, a leitura funcionou, mas o push foi recusado, porque o app do Claude no GitHub
-  não tinha permissão de escrita na PixieLib. O Rafael resolve instalando o app no repositório ou
+  não tinha permissão de escrita na PixieLib. O void resolve instalando o app no repositório ou
   reconectando o GitHub em https://claude.ai/connect-github.
 - Mensagens de commit em inglês, com prefixo: `(refactor)`, `(docs)`, `(fix)`, `(feat)`. Mudança de
   código e atualização das notas em commits separados, o de `(docs)` citando o hash do outro.
 
-## 2. Como o Rafael trabalha
+## 2. Como o void trabalha
 
+- Nunca chamar de Rafael: esse nome fica só no git (seção 1). Chamar de void no código de mais baixo
+  nível, mesmo em C#, e de neko quando o assunto é construir ferramentas e frameworks; na dúvida,
+  void.
 - Conversa em português, sem emojis. Notas em português, com linhas de até 100 colunas e referências
   a commits; código e comentários do código em inglês.
 - O foco é simplificar ao máximo, mas sem juntar arquivos só para diminuir a contagem: um conceito
@@ -150,9 +159,9 @@ Em `InteractiveEditor/Primitives`, no namespace `InteractiveEditor.Primitives` (
   view WinForms (que converte o `PxRect` do layout em `Rectangle`) e o editor de cor (`PxColorArgb`,
   `PxColorHsl` e `System.Drawing.Color`).
 - Os testes: o `Primitives.cs` do console de testes do rework (`probe`) e o `probe-windows` (as 21
-  checagens das conversões, rodando no Wine), no `console-de-testes.zip` que o Rafael tem.
+  checagens das conversões, rodando no Wine), no `console-de-testes.zip` que o void tem.
 
-## 6. Perguntas para levar ao Rafael
+## 6. Perguntas para levar ao void
 
 Nenhuma tem resposta ainda. A sugestão vem no fim de cada uma, como proposta.
 
@@ -177,7 +186,7 @@ Nenhuma tem resposta ainda. A sugestão vem no fim de cada uma, como proposta.
    que é coisa de interface, também, porque o `PxPadding` e o `PxRect` vão; a cor do C++ fica para
    quando o C++ for mexido.
 6. **A segunda DLL.** Com a PixieLib, quem usa o InteractiveEditor recebe duas DLLs. Sugestão: dizer
-   isso ao Rafael (é a regra "se aparecer outra, dizer para que ela serve") e manter a PixieLib como
+   isso ao void (é a regra "se aparecer outra, dizer para que ela serve") e manter a PixieLib como
    pacote próprio, porque a NekoLib também vai usá-la.
 7. **O gerador.** O source generator é um projeto de analisador, que roda na compilação e não vai
    junto como DLL de quem usa. Sugestão: um projeto `PixieLib.Generators` dentro de `dotnet/`,
@@ -210,10 +219,12 @@ Nenhuma tem resposta ainda. A sugestão vem no fim de cada uma, como proposta.
 
 ## 8. Próximo passo
 
-1. Ler isto, a seção 3.9 e a seção 0 das notas do rework, e os cabeçalhos do C++ (`pxCorelib.h` e
-   `VectorMath.h`).
-2. Levar ao Rafael as perguntas da seção 6, pelo número, com as sugestões, e registrar as respostas
-   antes de escrever código.
-3. Depois das respostas: o gerador e um primeiro tipo (`PxVec2` nas três precisões), compilando no
+1. Ler o contexto que o void pôs no repositório; depois isto, a seção 3.9 e a seção 0 das notas do
+   rework, e os cabeçalhos do C++ (`pxCorelib.h` e `VectorMath.h`).
+2. Definir com o void o que a PixieLib é e o que ela não é, com as seções 3 a 5 como ponto de
+   partida, e registrar a definição no repositório antes de escrever código.
+3. Levar ao void as perguntas da seção 6 que a definição não respondeu, pelo número, com as
+   sugestões, e registrar as respostas.
+4. Depois das respostas: o gerador e um primeiro tipo (`PxVec2` nas três precisões), compilando no
    `net481` e no `net10.0`, com testes; em seguida os primitivos do InteractiveEditor, com as
    conversões e os mesmos testes que eles têm lá.
