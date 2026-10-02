@@ -163,12 +163,13 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02
   guardada, para a view e o layout não lerem o objeto; quando o resultado muda, a view fica sabendo
   por evento. Em multi-bind, a linha só aparece se a regra vale para todos os objetos, e o `Visible`
   à mão continua valendo junto. A regra fica no inspector, e não no objeto, e o inspector a reavalia
-  sozinho, então mostrar de novo não depende de ninguém lembrar (3.12).
+  sozinho, então mostrar de novo não depende de ninguém lembrar (3.12). Aplicado no commit
+  `c589e2a` (3.2).
 - **Lista de escolha** (P6.3, 02/10): o `Choices` no nó, uma função que devolve os valores, lida
   quando a view abre a lista (então a lista pode mudar com o objeto), com o editor `Choice`; o valor
   escolhido é gravado como qualquer outro, convertido para o tipo do membro. Era o que faltava do
   que o OverlayApplication fazia pelo `EditField()`; o seletor de fonte fica para a válvula da P7.4,
-  até aparecer de novo (3.12).
+  até aparecer de novo (3.12). Aplicado no commit `b92267c` (3.2).
 - **Expandir com a flag global** (P4.3): a permissão vale só para o membro ou tipo marcado, e os
   níveis de baixo continuam fechados, porque a flag existe justamente para não propagar. Um
   atributo que propague fica como ideia (seção 7).
@@ -530,6 +531,25 @@ DataAnnotations; aplicados no commit `5319247`)
   `inspector["Moo"].Node<Moo>(m => m.MooX)` vale a partir de um nó. O tipo tem que ser o que o nó
   guarda, ou um de que ele deriva; outro tipo, ou qualquer coisa além de uma cadeia de membros do
   parâmetro, lança `ArgumentException`.
+- Visibilidade condicional (decidido, P6.2): o `VisibleWhen` no nó, uma regra sobre o objeto ligado,
+  como `component["Text"].VisibleWhen = c => ((ComponentPreset)c).type == "Text"`. Aplicado no
+  commit `c589e2a`. A regra é lida junto com os valores, uma vez no fim de cada leitura ou gravação
+  (o bind, o `Refresh()`, o `Reload()`, uma gravação, o `Apply()`, um aviso do objeto, uma operação
+  da lista e os de força), para cada objeto ligado, e a resposta fica guardada no nó: as `Rows`, o
+  layout e a view nunca leem os objetos. Com vários ligados, a linha só aparece se a regra vale para
+  todos, e o `Visible` à mão continua valendo junto. Uma resposta nova dispara o `VisibleChanged` do
+  nó, com a origem da leitura; uma mudança no bind não avisa, como nos valores. Como a regra pode
+  olhar qualquer coisa do objeto, mostrada ou não, um aviso do objeto relê todas, e a gravação do
+  próprio inspector as relê no fim, então chega como `Write`. Uma regra que lança mostra a linha e
+  vira falha no nó, e, sem nada ligado, nenhuma regra esconde.
+- Lista de escolha (decidido, P6.3): o `Choices` no nó, uma função que devolve os valores, como
+  `inspector["keyStr"].Choices = () => Enum.GetNames<Keys>()`. Aplicado no commit `b92267c`. Ela
+  aceita qualquer coleção, números também, e põe o editor em `Choice`; o valor escolhido é gravado
+  como qualquer outro, convertido para o tipo do membro. A view chama o `GetChoices()` quando abre a
+  lista, e ele lê a função na hora (então a lista pode mudar com os objetos); sem função, lista os
+  valores do enum que o nó guarda, nullable também, ou nada. Uma função que lança, ou que não
+  devolve nada, não lista nada, e a falha fica no nó. O seletor de fonte fica para a válvula da
+  P7.4.
 - Em vez de `FieldSet_FieldType = typeof(TextBox)`, um enum agnóstico de editor (`EditorKind`: `Text`,
   `Number`, `Toggle`, `Choice`, `Slider`, `Color`, `Button`, `Display`, `Header`, `Separator` e,
   desde os commits `eb58a3e` e `5395dea`, `Selector` e `List`). Cada view decide o controle.
@@ -1026,7 +1046,7 @@ usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
   commit `4e6b3d0` (P1.14).
 - Filtro por nome injetável, com a precedência dos atributos, por tipo (P6.4, P6.6), registrado de
   fora antes do `Create` (P6.7). A visibilidade condicional ficou para o final, e foi decidida em
-  02/10: o `VisibleWhen` no nó (P6.2; 3.12).
+  02/10 e aplicada no commit `c589e2a`: o `VisibleWhen` no nó (P6.2; 3.12).
 - Eventos (P1.4), sem economia: alguns só de consumo interno, outros expostos e consumidos também
   pelo próprio inspector. Os nomes seguem a convenção do .NET (P1.10): o evento sem o `On`, e o
   `On` no método que o dispara. Os da criação são estáticos (P1.9):
@@ -1045,6 +1065,7 @@ usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
   | nó | `ValueChanged` | um valor mudou, com a origem (no lugar do `ValueApplied`) | `eb497c6` |
   | nó | `ObjectReplaced` | o objeto do grupo foi trocado por fora; dá para aceitar | `55e7173` |
   | nó | `BindFailed` | falha ao ler ou gravar, com mensagem, motivo, sugestão e caminho | `eb497c6` |
+  | nó | `VisibleChanged` | a regra do `VisibleWhen` deu outra resposta, com a origem (P6.2) | `c589e2a` |
 
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
   caíram em fallback automático) e `CriticalErrorCount` (os graves, sem resolução, que não
@@ -1346,11 +1367,11 @@ Núcleo (portar a essência)
       P1.11; commit `ffee3a7`).
 - [x] Nós manuais: botão com ação e campo só de exibição com getter (P1.6); o cabeçalho não entra
       (commit `0c97638`).
-- [ ] Configuração de editor que cubra o que hoje sai por `EditField()`: dos usos do
+- [x] Configuração de editor que cubra o que hoje sai por `EditField()`: dos usos do
       OverlayApplication, faltava a lista de escolha para um membro que não é enum, o `Choices`
-      (P6.3, a aplicar); o seletor de fonte fica para a válvula da P7.4.
-- [ ] Visibilidade condicional, por regra e por instância: o `VisibleWhen` no nó (sucessor do
-      `VariablePool`; P6.2, a aplicar).
+      (P6.3; commit `b92267c`); o seletor de fonte fica para a válvula da P7.4.
+- [x] Visibilidade condicional, por regra e por instância: o `VisibleWhen` no nó (sucessor do
+      `VariablePool`; P6.2; commit `c589e2a`).
 - [x] `Visible` só da view, passando para os filhos (P6.1; commit `13534b0`).
 - [x] Binding respeitar o `ReadOnly` das opções no `SetValue` (commit `6117bb1`).
 - [x] `ReadOnly` passando para os filhos, no lugar de um `ReadOnly` efetivo (P4.1, P4.2; P4.6;
@@ -1450,9 +1471,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
   (`NumericRange`), `ScrubMultiplier`, `Expandable`, `Collapsed` e as listas `TextRules` e
-  `ValueRules` (commit `e136f82`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da
-  view, e o `Ignored`, da árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são
-  lidos pelos pais.
+  `ValueRules` (commit `e136f82`), o `VisibleWhen` (commit `c589e2a`) e o `Choices` (commit
+  `b92267c`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da view, e o `Ignored`, da
+  árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são lidos pelos pais.
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
@@ -1539,7 +1560,7 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: itens de escolha, visibilidade condicional e o layout no `InspectorOptions`.
-Já entraram o `ValueChanged` (commit `eb497c6`), os sanitizadores (commit `e136f82`) e os nós
-manuais, botão e campo só de exibição (commit `0c97638`); o gancho de conversão saiu da lista
-(P2.9).
+**Próximos cortes**: as views (P7.1 a P7.4). Já entraram o `ValueChanged` (commit `eb497c6`), os
+sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
+layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
+itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
