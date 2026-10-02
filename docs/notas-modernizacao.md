@@ -347,14 +347,17 @@ espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
   linha sob o mouse ganha um fundo leve no retângulo dela (`Row`, o equivalente ao backpanel da
   linha do original): o rótulo, o espaçador e o editor, a partir do recuo do nível; num grupo, só a
   linha dele. Era o "largura maior = controle menor" que ele quis evitar: a opção é do editor, e o
-  espaçador é o que sobra.
-- **O `(?)` da ajuda longa** (P7.15, 02/10): só num nó com `Help`, numa posição fixa no fim da coluna
-  do rótulo, logo antes do espaçador, tirando a largura do rótulo, e não do editor, para nada se
-  desalinhar; numa posição fixa, e não colado ao texto, para os `(?)` formarem uma coluna e o layout
-  calcular o lugar sem medir a fonte. Na cor de desabilitado, mas habilitado (no WinForms, um
+  espaçador é o que sobra. Aplicado nos commits `b3aaad0` (o layout: `EditorMaxWidth` e `MaxWidth`)
+  e `79e936b` (o fundo da linha na view WinForms).
+- **O `(?)` da ajuda longa** (P7.15, 02/10): só num nó com `Help`, numa posição fixa no fim da
+  coluna do rótulo, logo antes do espaçador, tirando a largura do rótulo, e não do editor, para nada
+  se desalinhar; numa posição fixa, e não colado ao texto, para os `(?)` formarem uma coluna e o
+  layout calcular o lugar sem medir a fonte. Na cor de desabilitado, mas habilitado (no WinForms, um
   controle desabilitado nem mostra tooltip), com o cursor de mão; o clique abre uma janela modal,
   que bloqueia a de trás até fechar, com o rótulo como título, o texto do `Help` rolável e
   selecionável e um OK (Enter ou Esc fecham). O tooltip curto continua no rótulo e no editor.
+  Aplicado nos commits `b3aaad0` (o retângulo `Help` da linha do layout, com a largura `HelpWidth`,
+  16) e `79e936b` (a marca e a janela na view WinForms).
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
@@ -885,6 +888,15 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   `ListRows` (5). Uma altura que não é maior que zero, ou um comprimento que não é um número de
   zero para cima, lança. A largura é do `Layout`, e não uma opção, porque é a da view na hora.
   Confirmado em 01/10 (P7.6): os editores numa coluna só e os valores padrão.
+- O espaçador, a largura máxima e o `(?)` (P7.14, P7.15; commit `b3aaad0`): três opções a mais,
+  `EditorMaxWidth` (200; null é sem limite), `MaxWidth` (null, sem limite) e `HelpWidth` (16). O
+  editor fica com o resto da linha até o `EditorMaxWidth`, encostado à direita, e o que sobra entre
+  ele e o rótulo é o espaçador, que não tem retângulo; abaixo do limite, nada muda. O `MaxWidth`
+  limita a largura que as linhas ocupam, com o espaço em volta, e o `Size` do layout fica com ela.
+  Um nó com `Help` ganha o retângulo `Help` na `LayoutRow`, tirado do fim da coluna do rótulo (o
+  rótulo encolhe, e o editor não se mexe), então os `(?)` formam uma coluna em qualquer
+  profundidade; numa coluna mais estreita que ele, fica com ela toda. Um cabeçalho e uma linha de
+  separação não têm. As três avisam pelo `OptionChanged`.
 - É aqui que os primitivos entram. `Location`, `Size`, `Margins` e `DockStyle` das opções eram tipos
   do `System.Drawing` e do WinForms; no rework viram primitivos próprios.
 
@@ -1006,8 +1018,16 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   4.
 - **As setas** (P7.10). A do grupo e as de subir e descer do editor de lista são desenhadas, e não
   caracteres: no Wine, a fonte não tinha o ▲ e o ▼, que saíam como quadrados.
-- **Ainda não**: o scrubbing e o indicativo de valores mistos (corte 3), o `(?)` da ajuda longa, as
-  válvulas (P7.4) e a premissa de erros nas views (corte 4). Um nó posto à mão depois de a view
+- **O `(?)` e a linha sob o mouse** (P7.15, P7.14; commit `79e936b`). A marca é um controle próprio
+  (`HelpMark`), que desenha o "(?)" numa linha só, sem margem: um `Label` acrescentava a margem dele
+  e quebrava o texto nos 16 px, mostrando "(?" mais alto que o rótulo (visto no print do Wine; o
+  texto ocupa de 13 a 15 px nas fontes medidas, e um teste confere a tinta na tela). O clique abre a
+  `HelpDialog`, modal sobre o form da view. Para o fundo, a view segue o mouse em todos os controles
+  das linhas e pinta o retângulo `Row` da linha de baixo dele no contêiner, com um pouco da cor de
+  destaque sobre o fundo (segue as cores do sistema); o rótulo, a marca, a caixa de seleção e o
+  quadro da lista deixam o fundo passar, e o `TrackBar`, que não deixa, pega a cor.
+- **Ainda não**: o scrubbing e o indicativo de valores mistos (corte 3), as válvulas (P7.4) e a
+  premissa de erros nas views (corte 4). Um nó posto à mão depois de a view
   montar (`Add`, `AddButton`, `AddDisplay`) só aparece no layout seguinte, porque pôr um nó não é
   uma opção e não avisa; fica assim até aparecer motivo.
 - **Verificado no Wine**, com um app de teste que monta a view para um tipo com todos os editores e
@@ -1018,7 +1038,10 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   de propósito (o texto recusado sobrescrito, sem passar para a thread da interface, sem layout nas
   opções, sem esvaziar no `Disposed` e sem a cor da falha), 13 falham. O WindowsHost mostra um
   `Gadget`, do `DemoObjects`, com um membro por editor (commit `4445761`), para a conferência no
-  Windows.
+  Windows. Com o espaçador, o `(?)` e a linha sob o mouse, o app passou a 92 checagens (as posições,
+  o `MaxWidth`, a marca na tela, a janela modal, que desabilita o form de trás, e o fundo pela cor
+  dos pixels na tela); quebrando cada parte de propósito, 6 falham, e a marca como `Label` também
+  falha. Dois membros do `Gadget` ganharam `Help` (commit `c71255c`).
 
 ### 3.6 Serviços (decidido: descartados)
 
@@ -1577,6 +1600,10 @@ Apresentação
       layout no `InspectorOptions` (P7.5; commit `166ec4a`).
 - [x] View WinForms: editores por tipo, grupos recolhíveis, cabeçalho e scroll (sem paginação),
       percorrendo a árvore (P7.3; P7.7 a P7.13; commits `569525a` e `60d4203`).
+- [x] Espaçador e largura máxima: o editor até 200, o resto entre ele e o rótulo, um limite para as
+      linhas e o fundo da linha sob o mouse (P7.14; commits `b3aaad0` e `79e936b`).
+- [x] O `(?)` da ajuda longa, no fim da coluna do rótulo, com a janela modal (P7.15; commits
+      `b3aaad0` e `79e936b`).
 - [ ] Scrubbing no rótulo e indicativo de valores mistos (P2.4; o corte 3).
 - [ ] View WPF, pelo mesmo caminho (o corte 5).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
@@ -1618,7 +1645,8 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   (`Culture`; null é a atual, na hora de cada conversão), e desde o commit `18dc069` com o modo de
   controle do binder (`BinderControl`, `Automatic` por padrão). As de layout entraram com o passo
   de layout, no commit `166ec4a` (3.4): `RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`,
-  `LabelSpacing`, `Padding` e `ListRows`. Ainda não há um padrão global de layout para elas
+  `LabelSpacing`, `Padding` e `ListRows`, e no commit `b3aaad0`, `EditorMaxWidth`, `MaxWidth` e
+  `HelpWidth` (P7.14, P7.15). Ainda não há um padrão global de layout para elas
   sobrescreverem (P1.5); os valores padrão ficam no próprio `InspectorOptions`.
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
