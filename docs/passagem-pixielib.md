@@ -53,9 +53,10 @@ Regras do void, as mesmas do rework: **só subir para o GitHub se o author for e
 
 ## 2. Como o void trabalha
 
-- Nunca chamar de Rafael: esse nome fica só no git (seção 1). Chamar de void no código de mais baixo
-  nível, mesmo em C#, e de neko quando o assunto é construir ferramentas e frameworks; na dúvida,
-  void.
+- Nunca chamar de Rafael: esse nome só aparece na identidade do git (seção 1) e nunca foi usado na
+  conversa; quando o próprio nome aparece, é o sobrenome, Sakamoto. Chamar de void no código de mais
+  baixo nível, mesmo em C#, e de neko quando o assunto é construir ferramentas e frameworks; na
+  dúvida, void.
 - Conversa em português, sem emojis. Notas em português, com linhas de até 100 colunas e referências
   a commits; código e comentários do código em inglês.
 - O foco é simplificar ao máximo, mas sem juntar arquivos só para diminuir a contagem: um conceito
