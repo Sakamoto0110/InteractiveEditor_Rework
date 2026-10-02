@@ -349,15 +349,18 @@ espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
   linha dele. Era o "largura maior = controle menor" que ele quis evitar: a opção é do editor, e o
   espaçador é o que sobra. Aplicado nos commits `b3aaad0` (o layout: `EditorMaxWidth` e `MaxWidth`)
   e `79e936b` (o fundo da linha na view WinForms).
-- **O `(?)` da ajuda longa** (P7.15, 02/10): só num nó com `Help`, numa posição fixa no fim da
-  coluna do rótulo, logo antes do espaçador, tirando a largura do rótulo, e não do editor, para nada
-  se desalinhar; numa posição fixa, e não colado ao texto, para os `(?)` formarem uma coluna e o
-  layout calcular o lugar sem medir a fonte. Na cor de desabilitado, mas habilitado (no WinForms, um
-  controle desabilitado nem mostra tooltip), com o cursor de mão; o clique abre uma janela modal,
-  que bloqueia a de trás até fechar, com o rótulo como título, o texto do `Help` rolável e
-  selecionável e um OK (Enter ou Esc fecham). O tooltip curto continua no rótulo e no editor.
-  Aplicado nos commits `b3aaad0` (o retângulo `Help` da linha do layout, com a largura `HelpWidth`,
-  16) e `79e936b` (a marca e a janela na view WinForms).
+- **O `(?)` da ajuda longa** (P7.15, 02/10; revisto no mesmo dia): só num nó com `Help`, logo antes
+  do editor, numa faixa fixa antes da coluna dos editores. A faixa existe em todas as linhas quando
+  algum nó da árvore tem `Help` (contando a árvore toda, e não só as linhas visíveis, para os
+  editores não pularem quando a única linha com ajuda some), e as linhas sem ajuda a deixam vazia;
+  sem nenhum `Help`, ela não existe e nada muda. Numa view larga, ela sai do espaçador; numa
+  estreita, custa a largura dela (o `(?)` e o espaço até o editor) a todos os editores por igual,
+  então nada se desalinha, e o rótulo fica com a coluna inteira. Antes ficava no fim da coluna do
+  rótulo, tirando a largura dele (commit `b3aaad0`); colado no editor, fica onde o olho está ao
+  editar. Na cor de desabilitado, mas habilitado (no WinForms, um controle desabilitado nem mostra
+  tooltip), com o cursor de mão; o clique abre uma janela modal, que bloqueia a de trás até fechar,
+  com o rótulo como título, o texto do `Help` rolável e selecionável e um OK (Enter ou Esc fecham).
+  O tooltip curto continua no rótulo e no editor. A marca e a janela entraram no commit `79e936b`.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
