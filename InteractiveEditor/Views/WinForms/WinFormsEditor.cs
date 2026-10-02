@@ -50,6 +50,12 @@ internal abstract class WinFormsEditor : IDisposable
 
     public abstract void ShowValue();
 
+    // Most editors are fields of their own color over the row's background; one that fills its whole
+    // rectangle without letting the background through takes the color of the row under the mouse.
+    public virtual void ShowHover(bool hovered)
+    {
+    }
+
     public virtual void ShowState(bool readOnly, bool enabled, bool failed)
     {
         Control.Enabled = enabled && !readOnly;

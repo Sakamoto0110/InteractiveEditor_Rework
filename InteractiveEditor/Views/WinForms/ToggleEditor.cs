@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System.Drawing;
+using System.Windows.Forms;
 
 namespace InteractiveEditor.Views.WinForms;
 
@@ -14,6 +15,13 @@ internal sealed class ToggleEditor : WinFormsEditor
     }
 
     public override Control Control => Box;
+
+    // The box lets the row's background through, so the row under the mouse shows behind it too.
+    public override void ShowState(bool readOnly, bool enabled, bool failed)
+    {
+        Box.Enabled = enabled && !readOnly;
+        Box.BackColor = failed ? FailedColor : Color.Transparent;
+    }
 
     public override void ShowValue()
     {

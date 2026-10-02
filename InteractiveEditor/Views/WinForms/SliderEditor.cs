@@ -15,6 +15,10 @@ internal sealed class SliderEditor : WinFormsEditor
     // The range the positions were made for.
     private NumericRange Range;
 
+    // A track bar cannot let the row's background through, so it takes the color itself.
+    private bool Failed;
+    private bool Hovered;
+
     public SliderEditor(WinFormsRow row) : base(row)
     {
         Bar.Scroll += OnScroll;
@@ -31,6 +35,29 @@ internal sealed class SliderEditor : WinFormsEditor
         var value = Node.ViewValue is IConvertible convertible ? convertible.ToDouble(CultureInfo.InvariantCulture) : Range.Min;
         var span = Range.Max - Range.Min;
         Bar.Value = span > 0 ? Math.Clamp((int)Math.Round((value - Range.Min) / span * Bar.Maximum), 0, Bar.Maximum) : 0;
+    }
+
+    public override void ShowState(bool readOnly, bool enabled, bool failed)
+    {
+        Bar.Enabled = enabled && !readOnly;
+        Failed = failed;
+        Paint();
+    }
+
+    public override void ShowHover(bool hovered)
+    {
+        Hovered = hovered;
+        Paint();
+    }
+
+    private void Paint()
+    {
+        if (Failed)
+            Bar.BackColor = FailedColor;
+        else if (Hovered)
+            Bar.BackColor = WinFormsInspectorView.HoverColor;
+        else
+            Bar.ResetBackColor();
     }
 
     private void OnScroll(object? sender, EventArgs e)

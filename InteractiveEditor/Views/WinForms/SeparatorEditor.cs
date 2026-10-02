@@ -6,7 +6,7 @@ namespace InteractiveEditor.Views.WinForms;
 // A horizontal line across the whole row (P7.9).
 internal sealed class SeparatorEditor : WinFormsEditor
 {
-    private readonly Label Line = new() { AutoSize = false, BorderStyle = BorderStyle.Fixed3D };
+    private readonly Label Line = new() { AutoSize = false, BorderStyle = BorderStyle.Fixed3D, BackColor = Color.Transparent };
 
     public SeparatorEditor(WinFormsRow row) : base(row)
     {
