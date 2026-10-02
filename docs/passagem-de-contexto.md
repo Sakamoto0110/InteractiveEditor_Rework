@@ -1,10 +1,10 @@
 # Passagem de contexto
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
-`rework-claude`, com as respostas do Rafael de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
+`rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
 commit de código é o `41b636c`. Ler isto inteiro antes de mexer em qualquer coisa.
 
-Em 02/10 o Rafael pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
+Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
 (`docs/passagem-pixielib.md`, seção 3).
 
@@ -12,7 +12,7 @@ para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
 
 ## 1. Antes de qualquer commit
 
-Regra do Rafael: **só subir para o GitHub se o author for ele**.
+Regra do neko: **só subir para o GitHub se o author for ele**.
 
 - Author e committer: `Rafael Sakamoto <rafael.sakamoto1@hotmail.com>`. Num clone novo, configurar
   antes do primeiro commit:
@@ -34,13 +34,16 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
     grep '"login"'
   ```
 
-- A branch de trabalho é a `rework-claude`, a pedido do Rafael, mesmo que a sessão sugira outra:
+- A branch de trabalho é a `rework-claude`, a pedido do neko, mesmo que a sessão sugira outra:
   `git push -u origin rework-claude`. Na dúvida, perguntar.
 - Mensagens de commit em inglês, com prefixo: `(refactor)`, `(docs)`, `(fix)`, `(feat)`. Mudança
   de código e atualização das notas em commits separados, o de `(docs)` citando o hash do outro.
 
-## 2. Como o Rafael trabalha
+## 2. Como o neko trabalha
 
+- Nunca chamar de Rafael: esse nome fica só no git (seção 1). Chamar de neko quando o assunto é
+  construir ferramentas e frameworks, como este, e de void no código de mais baixo nível, mesmo em
+  C#; na dúvida, void.
 - Conversa em português, sem emojis. As notas também são em português, com linhas de até 100
   colunas e referências a commits.
 - O foco é simplificar ao máximo, mas sem juntar arquivos só para diminuir a contagem: um conceito
@@ -75,10 +78,10 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
-  depois desta rodada; atualizar só se o Rafael pedir.
+  depois desta rodada; atualizar só se o neko pedir.
 - Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0` e `net10.0-windows`),
   `DemoObjects` (os tipos de teste: `Foo`, `Moo`, `Doo`, `Boo`, e o `Gadget`, com um membro por
-  editor das views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do Rafael,
+  editor das views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do neko,
   `net10.0-windows`), `WindowsHost` (mostra um `Gadget` na view WinForms, commit `4445761`) e
   `WpfHost`.
 
@@ -120,7 +123,7 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   commit `ccc3a5d`), as conversões dos primitivos com o WinForms e o WPF (21 checagens); e um
   quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 117 checagens. Os dois
   últimos rodam no Wine (abaixo). Os quatro ficam no scratchpad da sessão e não passam para a
-  próxima, mas o Rafael recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
+  próxima, mas o neko recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
   diz como rodar; a última de 02/10 tem os quatro). Se ele mandar o zip, descompactar fora do
   repositório e corrigir o caminho do clone nos `.csproj`, se for outro; se não, a lista acima
   serve de roteiro para refazer o que for preciso.
@@ -353,7 +356,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
    `probe-view` e o `run-wine.sh`. Para reler o original: `Sakamoto0110/InteractiveEditor` (branch
    `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só para
    leitura.
-2. O Rafael viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)`
+2. O neko viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)`
    (P7.14, P7.15), aplicados nos commits `b3aaad0`, `79e936b` e `c71255c`; depois preferiu o `(?)`
    colado no editor (commit `0578057`). Falta ele conferir no WindowsHost o espaçador, o `(?)` e a
    janela dele, o fundo da linha sob o mouse, o scrubbing (`Count` na horizontal, `Ratio` na
