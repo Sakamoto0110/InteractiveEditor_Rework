@@ -56,7 +56,8 @@ falta: as views antes das sessões próprias, na ordem da seção Views abaixo.
   porque não tem código de Windows (commit `5560223`, 3.7). Com as views, volta o
   `net10.0;net10.0-windows`, com o código delas só no alvo `-windows`, pelo bloco condicional: o
   núcleo continua rodando fora do Windows, e cada consumidor recebe uma DLL só, a do alvo dele.
-  Substitui o "as views entram nesta mesma DLL, com um alvo só" da decisão anterior.
+  Substitui o "as views entram nesta mesma DLL, com um alvo só" da decisão anterior. Os dois alvos
+  voltaram no commit `ccc3a5d`, por enquanto com as conversões dos primitivos (3.7).
 - **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
   o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
   `net10.0-windows`, versionado como na `main` e com a pasta no `.gitignore`. Aplicado nos commits
@@ -337,7 +338,7 @@ falta: as views antes das sessões próprias, na ordem da seção Views abaixo.
   dois prefixos. Sem conversão implícita entre as duas: funções estáticas `ToHsl`, `FromHsl`,
   `ToArgb` e `FromArgb`, o que também acaba com o CS0457. Aplicado no commit `3544a8e`.
 - **Regras de conversão** de 3.4 confirmadas (P8.5). Aplicadas com o `System.Drawing` nos commits
-  `2951ce3` e `f1de920`; as do WinForms e do WPF vêm com as views.
+  `2951ce3` e `f1de920`, e com o WinForms e o WPF no commit `ccc3a5d`, só no alvo `-windows` (3.4).
 - **PixieLib** (P8.6 a P8.9): a precisão padrão é `double`. Por enquanto os primitivos ficam neste
   projeto, sem `PixieLib.dll`; a mudança para a PixieLib, com o sufixo de precisão, fica para uma
   sessão própria.
@@ -884,7 +885,20 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   que não perdem nada; o `PxColorHsl` perdeu as dele, porque ir para o `System.Drawing.Color` é ir
   para ARGB. Confirmado em 29/09: o `PxColorHsl` também passou para `double`, a precisão
   padrão (P8.1, P8.6).
-- `PxPadding` e `PxDock` ↔ `Padding`, `Thickness` e `DockStyle`: junto com as views (ver 3.7).
+- Com o WinForms e o WPF (P7.1): aplicado no commit `ccc3a5d`, em arquivos `*.Windows.cs`, que só o
+  alvo `-windows` compila (3.7). O `PxPoint` e o `Point` do WPF: implícitas nos dois sentidos. O
+  `PxSize` e o `PxRect` com o `Size` e o `Rect` do WPF: implícitas deles para o `Px` e explícitas de
+  volta, sem clamp, porque os dois lançam `ArgumentException` com largura ou altura negativa. O
+  `PxPadding`: implícita do `Padding` do WinForms (int) e explícita de volta, arredondando como o
+  `PxPoint` faz para o `Point`; com a `Thickness` do WPF (double), implícitas nos dois sentidos. O
+  `PxColorArgb` e a `Color` do WPF: implícitas nos dois sentidos, como com o `System.Drawing.Color`
+  (a do WPF também guarda o scRGB em float; a conversão fica com os bytes, que é o que um controle
+  mostra), e o `PxColorHsl` continua sem nenhuma (P8.4). O `PxDock` e o `DockStyle`, que têm os
+  mesmos valores: um enum não declara conversões (nem num bloco `extension`, CS9282), então são os
+  métodos de extensão `ToDockStyle()` e `ToPxDock()`, e um valor fora do enum lança. O `Rect` e a
+  `Color` do WPF não estavam na lista de 27/09; entraram pela mesma regra, porque a view WPF vai pôr
+  os controles nos `PxRect` do layout, e a `Color`, como o `System.Drawing.Color`, era do original
+  (commit `c537554`).
 
 ### 3.5 Apresentação
 
@@ -918,7 +932,7 @@ agrupar funcionalidades. No rework ele não volta:
   numa fração das linhas;
 - manipular e vincular viram métodos do inspector e dos nós.
 
-### 3.7 Um projeto, um binário (aplicado)
+### 3.7 Um projeto, uma DLL por alvo (aplicado)
 
 Primeiro veio o multi-target, no commit `c537554`: `net10.0` e `net10.0-windows` num projeto só, com
 o código de Windows em arquivos parciais `*.Windows.cs` (as fábricas `Create<T>(host)` e as
@@ -940,6 +954,28 @@ binário só, e os hosts WinForms e WPF (`net10.0-windows`) a referenciam normal
 
 Verificado no commit `5560223`: a solução compila sem erros e sem warnings, e o TuxHost imprime
 exatamente o mesmo de antes.
+
+Os dois alvos voltaram no commit `ccc3a5d`, do jeito do `c537554`: `net10.0;net10.0-windows`, com
+`UseWindowsForms` e `UseWPF` só no `-windows`, o `EnableWindowsTargeting` no projeto, para compilar
+fora do Windows, e os arquivos `*.Windows.cs` fora do `net10.0`. Por enquanto, o código de Windows
+são as conversões dos primitivos (3.4); as views entram do mesmo jeito.
+
+- **Usings implícitos.** O WinForms põe `System.Drawing` e `System.Windows.Forms` nos usings
+  implícitos do alvo `-windows`; o projeto os tira, para o núcleo não ver nomes do WinForms lá, e os
+  arquivos de Windows dizem o que usam. O SDK de desktop também tira o `System.IO` e o
+  `System.Net.Http` do `-windows`, então um arquivo do núcleo que use um deles precisa do `using`;
+  sem ele, é o `-windows` que não compila (dá erro, não muda o sentido de nada).
+- **Um projeto de uma plataforma só**, que referencia a DLL direto (sem `ProjectReference` nem
+  pacote), compila e roda com as conversões, tanto só WinForms quanto só WPF (testado, rodando no
+  Wine). O só WinForms recebe o aviso MSB3277, de versões diferentes do `WindowsBase`: a DLL do
+  `-windows` referencia o do WPF, e o projeto tem a fachada do .NET. Vem do `UseWPF` da P7.1, e não
+  das conversões; a view WPF na mesma DLL faz o mesmo. Pelo `ProjectReference`, a referência ao
+  framework passa junto, e não há aviso.
+- **Verificado no commit `ccc3a5d`**: a solução compila sem erros e sem warnings nos 6 projetos, com
+  a biblioteca nos dois alvos; o TuxHost imprime o mesmo, e o probe passa as 646. As conversões têm
+  um console `net10.0-windows` à parte, com 21 checagens (valores, implícita ou explícita, o que
+  lança, e o `net10.0` sem nenhuma), rodado no Wine; com conversões quebradas de propósito, 5
+  falham.
 
 ### 3.8 Performance
 
@@ -1318,7 +1354,8 @@ Estrutura
       parciais excluídos do alvo `net10.0` (3.7; commit `c537554`).
 - [x] Um alvo só (`net10.0`): sem código de Windows na biblioteca, saem o segundo alvo e os blocos
       condicionais (3.7; commit `5560223`).
-- [ ] Dois alvos de novo quando as views chegarem, com o código delas só no `-windows` (P7.1; 3.7).
+- [x] Dois alvos de novo, com o código de Windows só no `-windows`, em arquivos `*.Windows.cs`
+      (P7.1; 3.7; commit `ccc3a5d`).
 - [x] NoHost em `net10.0` (commit `c537554`).
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
       O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
@@ -1334,8 +1371,9 @@ Estrutura
       `FromHsl`, `ToArgb` e `FromArgb` (P8.4), o que acaba com o CS0457 (commit `3544a8e`).
 - [x] Primitivos: conversões nos dois sentidos com as regras de 3.4 (confirmadas, P8.5), já com o
       `double`, com o `System.Drawing` (commits `2951ce3` e `f1de920`).
-- [ ] Conversões dos primitivos com o WinForms e o WPF (pontos, o `Size` do WPF, `Padding`,
-      `Thickness` e `DockStyle`), no alvo `-windows`, junto com as views (3.4).
+- [x] Conversões dos primitivos com o WinForms e o WPF (pontos, o `Size` do WPF, `Padding`,
+      `Thickness` e `DockStyle`, e também o `Rect` e a `Color` do WPF), no alvo `-windows` (3.4;
+      commit `ccc3a5d`).
 - [x] Primitivos novos: `PxRect`, `PxPadding` e `PxDock` (decidido, P8.2; commit `f1de920`).
 - [ ] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
       PixieLib, com source generator para as precisões (3.9; adiado para uma sessão própria, P8.7).
@@ -1572,7 +1610,8 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: as views (P7.1 a P7.4). Já entraram o `ValueChanged` (commit `eb497c6`), os
+**Próximos cortes**: as views (P7.2 a P7.4; os dois alvos da P7.1 entraram no commit `ccc3a5d`).
+Já entraram o `ValueChanged` (commit `eb497c6`), os
 sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
 layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
 itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
