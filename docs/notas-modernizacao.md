@@ -321,10 +321,13 @@ escolhas da view WinForms (P7.7 a P7.13).
   alvos; o código numa pasta `Views/WinForms`, que o `net10.0` deixa de fora inteira. Descartar a
   view tira as assinaturas dela e não mexe no inspector, que é de quem o criou. O do WPF vai ser o
   `WpfInspectorView`, com nome distinto, para um arquivo que importa os dois não ter ambiguidade.
+  Aplicado no commit `60d4203`, como as respostas de 7.9 a 7.12 (3.5).
 - **Uma opção mudada depois de a view montar** (P7.8, 02/10): um evento no inspector quando muda
   uma opção que a view mostra, com o nó e qual opção, e só quando o valor muda de fato; a view refaz
   o layout ou a linha. As listas de regras (`TextRules` e `ValueRules`) ficam de fora. Pelo mesmo
-  motivo da P6.2: mostrar de novo não pode depender de alguém lembrar.
+  motivo da P6.2: mostrar de novo não pode depender de alguém lembrar. Aplicado no commit `569525a`:
+  o `OptionChanged`, com as opções do nó, o texto do botão e as de cultura e layout do
+  `InspectorOptions` (3.10).
 - **O controle de cada editor** (P7.9, 02/10): a tabela da 3.5.
 - **Recolher um grupo** (P7.10, 02/10): uma seta antes do rótulo do grupo (▶ fechado, ▼ aberto), e
   o clique no rótulo ou na seta alterna o `Collapsed` do nó; o painel do grupo sem borda, só com o
@@ -334,7 +337,8 @@ escolhas da view WinForms (P7.7 a P7.13).
 - **Avisos de outra thread** (P7.12, 02/10): a view repassa para a thread da interface o que recebe
   (`BeginInvoke`), e o núcleo continua sem saber de threads.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
-  view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view.
+  view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
+  commit `569525a`, e a view o usa desde o `60d4203`.
 - **A view percorre a árvore** (P7.3): um painel por grupo, que recolhe junto.
 - **Válvulas de escape** (P7.4): um callback por plataforma quando um controle é criado, e um
   terceiro, agnóstico, quando a linha inteira termina de ser montada. Se ele não puder ser
@@ -958,6 +962,45 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   não cobrir. Mais um, agnóstico, quando a linha inteira termina de ser montada, porque cada linha
   tem vários controles; se ele não puder ser agnóstico, são quatro, dois por plataforma.
 
+**A view WinForms** (o corte 2, aplicado no commit `60d4203`, com as respostas de 7.7 a 7.13)
+
+- **Os arquivos**, em `Views/WinForms`, um conceito cada: a fábrica (`WinFormsViewFactory`, com o
+  `CreateWinFormsView()`), a view (`WinFormsInspectorView`), a linha (`WinFormsRow`, o rótulo e o
+  editor de um nó), a base dos editores e um arquivo por editor, e a seta desenhada (`Arrow`).
+- **O layout.** As linhas vão nos retângulos do `Layout(largura)`, um painel por grupo, dentro de um
+  painel com rolagem. A view refaz o layout a cada `OptionChanged`, mudança no bind,
+  `VisibleChanged` ou `ObjectReplaced`, e numa mudança de largura; uma rajada de mudanças (um
+  handler que esconde três linhas) vira um layout só, quando a thread da interface chegar nele. Uma
+  linha guarda os controles enquanto o nó mantém o editor, então um layout não tira o foco nem o que
+  está sendo digitado, e um editor novo ganha controles novos. A primeira montagem com a largura
+  certa é na criação da janela da view: montada depois, uma caixa de texto com foco ficava com a
+  rolagem de quando ainda era estreita, mostrando só o fim do texto (visto no Wine, com um teste
+  para isso). A ordem do Tab segue as linhas, e sai de um grupo para a linha de baixo dele.
+- **Os valores.** O `ValueChanged` mostra o valor do nó (`ViewValue`), na cultura do inspector. Uma
+  caixa de texto com foco e um texto digitado guarda o que foi digitado quando chega um valor novo,
+  até o Enter ou o Esc, para não perder a edição. A lista de escolha é lida quando a caixa abre e
+  também quando ganha o foco, para as setas do teclado escolherem entre todos os valores (P6.3).
+- **A falha** (P7.11). O fundo vermelho claro e a mensagem do nó no tooltip do editor, com o motivo
+  embaixo. No editor de cor, o fundo é o valor, então a falha fica na borda, vermelha. O que o
+  núcleo recusa como uso errado numa gravação da view (um nó somente leitura, um ramo desativado)
+  aparece na linha do mesmo jeito, em vez de derrubar a view; a premissa inteira nas views é o corte
+  4.
+- **As setas** (P7.10). A do grupo e as de subir e descer do editor de lista são desenhadas, e não
+  caracteres: no Wine, a fonte não tinha o ▲ e o ▼, que saíam como quadrados.
+- **Ainda não**: o scrubbing e o indicativo de valores mistos (corte 3), o `(?)` da ajuda longa, as
+  válvulas (P7.4) e a premissa de erros nas views (corte 4). Um nó posto à mão depois de a view
+  montar (`Add`, `AddButton`, `AddDisplay`) só aparece no layout seguinte, porque pôr um nó não é
+  uma opção e não avisa; fica assim até aparecer motivo.
+- **Verificado no Wine**, com um app de teste que monta a view para um tipo com todos os editores e
+  usa o teclado de verdade (`SendKeys`), o foco e os cliques dos controles: 71 checagens (o lugar de
+  cada controle no layout, os valores, a gravação do texto com Enter, foco e Esc, a falha, cada
+  editor, um aviso de outra thread, as opções mudadas depois, recolher, o seletor e a lista, o ramo
+  desativado, o controle do binder, a largura, o Tab, a rolagem e o descarte). Com a view quebrada
+  de propósito (o texto recusado sobrescrito, sem passar para a thread da interface, sem layout nas
+  opções, sem esvaziar no `Disposed` e sem a cor da falha), 13 falham. O WindowsHost mostra um
+  `Gadget`, do `DemoObjects`, com um membro por editor (commit `4445761`), para a conferência no
+  Windows.
+
 ### 3.6 Serviços (decidido: descartados)
 
 O service locator do original existia para tirar responsabilidades de um arquivo monolítico e
@@ -1149,6 +1192,8 @@ usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
   | nó | `ObjectReplaced` | o objeto do grupo foi trocado por fora; dá para aceitar | `55e7173` |
   | nó | `BindFailed` | falha ao ler ou gravar, com mensagem, motivo, sugestão e caminho | `eb497c6` |
   | nó | `VisibleChanged` | a regra do `VisibleWhen` deu outra resposta, com a origem (P6.2) | `c589e2a` |
+  | inspector | `OptionChanged` | uma opção do nó, ou do inspector (sem nó), mudou de fato (P7.8) | `569525a` |
+  | inspector | `Disposed` | o `Dispose` terminou: desligado, árvore descartada, trava solta (P7.13) | `569525a` |
 
   Os args da criação, no exemplo da resposta: `ErrorCount` (todos), `UnhandledErrorCount` (os que
   caíram em fallback automático) e `CriticalErrorCount` (os graves, sem resolução, que não
@@ -1396,7 +1441,8 @@ Estrutura
       O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
       `.gitignore`, como na `main`, sem sair do repositório (commit `9587e12` e o seguinte).
 - [ ] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
-      duas plataformas (3.5; decidido, P7.2).
+      duas plataformas (3.5; decidido, P7.2). A do WinForms, `CreateWinFormsView()`, entrou no
+      commit `60d4203` (P7.7); a do WPF vem com a view dele.
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
       `HslColor` (commit `21cbeda`).
 - [x] Primitivos: prefixo `Px` no lugar do `SK` provisório (`PxPoint`, `PxPointF`, `PxSize` e
@@ -1510,8 +1556,10 @@ Apresentação
 
 - [x] Passo de layout agnóstico, no núcleo, que gera os retângulos de cada linha, com as opções de
       layout no `InspectorOptions` (P7.5; commit `166ec4a`).
-- [ ] Views WinForms e WPF: editores por tipo, scrubbing, grupos recolhíveis, cabeçalho e scroll
-      (sem paginação), percorrendo a árvore (P7.3).
+- [x] View WinForms: editores por tipo, grupos recolhíveis, cabeçalho e scroll (sem paginação),
+      percorrendo a árvore (P7.3; P7.7 a P7.13; commits `569525a` e `60d4203`).
+- [ ] Scrubbing no rótulo e indicativo de valores mistos (P2.4; o corte 3).
+- [ ] View WPF, pelo mesmo caminho (o corte 5).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
       fim de cada linha (P7.4).
 
@@ -1558,7 +1606,9 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   (`NumericRange`), `ScrubMultiplier`, `Expandable`, `Collapsed` e as listas `TextRules` e
   `ValueRules` (commit `e136f82`), o `VisibleWhen` (commit `c589e2a`) e o `Choices` (commit
   `b92267c`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da view, e o `Ignored`, da
-  árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são lidos pelos pais.
+  árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são lidos pelos pais. Desde o
+  commit `569525a`, uma mudança de fato em qualquer uma delas, menos nas listas de regras, sai pelo
+  `OptionChanged` do inspector (P7.8), como as de cultura e de layout do `InspectorOptions`.
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
@@ -1645,8 +1695,9 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: as views (P7.2 a P7.4; os dois alvos da P7.1 entraram no commit `ccc3a5d`).
-Já entraram o `ValueChanged` (commit `eb497c6`), os
+**Próximos cortes**: o scrubbing e os valores mistos, as válvulas (P7.4) com a premissa de erros nas
+views, e a view WPF; os dois alvos (P7.1) e a view WinForms (P7.2, P7.3) entraram nos commits
+`ccc3a5d` e `60d4203`. Já entraram o `ValueChanged` (commit `eb497c6`), os
 sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
 layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
 itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
