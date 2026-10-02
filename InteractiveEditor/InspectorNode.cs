@@ -149,6 +149,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         set => Change(ref field, value);
     }
 
+    // The way the label is dragged to scrub (P7.18): across by default, or up and down.
+    public ScrubAxis ScrubAxis
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
     public bool Expandable
     {
         get;
@@ -199,15 +206,19 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     // a change against it.
     private object?[] Known = [];
 
-    // A value written through the inspector while ViewToInstance is off, held until Apply() writes it
-    // or Reload() drops it.
-    private protected object? Pending { get; private set; }
+    // The values written through the inspector while ViewToInstance is off, one per bound object (the
+    // same one, after a SetValue), held until Apply() writes them or Reload() drops them (P7.16).
+    private protected object?[] Pending { get; private set; } = [];
 
     public bool HasPendingValue { get; private set; }
 
     // What the view shows: the pending value, or what the first bound object held at the last read.
     // Unlike GetValue(), it does not read the object, so it follows the binder control.
     public object? ViewValue => ViewValueAt(0);
+
+    // The same for every bound object, in the order they were bound (P7.16): what scrubbing starts
+    // from, to move each object by the same delta.
+    public IReadOnlyList<object?> ViewValues => Array.AsReadOnly(HeldValues());
 
     // Whether the failure on the node came from a write: a read that works does not clear it.
     private bool FailedOnWrite;
@@ -296,12 +307,22 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return ReadValues();
     }
 
-    // True when the bound objects did not all hold the same value here at the last read, what the row
-    // shows as mixed. Never with a pending value, which goes to all of them, nor on a disabled branch.
-    // Like ViewValue, it does not read the objects.
-    public bool IsMixed => !IsCompromised && !HasPendingValue && Known.Distinct().Skip(1).Any();
+    // True when what the view holds for the bound objects is not the same for all of them, what the row
+    // shows as mixed: what they held at the last read, or the pending values. One value set for all of
+    // them is not mixed; the ones scrubbing writes, each object moved from where it was, still are.
+    // Never on a disabled branch. Like ViewValue, it does not read the objects.
+    public bool IsMixed => !IsCompromised && HeldValues().Distinct().Skip(1).Any();
 
     public abstract void SetValue(object? value);
+
+    // One value per bound object, in the order they were bound, each prepared as SetValue prepares one,
+    // with one event (P7.16): what scrubbing writes, every object moved by the same delta from where it
+    // was. A node that is not a member refuses it as it refuses SetValue.
+    public virtual void SetValues(IReadOnlyList<object?> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        SetValue(values.Count > 0 ? values[0] : null);
+    }
 
     // What a Choice editor lists now: what Choices gives, read at once, or else the values of the enum
     // the node holds, and nothing for anything else. A function that throws lists nothing, and the
@@ -541,16 +562,16 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return Enumerable.Range(0, Root.Instances.Count).Select(ViewValueAt).ToArray();
     }
 
-    // Keeps a value written while ViewToInstance is off, until Apply() writes it or Reload() drops it.
-    // A value that goes through clears the failure of an earlier attempt.
-    private protected void Hold(object? value)
+    // Keeps the values written while ViewToInstance is off, one per bound object, until Apply() writes
+    // them or Reload() drops them. Values that go through clear the failure of an earlier attempt.
+    private protected void Hold(object?[] values)
     {
         OnWritten();
 
-        if (HasPendingValue && Equals(Pending, value))
+        if (HasPendingValue && values.SequenceEqual(Pending))
             return;
 
-        Pending = value;
+        Pending = values;
         HasPendingValue = true;
         OnValueChanged(ValueSource.Pending);
     }
@@ -574,14 +595,15 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         if (!HasPendingValue)
             return false;
 
-        Pending = null;
+        Pending = [];
         HasPendingValue = false;
         return true;
     }
 
     private object? ViewValueAt(int index)
     {
-        return HasPendingValue ? Pending : index < Known.Length ? Known[index] : null;
+        var held = HasPendingValue ? Pending : Known;
+        return index < held.Length ? held[index] : null;
     }
 
     // Groups remember the object they hold in every bound object, or in one of them; the others have

@@ -72,7 +72,11 @@ internal static class AttributePolicy
         // row of its item, which is where the numbers are (P5.11).
         var valued = node is CollectionNode collection ? collection.Item : node;
         Use<InspectorRangeAttribute>(node, inspector, range => valued.Range = new NumericRange(range.Min, range.Max, range.Step));
-        Use<InspectorScrubAttribute>(node, inspector, scrub => valued.ScrubMultiplier = scrub.Multiplier);
+        Use<InspectorScrubAttribute>(node, inspector, scrub =>
+        {
+            valued.ScrubMultiplier = scrub.Multiplier;
+            valued.ScrubAxis = scrub.Axis;
+        });
         Use<InspectorOrderAttribute>(node, inspector, order => node.Order = order.Order);
 
         return chosen;
