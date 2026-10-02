@@ -49,12 +49,27 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public bool Ignored { get; set; }
 
     // Visible and ReadOnly are read through the parents: hiding or locking a node takes its whole
-    // branch along, and a child cannot be opened while something above it stays closed.
+    // branch along, and a child cannot be opened while something above it stays closed. Visible also
+    // follows the rule of VisibleWhen.
     public bool Visible
     {
-        get => field && Parent?.Visible != false;
+        get => field && RuleShows && Parent?.Visible != false;
         set;
     } = true;
+
+    // A rule on the bound object that decides, along with Visible, whether the row shows (P6.2), as
+    // in node.VisibleWhen = c => ((Shape)c).Kind == "Text". It is read with the values, for every
+    // bound object, and kept, so the view and the layout do not read the objects; with several bound,
+    // the row shows only when it holds for all of them. Setting it reads it at once, with no event.
+    public Func<object, bool>? VisibleWhen
+    {
+        get;
+        set
+        {
+            field = value;
+            CheckRule(null);
+        }
+    }
 
     public bool ReadOnly
     {
@@ -89,6 +104,9 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
     // Read-only whatever the options say; only a member of an inspector with no type is (P1.14).
     private protected virtual bool FixedReadOnly => false;
+
+    // What the rule of VisibleWhen said at the last read: true with no rule, or with nothing bound.
+    private bool RuleShows = true;
 
     // Whether the editor is the one a bind chose, and so another bind can choose again.
     private protected bool EditorFromBind { get; set; }
@@ -132,6 +150,7 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public event EventHandler<ValueChangedEventArgs>? ValueChanged;
     public event EventHandler<InspectorFailureEventArgs>? BindFailed;
     public event EventHandler<ObjectReplacedEventArgs>? ObjectReplaced;
+    public event EventHandler<VisibleChangedEventArgs>? VisibleChanged;
 
     #endregion
 
@@ -365,6 +384,36 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
 
         if (changed)
             OnValueChanged(ValueSource.Force);
+    }
+
+    // Reads the rule of VisibleWhen again, against every bound object, and reports a new answer, unless
+    // the bind changed (no source). A disabled branch keeps the last answer. A rule that throws shows
+    // the row, and the node reports it; the next read tries again.
+    internal void CheckRule(ValueSource? source)
+    {
+        if (IsCompromised)
+            return;
+
+        bool shows;
+
+        try
+        {
+            shows = VisibleWhen is not { } rule || Root.Instances.All(rule);
+        }
+        catch (Exception e)
+        {
+            shows = true;
+            OnBindFailed(FailureSeverity.WorkedAround, Unwrap(e), $"The rule of '{Path}' could not be read, so the row shows.",
+                "Check the VisibleWhen rule; the next read tries again.", onWrite: false);
+        }
+
+        if (shows == RuleShows)
+            return;
+
+        RuleShows = shows;
+
+        if (source is { } reported)
+            VisibleChanged?.Invoke(this, new VisibleChangedEventArgs(this, reported));
     }
 
     // Writes the pending value (Apply); only a member has one.
