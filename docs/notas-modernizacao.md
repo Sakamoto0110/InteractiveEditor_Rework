@@ -27,7 +27,8 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02
 6.3, explicadas a partir do código original (3.12). Ainda em 02/10, ele aceitou a direção do que
 falta (as views antes das sessões próprias, na ordem da seção Views abaixo) e as sugestões das
 escolhas da view WinForms (P7.7 a P7.13). Depois de ver a view no Windows, ele pediu e confirmou o
-espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
+espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15), e respondeu as escolhas do
+corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
 
 ### Premissa
 
@@ -362,6 +363,27 @@ espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15).
   com o rótulo como título, o texto do `Help` rolável e selecionável e um OK (Enter ou Esc fecham).
   O tooltip curto continua no rótulo e no editor. A marca e a janela entraram no commit `79e936b`,
   e a faixa antes dos editores, no `0578057`.
+- **O delta do scrubbing** (P7.16, 02/10): o núcleo ganha duas peças gerais, e não uma operação de
+  scrubbing: `ViewValues`, o que a view mostra, um valor por objeto (o par do `ViewValue`), e
+  `SetValues(valores)`, um valor por objeto, cada um com o preparo do `SetValue` (regras, faixa e
+  conversão) e um evento só. O valor pendente passa a ser um por objeto. A view guarda os valores do
+  começo do arraste e grava "o valor do começo de cada objeto + o delta total": calcular a partir do
+  começo, e não somar a cada movimento, é o que deixa um `int` com multiplicador pequeno sair do
+  lugar. Os valores do começo ficam no objeto da linha da view, que já junta o rótulo e o editor; o
+  `Tag` dos controles, que ele usava no original para isso, fica livre para quem usa a biblioteca.
+- **Quais linhas fazem scrubbing** (P7.17, 02/10): só as que têm `ScrubMultiplier`, como hoje e como
+  no original; é opcional por campo.
+- **O gesto** (P7.18, 02/10): o cursor ↔ sobre o rótulo de uma linha com scrubbing; o arraste começa
+  depois de 3 px, para um clique não mudar nada; o mouse fica capturado; Shift multiplica o passo
+  por 10, e Ctrl por 0,1; o Esc durante o arraste volta todos os objetos aos valores do começo; a
+  faixa vale por objeto. A direção é uma opção por campo, ao lado do multiplicador, e não uma flag
+  global (a regra da P7.17): horizontal por padrão e vertical por escolha, com o cursor ↕ e o
+  arraste para cima aumentando o valor.
+- **O indicativo de mistos** (P7.19, 02/10): um sinal só para a linha, o rótulo em itálico quando o
+  `IsMixed` vale, e o editor num estado neutro: texto e número vazios, com "—" em cinza (digitar
+  grava o mesmo valor em todos), a caixa de seleção indeterminada, a escolha sem seleção, a cor sem
+  cor, com "—". Com scrubbing, o número mostra o valor do primeiro, como na P2.4, e o rótulo continua
+  em itálico, para não parecer que todos têm aquele valor.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
