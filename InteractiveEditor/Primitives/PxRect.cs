@@ -1,8 +1,9 @@
 ﻿namespace InteractiveEditor.Primitives;
 
 // A rectangle in double, what the layout step gives each part of a row (P8.2). The conversions with
-// System.Drawing follow PxPoint: implicit from Rectangle and RectangleF, explicit back.
-public struct PxRect : IEquatable<PxRect>
+// System.Drawing follow PxPoint: implicit from Rectangle and RectangleF, explicit back. The ones with
+// the Rect of WPF follow PxSize, for the same reason (PxRect.Windows.cs).
+public partial struct PxRect : IEquatable<PxRect>
 {
     public static readonly PxRect Empty = new PxRect(0, 0, 0, 0);
 

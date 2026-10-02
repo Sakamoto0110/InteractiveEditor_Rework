@@ -3,8 +3,9 @@
 namespace InteractiveEditor.Primitives;
 
 // A color in ARGB bytes. To and from System.Drawing.Color nothing is lost, so both ways are
-// implicit; to and from PxColorHsl there is no conversion, only the static functions (P8.4).
-public struct PxColorArgb : IEquatable<PxColorArgb>
+// implicit, and so with the Color of WPF (PxColorArgb.Windows.cs); to and from PxColorHsl there is no
+// conversion, only the static functions (P8.4).
+public partial struct PxColorArgb : IEquatable<PxColorArgb>
 {
     public static readonly PxColorArgb Empty = new PxColorArgb(0, 0, 0, 0);
 

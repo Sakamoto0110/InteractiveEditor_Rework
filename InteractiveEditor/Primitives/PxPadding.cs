@@ -1,8 +1,9 @@
 ﻿namespace InteractiveEditor.Primitives;
 
 // Space around something, in double: the Padding of WinForms and the Thickness of WPF (P8.2). The
-// conversions with them come with the views.
-public struct PxPadding : IEquatable<PxPadding>
+// Padding is in int, so from it the conversion is implicit and back to it explicit, rounded; the
+// Thickness is in double, so both ways are implicit (PxPadding.Windows.cs).
+public partial struct PxPadding : IEquatable<PxPadding>
 {
     public static readonly PxPadding Empty = new PxPadding(0);
 
