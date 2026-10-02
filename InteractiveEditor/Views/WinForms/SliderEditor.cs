@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using InteractiveEditor.Options;
 
 namespace InteractiveEditor.Views.WinForms;
@@ -32,7 +31,7 @@ internal sealed class SliderEditor : WinFormsEditor
         Bar.Maximum = Range.Step > 0 ? Math.Clamp((int)Math.Round((Range.Max - Range.Min) / Range.Step), 1, MaxPositions) : 100;
         Bar.LargeChange = Math.Max(1, Bar.Maximum / 10);
 
-        var value = Node.ViewValue is IConvertible convertible ? convertible.ToDouble(CultureInfo.InvariantCulture) : Range.Min;
+        var value = ViewRules.ToDouble(Node.ViewValue, Range.Min);
         var span = Range.Max - Range.Min;
         Bar.Value = span > 0 ? Math.Clamp((int)Math.Round((value - Range.Min) / span * Bar.Maximum), 0, Bar.Maximum) : 0;
     }
