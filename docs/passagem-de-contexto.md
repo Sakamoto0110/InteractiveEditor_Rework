@@ -111,6 +111,23 @@ Regra do Rafael: **só subir para o GitHub se o author for ele**.
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
   `dotnet exec --runtimeconfig`.
+- Para rodar o WinForms e o WPF no Linux, o Wine (testado em 02/10). O runtime de desktop do .NET
+  (`Microsoft.WindowsDesktop.App`) só existe para Windows; o Wine dá as APIs do Windows, e o app vai
+  publicado para `win-x64` com o runtime junto. O Xvfb já vem no ambiente; o resto se instala:
+
+  ```
+  apt-get install -y --no-install-recommends wine64 libwine fonts-wine x11-utils imagemagick xdotool
+  Xvfb :99 -screen 0 1024x768x24 &        # numa chamada em segundo plano
+  export WINEPREFIX=<scratchpad>/wineprefix DISPLAY=:99 WINEDEBUG=-all
+  export WINEDLLOVERRIDES="mshtml=;winedbg.exe=d"
+  dotnet publish App.csproj -r win-x64 --self-contained -o "$WINEPREFIX/drive_c/app"
+  /usr/lib/wine/wine64 'C:\app\App.exe'
+  ```
+
+  O print sai com `import -window root print.png`, `xwininfo -root -tree` diz quando a janela abriu,
+  e o `xdotool` clica e digita (`xdotool mousemove X Y click 1`, `xdotool type "12"`). Um app
+  `Exe` (e não `WinExe`) escreve no terminal, então um console de teste com `Console.WriteLine` roda
+  igual.
 
 Pegadinhas já vistas:
 
@@ -136,6 +153,13 @@ Pegadinhas já vistas:
 - Uma coleção tem sempre a linha do item escolhido embaixo (commit `eb58a3e`): o caminho de um
   campo do item é `Items.Item.MooX`, e o `Items.Add("MooX")` lança; os membros do item entram em
   `inspector["Items.Item"].Add("MooX")`.
+- Wine: o `wine64` fica em `/usr/lib/wine/wine64`, fora do PATH. Não desligar o `mscoree` dele
+  (`WINEDLLOVERRIDES="mscoree="`): sem ele, o .NET não carrega as próprias DLLs ("Could not load
+  file or assembly System.Runtime.dll"). Sem o `fonts-wine`, o WPF cai no mapeamento de fontes
+  (`TypefaceMap.MapUnresolvedCharacters`). E não é o Windows: as fontes são substitutas e não há
+  tema visual.
+- O `.gitignore` só cobre o `bin/Debug` de cada projeto: um `dotnet publish` (Release) a partir do
+  repositório deixa pastas `bin/Release` sem ignorar. Apagar antes de commitar.
 
 ## 5. O código hoje, em resumo
 
@@ -242,7 +266,8 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 
 ## 7. Próximo passo
 
-1. Perguntar ao Rafael por onde seguir: o que resta no checklist são as views (P7.1 a P7.4) e as
-   sessões próprias (a PixieLib e o cache do modelo de tipo). Para reler o original:
-   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
+   (Views), um por vez: os dois alvos e as conversões (P7.1), a view WinForms (P7.2, P7.3), o
+   scrubbing e os valores mistos, as válvulas e a premissa de erros (P7.4), e o WPF. Para reler o
+   original: `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
