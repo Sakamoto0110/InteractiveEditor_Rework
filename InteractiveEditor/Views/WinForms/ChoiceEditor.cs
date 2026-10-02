@@ -18,8 +18,15 @@ internal sealed class ChoiceEditor : WinFormsEditor
 
     public override Control Control => Box;
 
+    // Objects that hold different values leave nothing chosen (P7.19); a choice goes to all of them.
     public override void ShowValue()
     {
+        if (Row.Mixed)
+        {
+            Box.SelectedIndex = -1;
+            return;
+        }
+
         var value = Node.ViewValue;
         var index = IndexOf(value);
 

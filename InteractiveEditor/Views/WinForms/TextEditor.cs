@@ -47,12 +47,17 @@ internal sealed class TextEditor : WinFormsEditor
             Box.ResetBackColor();
     }
 
+    // Objects that hold different values show none, with a grey dash, and what is typed goes to all of
+    // them; a row that scrubs shows the first one's instead, since the drag moves each from its own
+    // (P2.4, P7.19).
     private void Show(bool force)
     {
         if (!force && Box.Focused && Box.Text != Shown)
             return;
 
-        Shown = Format(Node.ViewValue);
+        var mixed = Row.Mixed && !Row.Scrubs;
+        Shown = mixed ? string.Empty : Format(Node.ViewValue);
+        Box.PlaceholderText = mixed ? "\u2014" : string.Empty;
         Box.Text = Shown;
         Refused = null;
     }

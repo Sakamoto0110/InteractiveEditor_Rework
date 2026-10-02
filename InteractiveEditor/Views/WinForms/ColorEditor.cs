@@ -18,8 +18,17 @@ internal sealed class ColorEditor : WinFormsEditor
 
     public override Control Control => Swatch;
 
+    // Objects that hold different colors show none, with a dash (P7.19); a color picked goes to all.
     public override void ShowValue()
     {
+        if (Row.Mixed)
+        {
+            Swatch.BackColor = SystemColors.Control;
+            Swatch.ForeColor = SystemColors.GrayText;
+            Swatch.Text = "\u2014";
+            return;
+        }
+
         var color = ToColor(Node.ViewValue);
         Swatch.BackColor = color ?? SystemColors.Control;
         Swatch.ForeColor = color is { } c && c.GetBrightness() < 0.5 ? Color.White : Color.Black;

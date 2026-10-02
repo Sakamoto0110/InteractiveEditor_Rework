@@ -6,9 +6,10 @@ using InteractiveEditor.Options;
 namespace InteractiveEditor.Views.WinForms;
 
 // One row of the view: the label, the help mark and the editor of a node, on the rectangles the layout
-// gives them. A group's label carries the arrow that collapses it (P7.10); the help mark, (?), opens
-// the long help (P7.15). The label and the mark let the row's background through, so the light one of
-// the row under the mouse shows behind them (P7.14).
+// gives them. A group's label carries the arrow that collapses it (P7.10), and a number's label can be
+// dragged to scrub it (P7.18); the help mark, (?), opens the long help (P7.15). The label goes italic
+// when the objects hold different values (P7.19). The label and the mark let the row's background
+// through, so the light one of the row under the mouse shows behind them (P7.14).
 internal sealed class WinFormsRow : IDisposable
 {
     private const int ArrowWidth = 14;
@@ -18,6 +19,8 @@ internal sealed class WinFormsRow : IDisposable
     private readonly HelpMark Mark;
     private readonly Font? Bold;
     private readonly WinFormsEditor? Editor;
+    private readonly LabelScrub? Scrub;
+    private Font? Italic;
 
     // What the core refused as a mistake at the last write, until a write goes through.
     private string? Error;
@@ -55,6 +58,10 @@ internal sealed class WinFormsRow : IDisposable
             Label.Click += ToggleCollapsed;
             Label.Paint += PaintArrow;
         }
+        else if (Kind is not (null or EditorKind.Header or EditorKind.Separator))
+        {
+            Scrub = new LabelScrub(this, Label);
+        }
 
         Editor = WinFormsEditor.For(this, Kind);
 
@@ -80,6 +87,14 @@ internal sealed class WinFormsRow : IDisposable
     public EditorKind? Kind { get; }
 
     public bool IsGroup { get; }
+
+    // Whether the label scrubs the number now (P7.17).
+    public bool Scrubs => Scrub != null && LabelScrub.CanScrub(Node);
+
+    // Whether the row shows its objects as holding different values (P7.19): only a row with a value
+    // of its own; the objects behind a group or a collection are always different ones.
+    public bool Mixed => Node.IsMixed && Kind is EditorKind.Text or EditorKind.Number or EditorKind.Toggle or EditorKind.Choice
+        or EditorKind.Slider or EditorKind.Color or EditorKind.Display;
 
     // The editor a row makes for a node (P7.9): none for a group, unless it is a collection (its
     // selector or its list); a slider with no range is a number, and an editor still to be chosen
@@ -143,6 +158,10 @@ internal sealed class WinFormsRow : IDisposable
 
         if (IsGroup)
             Label.Invalidate();
+        else
+            Label.Cursor = !Scrubs ? Cursors.Default : Node.ScrubAxis == ScrubAxis.Vertical ? Cursors.SizeNS : Cursors.SizeWE;
+
+        ShowMixed();
 
         if (Editor == null)
             return;
@@ -176,10 +195,28 @@ internal sealed class WinFormsRow : IDisposable
 
     public void Dispose()
     {
+        Scrub?.Dispose();
+        Italic?.Dispose();
         Label.Dispose();
         Mark.Dispose();
         Bold?.Dispose();
         Editor?.Dispose();
+    }
+
+    private void ShowMixed()
+    {
+        if (Kind == EditorKind.Header)
+            return;
+
+        if (Mixed)
+        {
+            Italic ??= new Font(Label.Font, FontStyle.Italic);
+            Label.Font = Italic;
+        }
+        else if (Italic != null && Label.Font == Italic)
+        {
+            Label.ResetFont();
+        }
     }
 
     private static string? Describe(Diagnostics.InspectorFailureEventArgs? failure)
