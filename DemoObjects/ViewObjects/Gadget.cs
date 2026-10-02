@@ -5,16 +5,18 @@ using InteractiveEditor.Primitives;
 
 namespace DemoObjects.ViewObjects;
 
-// A member for each editor of the views (P7.9), two with a long help (P7.15), for a look at them in
-// WindowsHost.
+// A member for each editor of the views (P7.9), two with a long help (P7.15) and two that scrub, one
+// across and one up and down (P7.18), for a look at them in WindowsHost.
 public class Gadget
 {
     public string Name { get; set; } = "gadget";
 
     [InspectorTooltip("How many there are")]
+    [InspectorScrub(1)]
     [InspectorHelp("How many gadgets there are. The tooltip is the short description; this is the long one, shown by the (?) at the end of the label.")]
     public int Count { get; set; } = 3;
 
+    [InspectorScrub(0.01, Axis = ScrubAxis.Vertical)]
     public double Ratio { get; set; } = 0.5;
 
     public bool Enabled { get; set; } = true;
