@@ -88,6 +88,43 @@ public class MemberNode : InspectorNode
         if (!TryPrepare(value, out var prepared))
             return;
 
+        var values = Enumerable.Repeat(prepared, Root.Instances.Count).ToArray();
+
+        if (Inspector.Options.ViewToInstance)
+            Write(values, ValueSource.Write);
+        else
+            Hold(values);
+    }
+
+    // One value for each bound object (P7.16), refused as SetValue refuses one, and with as many values
+    // as objects. They are all prepared before any is written, so one that does not convert, or breaks
+    // a rule, leaves every object as it was, and the row shows why.
+    public override void SetValues(IReadOnlyList<object?> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        if (IsGroup)
+            throw new InvalidOperationException($"'{Name}' is a group; set its fields instead.");
+
+        ThrowIfCompromised();
+
+        if (values.Count != Root.Instances.Count)
+        {
+            throw new ArgumentException($"'{Name}' has {Root.Instances.Count} objects bound; give one value for each.",
+                nameof(values));
+        }
+
+        if (CannotWrite() is { } reason)
+            throw new InvalidOperationException(reason);
+
+        var prepared = new object?[values.Count];
+
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (!TryPrepare(values[i], out prepared[i]))
+                return;
+        }
+
         if (Inspector.Options.ViewToInstance)
             Write(prepared, ValueSource.Write);
         else
@@ -205,16 +242,16 @@ public class MemberNode : InspectorNode
     // (P3.3): a member does; the item of a collection is whatever the chosen place holds (P5.10).
     private protected virtual bool KeepsObject => true;
 
-    // Writes a value that is ready into every bound object. When the write works, the pending value
-    // goes; the node and whatever changed with it are read again either way.
-    private void Write(object? value, ValueSource source)
+    // Writes values that are ready into the bound objects, one each. When the write works, the pending
+    // values go; the node and whatever changed with it are read again either way.
+    private void Write(object?[] values, ValueSource source)
     {
         var dropped = false;
 
         try
         {
-            foreach (var instance in Root.Instances)
-                WriteTo(instance, value);
+            for (var i = 0; i < Root.Instances.Count; i++)
+                WriteTo(Root.Instances[i], values[i]);
 
             OnWritten();
             dropped = DropPending();
