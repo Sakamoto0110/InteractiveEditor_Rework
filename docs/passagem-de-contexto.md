@@ -41,8 +41,9 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
 
 ## 2. Como o neko trabalha
 
-- Nunca chamar de Rafael: esse nome fica só no git (seção 1). Chamar de neko quando o assunto é
-  construir ferramentas e frameworks, como este, e de void no código de mais baixo nível, mesmo em
+- Nunca chamar de Rafael: esse nome só aparece na identidade do git (seção 1) e nunca foi usado na
+  conversa; quando o próprio nome aparece, é o sobrenome, Sakamoto. Chamar de neko quando o assunto
+  é construir ferramentas e frameworks, como este, e de void no código de mais baixo nível, mesmo em
   C#; na dúvida, void.
 - Conversa em português, sem emojis. As notas também são em português, com linhas de até 100
   colunas e referências a commits.
