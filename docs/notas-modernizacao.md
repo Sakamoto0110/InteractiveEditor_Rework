@@ -335,7 +335,8 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   o clique no rótulo ou na seta alterna o `Collapsed` do nó; o painel do grupo sem borda, só com o
   recuo, como no original.
 - **A falha na linha** (P7.11, 02/10): o fundo do editor fica vermelho claro, e a mensagem vai no
-  tooltip dele, dentro do retângulo do layout. A proteção das próprias views fica para o corte 4.
+  tooltip dele, dentro do retângulo do layout. A proteção das próprias views entrou no corte 4
+  (commit `2a17c8c`; 3.5).
 - **Avisos de outra thread** (P7.12, 02/10): a view repassa para a thread da interface o que recebe
   (`BeginInvoke`), e o núcleo continua sem saber de threads.
 - **O espaçador e a largura máxima** (P7.14, 02/10): numa view larga, o editor não estica mais a
@@ -392,7 +393,9 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
 - **A view percorre a árvore** (P7.3): um painel por grupo, que recolhe junto.
 - **Válvulas de escape** (P7.4): um callback por plataforma quando um controle é criado, e um
   terceiro, agnóstico, quando a linha inteira termina de ser montada. Se ele não puder ser
-  agnóstico, são quatro, dois por plataforma.
+  agnóstico, são quatro, dois por plataforma. Aplicado no commit `2a17c8c` com quatro: o terceiro só
+  seria agnóstico com os controles como `object`, e quem assinasse teria de converter. O agnóstico
+  ficou nos args, genéricos no tipo do controle, no núcleo (3.5).
 - **Passo de layout** (P7.5, 29/09): no núcleo, agnóstico. Ele devolve os retângulos de cada linha
   (a linha, o rótulo e o editor), e a view só os aplica; as opções de layout (altura da linha,
   espaçamento, recuo por nível) ficam no `InspectorOptions`. Assim ele é testado no Linux, sem
@@ -1029,7 +1032,8 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
 - Válvula de escape por plataforma, o sucessor limpo do `EditField()` (decidido, P7.4): um callback
   `ControlCreated(caminho, controle)` na view de cada plataforma, para o que a configuração agnóstica
   não cobrir. Mais um, agnóstico, quando a linha inteira termina de ser montada, porque cada linha
-  tem vários controles; se ele não puder ser agnóstico, são quatro, dois por plataforma.
+  tem vários controles; se ele não puder ser agnóstico, são quatro, dois por plataforma. Aplicado
+  no corte 4, abaixo.
 
 **A view WinForms** (o corte 2, aplicado no commit `60d4203`, com as respostas de 7.7 a 7.13)
 
@@ -1052,8 +1056,8 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
 - **A falha** (P7.11). O fundo vermelho claro e a mensagem do nó no tooltip do editor, com o motivo
   embaixo. No editor de cor, o fundo é o valor, então a falha fica na borda, vermelha. O que o
   núcleo recusa como uso errado numa gravação da view (um nó somente leitura, um ramo desativado)
-  aparece na linha do mesmo jeito, em vez de derrubar a view; a premissa inteira nas views é o corte
-  4.
+  aparece na linha do mesmo jeito, em vez de derrubar a view; o resto da premissa nas views veio no
+  corte 4, abaixo.
 - **As setas** (P7.10). A do grupo e as de subir e descer do editor de lista são desenhadas, e não
   caracteres: no Wine, a fonte não tinha o ▲ e o ▼, que saíam como quadrados.
 - **O `(?)` e a linha sob o mouse** (P7.15, P7.14; commit `79e936b`). A marca é um controle próprio
@@ -1072,9 +1076,30 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   leitura, ou num ramo desativado, não faz scrubbing. O itálico do misto fica só nas linhas com
   valor próprio: um grupo e uma coleção guardam objetos sempre diferentes, então o `IsMixed` deles
   vale, mas a view não os marca. A caixa de texto mostra o "—" pelo `PlaceholderText`.
-- **Ainda não**: as válvulas (P7.4) e a premissa de erros nas views (corte 4). Um nó posto à mão
-  depois de a view montar (`Add`, `AddButton`, `AddDisplay`) só aparece no layout seguinte, porque
-  pôr um nó não é uma opção e não avisa; fica assim até aparecer motivo.
+- **As válvulas** (o corte 4, P7.4; commit `2a17c8c`). O `ControlCreated` vem para cada controle que
+  a view faz para um nó (o rótulo, a marca de ajuda, o editor e o painel de um grupo, com a parte em
+  `RowPart`), e o `RowCreated` vem depois, uma vez por linha, com a linha inteira, já no lugar e
+  mostrando o valor. Cada um vem uma vez, e de novo só para uma linha refeita (um nó que trocou de
+  editor). Ficaram quatro, dois por plataforma, como a P7.4 previa: o terceiro só seria agnóstico
+  com os controles como `object`, e quem assinasse teria de converter. O agnóstico são os args, no
+  núcleo, genéricos no tipo do controle (`ControlCreatedEventArgs<TControl>` e
+  `RowCreatedEventArgs<TControl>`): o WinForms usa `Control`, e o WPF vai usar `FrameworkElement`. A
+  view continua dona do lugar, do valor e do estado (habilitado, a cor da falha, o tooltip); o resto
+  é de quem assina. Para quem assina logo depois do `CreateWinFormsView` ver todos os controles, as
+  linhas são feitas quando a view ganha a janela, e não mais no construtor. Uma exceção de quem
+  assina sobe pela view, como a de um evento do inspector (3.11): o layout para naquela linha, a
+  view continua usável, e a próxima mudança faz o resto. O WindowsHost alinha dois números à direita
+  por uma válvula.
+- **As falhas da própria view** (o corte 4, 3.11; commit `2a17c8c`), avisadas pelo `RowFailed`, com
+  os args de falha do núcleo. Uma linha que não pode ser feita ou posta no lugar (um controle que a
+  plataforma recusa) fica de fora, com o ramo, até o próximo layout (crítico); esse caso não tem
+  teste, porque não há como provocá-lo sem um gancho só para teste. Uma linha que não consegue
+  mostrar os objetos (um `ToString` ou um `Equals` deles que lança) guarda o que mostrava e fica
+  vermelho-claro, com a mensagem no tooltip, até se mostrar inteira de novo (contornado); o aviso
+  vem uma vez, e não a cada nova tentativa, e as outras linhas seguem normais.
+- **Ainda não**: um nó posto à mão depois de a view montar (`Add`, `AddButton`, `AddDisplay`) só
+  aparece no layout seguinte, porque pôr um nó não é uma opção e não avisa; fica assim até aparecer
+  motivo.
 - **Verificado no Wine**, com um app de teste que monta a view para um tipo com todos os editores e
   usa o teclado de verdade (`SendKeys`), o foco e os cliques dos controles: 71 checagens (o lugar de
   cada controle no layout, os valores, a gravação do texto com Enter, foco e Esc, a falha, cada
@@ -1093,9 +1118,17 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   mouse, porque o Wine relê as teclas no servidor X; o teste então pede a um script de fora
   (`run-wine.sh`, que usa o `xdotool`) que aperte a tecla de verdade. Dois membros do `Gadget` fazem
   scrubbing, um em cada eixo, e um botão do WindowsHost liga e desliga um segundo `Gadget`, para os
-  mistos (commit `41b636c`).  ### 3.6 Serviços (decidido: descartados)  O service locator do
-  original existia para tirar responsabilidades de um arquivo monolítico e agrupar funcionalidades.
-  No rework ele não volta:
+  mistos (commit `41b636c`). Com o corte 4, 135 checagens: os controles e as linhas das válvulas, na
+  ordem, uma vez cada, de novo para um editor trocado, o que a válvula ajustou ficando, a exceção de
+  uma válvula subindo com a view usável depois, e um `ToString` que lança deixando só a linha dele
+  vermelha, avisada uma vez, até sarar. Sem a proteção da linha, o app para com a exceção sem
+  tratamento; sem o painel na válvula, a checagem dele falha.
+
+### 3.6 Serviços (decidido: descartados)
+
+O service locator do original existia para tirar responsabilidades de um arquivo monolítico e
+agrupar funcionalidades. No rework ele não volta:
+
 - localizar e aplicar já estão cobertos pelo `IEnumerable<InspectorNode>`, pelo indexador e por LINQ,
   numa fração das linhas;
 - manipular e vincular viram métodos do inspector e dos nós.
@@ -1357,7 +1390,9 @@ com as respostas de 29/09 (P0.1, P0.2, P1.9):
   nada é gravado. No `Apply()` e no `ForceApply()` (commit `18dc069`), um nó que não recebe o valor
   mostra a falha (contornado), e os outros seguem. O uso errado continua lançando: somente
   leitura, grupo, dono null e valor de um tipo sem relação com o do membro.
-- **Falta**: a mesma proteção nas views, quando elas existirem.
+- **Nas views** (commit `2a17c8c`): na WinForms, uma linha que não pode ser feita fica de fora até o
+  próximo layout, e uma que não consegue mostrar os objetos fica vermelho-claro, avisadas pelo
+  `RowFailed` (3.5). A WPF vem com a mesma proteção.
 - **Severidade** (decidido, P0.1): recuperado, contornado, crítico e fatal; só o fatal sobe para
   quem chamou.
 - **O que continua lançando** (decidido, P0.2): o uso errado da API por quem chama (ligar duas
@@ -1655,9 +1690,10 @@ Apresentação
 - [x] Scrubbing no rótulo e indicativo de valores mistos: um valor por objeto no núcleo, o arraste
       nos dois eixos, com Shift, Ctrl e Esc, e o itálico com o editor neutro (P2.4; P7.16 a P7.19;
       commits `d1d4c13` e `5a0f6e8`).
+- [x] Válvulas de escape: o `ControlCreated` por controle e o `RowCreated` ao fim de cada linha,
+      com os args agnósticos no núcleo, e as falhas da própria view na linha (P7.4; 3.11; commit
+      `2a17c8c`).
 - [ ] View WPF, pelo mesmo caminho (o corte 5).
-- [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
-      fim de cada linha (P7.4).
 
 Pendências da primeira revisão (já conhecidas)
 
@@ -1793,9 +1829,9 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: as válvulas (P7.4) com a premissa de erros nas views, e a view WPF; os dois
-alvos (P7.1), a view WinForms (P7.2, P7.3) e o scrubbing com os valores mistos entraram nos commits
-`ccc3a5d`, `60d4203` e `5a0f6e8`. Já entraram o `ValueChanged` (commit `eb497c6`), os
+**Próximo corte**: a view WPF; os dois alvos (P7.1), a view WinForms (P7.2, P7.3), o scrubbing com
+os valores mistos e as válvulas com a premissa de erros nas views entraram nos commits `ccc3a5d`,
+`60d4203`, `5a0f6e8` e `2a17c8c`. Já entraram o `ValueChanged` (commit `eb497c6`), os
 sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
 layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
 itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).

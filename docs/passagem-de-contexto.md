@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `41b636c`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `2a17c8c`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
@@ -122,7 +122,7 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   a largura máxima e o `(?)` no layout, e um valor por objeto (`SetValues`). Um segundo
   console testa a assembly ausente; um terceiro, o `probe-windows` (`net10.0-windows`, desde o
   commit `ccc3a5d`), as conversões dos primitivos com o WinForms e o WPF (21 checagens); e um
-  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 117 checagens. Os dois
+  quarto, o `probe-view` (WinForms, desde o commit `60d4203`), a view, com 135 checagens. Os dois
   últimos rodam no Wine (abaixo). Os quatro ficam no scratchpad da sessão e não passam para a
   próxima, mas o neko recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que
   diz como rodar; a última de 02/10 tem os quatro). Se ele mandar o zip, descompactar fora do
@@ -323,6 +323,13 @@ Pegadinhas já vistas:
   rótulo fica em itálico e o editor neutro (vazio com "—", indeterminado, sem escolha); um número
   que faz scrubbing mostra o do primeiro. O WindowsHost liga um segundo `Gadget` por um botão
   (commit `41b636c`).
+- Válvulas e falhas da view (P7.4, 3.11; commit `2a17c8c`): o `ControlCreated` vem por controle
+  (rótulo, marca, editor, painel do grupo, em `RowPart`) e o `RowCreated` ao fim de cada linha, já
+  no lugar e com o valor; os args são genéricos no núcleo (`ControlCreatedEventArgs<TControl>`,
+  `RowCreatedEventArgs<TControl>`), e cada view declara os eventos com o tipo de controle dela. As
+  linhas são feitas quando a view ganha a janela. O `RowFailed` avisa o que falha na própria view:
+  uma linha que não pode ser feita fica de fora até o próximo layout, e uma que não mostra os
+  objetos (um `ToString` que lança) fica vermelho-claro até sarar. Detalhes na seção 3.5 das notas.
 
 ## 6. O que falta
 
@@ -341,9 +348,9 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   conversões dos primitivos (P7.1), entrou no commit `ccc3a5d`. As escolhas do corte 2, a view
   WinForms, foram respondidas com as sugestões (P7.7 a P7.13), e ele entrou nos commits `569525a`
   (os eventos) e `60d4203` (a view). O corte 3, o scrubbing e os mistos (P7.16 a P7.19), entrou nos
-  commits `d1d4c13` e `5a0f6e8`.
-- Com as views: os callbacks por plataforma e o agnóstico por linha (P7.4) com a premissa de erros
-  nas views (corte 4), e a view WPF, com a fábrica dela (corte 5).
+  commits `d1d4c13` e `5a0f6e8`. O corte 4, as válvulas (P7.4) e a premissa de erros nas views,
+  entrou no commit `2a17c8c`.
+- Com as views: a view WPF, com a fábrica dela (corte 5).
 - Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
 
 ## 7. Próximo passo
@@ -351,18 +358,24 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 1. Seguir as views, decididas em 02/10 antes das sessões próprias, nos cortes da seção 0 das notas
    (Views), um por vez. Entraram o corte 1 (os dois alvos e as conversões, commit `ccc3a5d`), o 2 (a
    view WinForms, commits `569525a` e `60d4203`, com o espaçador e o `(?)` depois) e o 3 (o
-   scrubbing e os mistos, commits `d1d4c13` e `5a0f6e8`). O próximo é o 4: as válvulas de escape
-   (P7.4), um callback por plataforma quando um controle é criado e um agnóstico quando a linha
-   termina, com a premissa de erros nas views (3.11); depois o WPF. Verificar no Wine, com o
-   `probe-view` e o `run-wine.sh`. Para reler o original: `Sakamoto0110/InteractiveEditor` (branch
-   `InspectorVariant0.7.1a`) e `Sakamoto0110/OverlayApplication`, públicos, clonados só para
-   leitura.
+   scrubbing e os mistos, commits `d1d4c13` e `5a0f6e8`) e o 4 (as válvulas e a premissa de erros
+   nas views, commit `2a17c8c`). O próximo é o 5, a view WPF, pelo mesmo caminho: a fábrica
+   (`CreateWpfView`), um controle por `EditorKind`, o scrubbing, os mistos, as válvulas com o
+   `FrameworkElement` nos mesmos args e a mesma proteção das linhas. Verificar no Wine, com um probe
+   da view WPF no molde do `probe-view` e do `run-wine.sh`. Para reler o original:
+   `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
+   `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
 2. O neko viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)`
    (P7.14, P7.15), aplicados nos commits `b3aaad0`, `79e936b` e `c71255c`; depois preferiu o `(?)`
    colado no editor (commit `0578057`). Falta ele conferir no WindowsHost o espaçador, o `(?)` e a
    janela dele, o fundo da linha sob o mouse, o scrubbing (`Count` na horizontal, `Ratio` na
-   vertical) e os mistos (o botão "Bind a second gadget", no fim).
-3. Faltam dois cortes das views: o 4 (as válvulas e a premissa de erros) e o 5 (a view WPF, o
-   maior, mas quase só tradução, porque o núcleo está pronto). Para o corte 4, eu ofereci trazer só
-   as escolhas sem resposta óbvia e aplicar o resto com o padrão que eu recomendaria, mostrando tudo
-   no fim; ele não respondeu antes de pedir a troca de contexto, então perguntar de novo.
+   vertical), os mistos (o botão "Bind a second gadget", no fim) e a válvula (`Count` e `Ratio`
+   alinhados à direita).
+3. Falta um corte das views, o 5 (a view WPF, o maior, mas quase só tradução, porque o núcleo está
+   pronto). O 4 foi feito em 02/10, quando o neko pediu para rodá-lo antes de a cota acabar, sem a
+   rodada das escolhas que eu tinha oferecido: as que não tinham resposta óbvia eu tomei com a minha
+   sugestão e mostrei no fim. Foram quatro eventos em vez de três, com os args genéricos no núcleo;
+   as linhas feitas quando a view ganha a janela, e não no construtor; a exceção de uma válvula
+   subindo, como a de um evento do inspector; e o `RowFailed`, crítico para a linha que não pode ser
+   feita e contornado para a que não mostra os objetos. Se ele discordar de alguma, mudar antes do
+   WPF, que vai copiar o desenho.
