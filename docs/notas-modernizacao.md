@@ -371,6 +371,7 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   começo, e não somar a cada movimento, é o que deixa um `int` com multiplicador pequeno sair do
   lugar. Os valores do começo ficam no objeto da linha da view, que já junta o rótulo e o editor; o
   `Tag` dos controles, que ele usava no original para isso, fica livre para quem usa a biblioteca.
+  Aplicado no commit `d1d4c13` (o núcleo) e usado pela view no `5a0f6e8` (3.3, 3.5).
 - **Quais linhas fazem scrubbing** (P7.17, 02/10): só as que têm `ScrubMultiplier`, como hoje e como
   no original; é opcional por campo.
 - **O gesto** (P7.18, 02/10): o cursor ↔ sobre o rótulo de uma linha com scrubbing; o arraste começa
@@ -378,12 +379,13 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   por 10, e Ctrl por 0,1; o Esc durante o arraste volta todos os objetos aos valores do começo; a
   faixa vale por objeto. A direção é uma opção por campo, ao lado do multiplicador, e não uma flag
   global (a regra da P7.17): horizontal por padrão e vertical por escolha, com o cursor ↕ e o
-  arraste para cima aumentando o valor.
+  arraste para cima aumentando o valor. A opção (`ScrubAxis`) entrou no commit `d1d4c13`, e o gesto,
+  no `5a0f6e8`.
 - **O indicativo de mistos** (P7.19, 02/10): um sinal só para a linha, o rótulo em itálico quando o
   `IsMixed` vale, e o editor num estado neutro: texto e número vazios, com "—" em cinza (digitar
   grava o mesmo valor em todos), a caixa de seleção indeterminada, a escolha sem seleção, a cor sem
-  cor, com "—". Com scrubbing, o número mostra o valor do primeiro, como na P2.4, e o rótulo continua
-  em itálico, para não parecer que todos têm aquele valor.
+  cor, com "—". Com scrubbing, o número mostra o valor do primeiro, como na P2.4, e o rótulo
+  continua em itálico, para não parecer que todos têm aquele valor. Aplicado no commit `5a0f6e8`.
 - **O inspector descartado com a view viva** (P7.13, 02/10): um evento `Disposed` no inspector, e a
   view se esvazia ao recebê-lo; um descarte fora de ordem não derruba a view. O evento entrou no
   commit `569525a`, e a view o usa desde o `60d4203`.
@@ -792,16 +794,22 @@ configuração manual tem a palavra final; com `TypeBinderMode.Manual`, entra s�
   `ReadOnly` (`'X' is read-only.`), antes da subida. Desde o commit `e136f82`, o `SetValue` confere
   o `ReadOnly` antes de converter o valor.
 - **Multi-bind** (aplicado, commit `c201877`): a raiz guarda uma lista de objetos. `AddBind` põe um
-  ou mais (sem nada ligado, liga), `RemoveBind` tira um, e tirar o último é o mesmo que o
-  `Unbind()` (P2.5); todo objeto tem que servir para a árvore (P2.3), e o mesmo objeto duas vezes
-  lança. `GetValue` lê o primeiro, `GetValues` lê um valor por objeto, e `IsMixed` diz quando eles
-  diferem (P2.10). `SetValue` grava em todos, e um dono null em qualquer um deles interrompe antes
-  de algum mudar. Na view (P2.4): sem scrubbing, a linha indica que as instâncias diferem; com
-  scrubbing, mostra o valor da primeira, e o delta vale para cada uma, como no original. O
-  inspector avisa por `BindRegistered`, `BindRemoved` e `Unbound`. No commit `18dc069`,
-  confirmado em 29/09: o `IsMixed` passou a seguir o que a view mostra (a última leitura, e
-  nunca misto com um valor guardado, que vai para todos), sem ler os objetos, para a linha não
-  juntar uma leitura ao vivo com o valor que ela mostra.
+  ou mais (sem nada ligado, liga), `RemoveBind` tira um, e tirar o último é o mesmo que o `Unbind()`
+  (P2.5); todo objeto tem que servir para a árvore (P2.3), e o mesmo objeto duas vezes lança.
+  `GetValue` lê o primeiro, `GetValues` lê um valor por objeto, e `IsMixed` diz quando eles diferem
+  (P2.10). `SetValue` grava em todos, e um dono null em qualquer um deles interrompe antes de algum
+  mudar. Na view (P2.4): sem scrubbing, a linha indica que as instâncias diferem; com scrubbing,
+  mostra o valor da primeira, e o delta vale para cada uma, como no original. O inspector avisa por
+  `BindRegistered`, `BindRemoved` e `Unbound`. No commit `18dc069`, confirmado em 29/09: o `IsMixed`
+  passou a seguir o que a view mostra (a última leitura, e nunca misto com um valor guardado, que
+  vai para todos), sem ler os objetos, para a linha não juntar uma leitura ao vivo com o valor que
+  ela mostra. Desde o commit `d1d4c13` (P7.16): o `ViewValues` dá o que a view mostra de cada
+  objeto, e o `SetValues(valores)` grava um valor em cada um, com o preparo do `SetValue` em todos
+  antes de gravar qualquer um (um que falha deixa todos como estavam) e um evento só; o valor
+  guardado sem `ViewToInstance` passou a ser um por objeto (o mesmo, depois de um `SetValue`), e o
+  `IsMixed` lê o que a view mostra, guardados inclusive: um valor dado a todos não é misto, e os do
+  scrubbing, cada objeto a partir do seu, continuam sendo. O scrubbing por delta da P2.4 é a view
+  gravando "o começo de cada um + o delta" por ele.
 - **Objeto → UI** (decidido, P2.6): `INotifyPropertyChanged` no lugar de `ITwoWayBinderTransmiter`.
   O objeto deixa de guardar referência ao inspector (`BindedTo`), e vários inspectors podem observar
   o mesmo objeto. Um `Refresh()` manual cobre quem não implementa a interface; ele é o fluxo normal,
@@ -1056,10 +1064,17 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   das linhas e pinta o retângulo `Row` da linha de baixo dele no contêiner, com um pouco da cor de
   destaque sobre o fundo (segue as cores do sistema); o rótulo, a marca, a caixa de seleção e o
   quadro da lista deixam o fundo passar, e o `TrackBar`, que não deixa, pega a cor.
-- **Ainda não**: o scrubbing e o indicativo de valores mistos (corte 3), as válvulas (P7.4) e a
-  premissa de erros nas views (corte 4). Um nó posto à mão depois de a view
-  montar (`Add`, `AddButton`, `AddDisplay`) só aparece no layout seguinte, porque pôr um nó não é
-  uma opção e não avisa; fica assim até aparecer motivo.
+- **O scrubbing e os mistos** (o corte 3, P7.16 a P7.19; commit `5a0f6e8`). O rótulo de uma linha
+  que faz scrubbing (um número com `ScrubMultiplier`, que pode ser gravado agora) tem o cursor do
+  eixo dela e uma `LabelScrub`, que guarda os valores do começo do arraste (`ViewValues`) e grava, a
+  cada movimento, "o começo de cada objeto + a distância × o passo" pelo `SetValues`. O Esc chega
+  por um filtro de mensagens, só durante o arraste, porque o rótulo não tem foco. Um nó somente
+  leitura, ou num ramo desativado, não faz scrubbing. O itálico do misto fica só nas linhas com
+  valor próprio: um grupo e uma coleção guardam objetos sempre diferentes, então o `IsMixed` deles
+  vale, mas a view não os marca. A caixa de texto mostra o "—" pelo `PlaceholderText`.
+- **Ainda não**: as válvulas (P7.4) e a premissa de erros nas views (corte 4). Um nó posto à mão
+  depois de a view montar (`Add`, `AddButton`, `AddDisplay`) só aparece no layout seguinte, porque
+  pôr um nó não é uma opção e não avisa; fica assim até aparecer motivo.
 - **Verificado no Wine**, com um app de teste que monta a view para um tipo com todos os editores e
   usa o teclado de verdade (`SendKeys`), o foco e os cliques dos controles: 71 checagens (o lugar de
   cada controle no layout, os valores, a gravação do texto com Enter, foco e Esc, a falha, cada
@@ -1071,13 +1086,16 @@ ele nem com o `System.Numerics` (testado, todos importados no mesmo arquivo).
   Windows. Com o espaçador, o `(?)` e a linha sob o mouse, o app passou a 93 checagens (as posições,
   o `MaxWidth`, a marca na tela, a janela modal, que desabilita o form de trás, e o fundo pela cor
   dos pixels na tela); quebrando cada parte de propósito, 6 falham, e a marca como `Label` também
-  falha. Dois membros do `Gadget` ganharam `Help` (commit `c71255c`).
-
-### 3.6 Serviços (decidido: descartados)
-
-O service locator do original existia para tirar responsabilidades de um arquivo monolítico e
-agrupar funcionalidades. No rework ele não volta:
-
+  falha. Dois membros do `Gadget` ganharam `Help` (commit `c71255c`). Com o corte 3, 117 checagens:
+  o arraste é de mouse de verdade (o `mouse_event` do Windows), inclusive um pixel por vez num `int`
+  com 0,1 por pixel, o Esc, o eixo vertical e os dois objetos andando juntos; quebrando o scrubbing
+  e o misto de propósito, 8 falham. No Wine, o Shift e o Ctrl simulados se perdem no movimento do
+  mouse, porque o Wine relê as teclas no servidor X; o teste então pede a um script de fora
+  (`run-wine.sh`, que usa o `xdotool`) que aperte a tecla de verdade. Dois membros do `Gadget` fazem
+  scrubbing, um em cada eixo, e um botão do WindowsHost liga e desliga um segundo `Gadget`, para os
+  mistos (commit `41b636c`).  ### 3.6 Serviços (decidido: descartados)  O service locator do
+  original existia para tirar responsabilidades de um arquivo monolítico e agrupar funcionalidades.
+  No rework ele não volta:
 - localizar e aplicar já estão cobertos pelo `IEnumerable<InspectorNode>`, pelo indexador e por LINQ,
   numa fração das linhas;
 - manipular e vincular viram métodos do inspector e dos nós.
@@ -1586,7 +1604,7 @@ Núcleo (portar a essência)
 - [x] Binding: ligar que lança se já houver objeto ligado ou se o tipo for outro (P2.2), `Unbind()`
       e `Rebind` (P9.1; commit `4dec125`).
 - [x] Multi-bind: `AddBind` e `RemoveBind`, um tipo só, com os valores mistos (P2.3 a P2.5; P2.10;
-      commit `c201877`). O scrubbing por delta fica com a view.
+      commit `c201877`). O scrubbing por delta entrou com a view (commits `d1d4c13` e `5a0f6e8`).
 - [x] `Refresh()` com o `ValueChanged` dizendo a origem (P2.6, P1.10; commit `eb497c6`).
 - [x] Objeto → UI por `INotifyPropertyChanged` (P2.6; commit `b6a99d8`).
 - [x] Controle do binder: o enum de flags, o fluxo normal para ler e gravar à mão e os métodos de
@@ -1634,7 +1652,9 @@ Apresentação
       linhas e o fundo da linha sob o mouse (P7.14; commits `b3aaad0` e `79e936b`).
 - [x] O `(?)` da ajuda longa, colado no editor, numa faixa antes dos editores, com a janela modal
       (P7.15; commits `b3aaad0`, `79e936b` e `0578057`).
-- [ ] Scrubbing no rótulo e indicativo de valores mistos (P2.4; o corte 3).
+- [x] Scrubbing no rótulo e indicativo de valores mistos: um valor por objeto no núcleo, o arraste
+      nos dois eixos, com Shift, Ctrl e Esc, e o itálico com o editor neutro (P2.4; P7.16 a P7.19;
+      commits `d1d4c13` e `5a0f6e8`).
 - [ ] View WPF, pelo mesmo caminho (o corte 5).
 - [ ] Válvula de escape por plataforma para ajustar o controle criado, e um callback agnóstico ao
       fim de cada linha (P7.4).
@@ -1680,12 +1700,13 @@ commit `bf6f74f`: as opções passaram para o próprio nó e a configuração é
   sobrescreverem (P1.5); os valores padrão ficam no próprio `InspectorOptions`.
 - Por campo: propriedades do próprio nó (`InspectorNode`): `Label`, `Tooltip` (curta), `Help`
   (longa, para o `(?)`), `Order`, `Ignored`, `Visible`, `ReadOnly`, `Editor` (`EditorKind`), `Range`
-  (`NumericRange`), `ScrubMultiplier`, `Expandable`, `Collapsed` e as listas `TextRules` e
-  `ValueRules` (commit `e136f82`), o `VisibleWhen` (commit `c589e2a`) e o `Choices` (commit
-  `b92267c`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da view, e o `Ignored`, da
-  árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são lidos pelos pais. Desde o
-  commit `569525a`, uma mudança de fato em qualquer uma delas, menos nas listas de regras, sai pelo
-  `OptionChanged` do inspector (P7.8), como as de cultura e de layout do `InspectorOptions`.
+  (`NumericRange`), `ScrubMultiplier`, `ScrubAxis` (commit `d1d4c13`), `Expandable`, `Collapsed` e
+  as listas `TextRules` e `ValueRules` (commit `e136f82`), o `VisibleWhen` (commit `c589e2a`) e o
+  `Choices` (commit `b92267c`); mais `Path` e `IsGroup`, que vêm da árvore. O `Visible` é da view, e
+  o `Ignored`, da árvore (P6.1); desde o commit `13534b0`, o `Visible` e o `ReadOnly` são lidos
+  pelos pais. Desde o commit `569525a`, uma mudança de fato em qualquer uma delas, menos nas listas
+  de regras, sai pelo `OptionChanged` do inspector (P7.8), como as de cultura e de layout do
+  `InspectorOptions`.
 
 **A pilha** (fixa e nessa ordem; cada camada só mexe no que decide, e a seguinte sobrescreve)
 
@@ -1772,9 +1793,9 @@ TuxHost, `Boo.Details` expande pelo atributo, mas `Details.Doo` não, porque o t
 atributo. É o comportamento do `TypeSafeLock` do original. Um atributo que propague fica como
 ideia.
 
-**Próximos cortes**: o scrubbing e os valores mistos, as válvulas (P7.4) com a premissa de erros nas
-views, e a view WPF; os dois alvos (P7.1) e a view WinForms (P7.2, P7.3) entraram nos commits
-`ccc3a5d` e `60d4203`. Já entraram o `ValueChanged` (commit `eb497c6`), os
+**Próximos cortes**: as válvulas (P7.4) com a premissa de erros nas views, e a view WPF; os dois
+alvos (P7.1), a view WinForms (P7.2, P7.3) e o scrubbing com os valores mistos entraram nos commits
+`ccc3a5d`, `60d4203` e `5a0f6e8`. Já entraram o `ValueChanged` (commit `eb497c6`), os
 sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit `0c97638`), o
 layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit `c589e2a`) e os
 itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
