@@ -16,6 +16,10 @@ public static class PrimitiveConversions
     public static Vector2 ToVector2(this PxSizei size) => new(size.Width, size.Height);
     public static Vector2 ToVector2(this PxSizef size) => new(size.Width, size.Height);
 
+    // From double, narrowed to ImGui's float.
+    public static Vector2 ToVector2(this PxPoint p) => new((float)p.X, (float)p.Y);
+    public static Vector2 ToVector2(this PxSize size) => new((float)size.Width, (float)size.Height);
+
     // From an ImGui RGBA color; X, Y, Z and W are R, G, B and A, the order PxColorRgba takes them in.
     public static PxColorRgba ToPrimitive(this Vector4 color) => new PxColorRgba(ToByte(color.X), ToByte(color.Y), ToByte(color.Z), ToByte(color.W));
 
