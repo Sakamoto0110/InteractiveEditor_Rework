@@ -3,7 +3,7 @@
   <Project Path="InteractiveEditor/InteractiveEditor.csproj" />
   <Project Path="InteractiveEditor.WinForms/InteractiveEditor.WinForms.csproj" />
   <Project Path="InteractiveEditor.Wpf/InteractiveEditor.Wpf.csproj" />
-  <Project Path="NoHost/NoHost.csproj" Id="99a5cfd7-88f1-4cb1-a621-49e600cfce44" />
+  <Project Path="TerminalHost/TerminalHost.csproj" />
   <Project Path="WindowsHost/WindowsHost.csproj" />
   <Project Path="WpfHost/WpfHost.csproj" />
 </Solution>
