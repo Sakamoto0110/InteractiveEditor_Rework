@@ -30,7 +30,6 @@ public struct PointF : IEquatable<PointF>
     public readonly bool IsEmpty => X == 0f && Y == 0f;
 
     public static implicit operator System.Drawing.PointF(PointF p) => new System.Drawing.PointF(p.X, p.Y);
-    public static implicit operator System.Windows.Point(PointF p) => new System.Windows.Point(p.X, p.Y);
 
     public static PointF operator +(PointF pt, Size sz) => Add(pt, sz);
     public static PointF operator -(PointF pt, Size sz) => Subtract(pt, sz);

@@ -149,9 +149,6 @@ public struct ColorHSL : IEquatable<ColorHSL>
     public static implicit operator System.Drawing.Color(ColorHSL color) => (Color)color;
     public static implicit operator ColorHSL(System.Drawing.Color color) => new ColorHSL(new Color(color.A, color.R, color.G, color.B));
 
-    public static implicit operator System.Windows.Media.Color(ColorHSL color) => (Color)color;
-    public static implicit operator ColorHSL(System.Windows.Media.Color color) => new ColorHSL(new Color(color.A, color.R, color.G, color.B));
-
     public static bool operator ==(ColorHSL left, ColorHSL right) => left.A == right.A && left.H == right.H && left.S == right.S && left.L == right.L;
     public static bool operator !=(ColorHSL left, ColorHSL right) => !(left == right);
 

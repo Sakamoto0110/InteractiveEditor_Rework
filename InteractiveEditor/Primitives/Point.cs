@@ -32,7 +32,6 @@ public struct Point : IEquatable<Point>
     public readonly bool IsEmpty => X == 0 && Y == 0;
 
     public static implicit operator System.Drawing.Point(Point p) => new System.Drawing.Point(p.X, p.Y);
-    public static implicit operator System.Windows.Point(Point p) => new System.Windows.Point(p.X, p.Y);
     public static explicit operator Size(Point p) => new Size(p.X, p.Y);
 
     public static Point operator +(Point left, Point right) => new Point(left.X + right.X, left.Y + right.Y);

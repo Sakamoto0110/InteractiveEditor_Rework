@@ -37,7 +37,6 @@ public struct Size : IEquatable<Size>
 
     public static implicit operator SizeF(Size size) => new SizeF(size.Width, size.Height);
     public static implicit operator System.Drawing.Size(Size size) => new System.Drawing.Size(size.Width, size.Height);
-    public static implicit operator System.Windows.Size(Size size) => new System.Windows.Size(size.Width, size.Height);
     public static explicit operator Point(Size size) => new Point(size.Width, size.Height);
 
     public static Size operator +(Size left, Size right) => Add(left, right);

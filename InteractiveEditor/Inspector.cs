@@ -6,7 +6,6 @@ namespace InteractiveEditor;
 
 public class Inspector : InspectorNode, IEnumerable<InspectorNode>
 {
-    protected object? Host;
     protected Type? Target;
 
     private object? Instance;
@@ -71,26 +70,6 @@ public class Inspector : InspectorNode, IEnumerable<InspectorNode>
 
         return inspector;
     }
-
-    public static Inspector Create<T>(System.Windows.Forms.Control host)
-    {
-        var inspector = new Presentation.WF.InspectorView(host);
-
-         
-
-        return inspector;
-    }
-
-    public static Inspector Create<T>(System.Windows.Controls.Control host)
-    {
-        var inspector = new Presentation.WPF.InspectorView(host);
-
-         
-
-        return inspector;
-    }
-
-
 
     public void bind<T>(T instance)
     {

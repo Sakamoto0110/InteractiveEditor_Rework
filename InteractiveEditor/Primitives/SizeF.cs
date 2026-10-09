@@ -42,7 +42,6 @@ public struct SizeF : IEquatable<SizeF>
     public readonly bool IsEmpty => Width == 0f && Height == 0f;
 
     public static implicit operator System.Drawing.SizeF(SizeF size) => new System.Drawing.SizeF(size.Width, size.Height);
-    public static implicit operator System.Windows.Size(SizeF size) => new System.Windows.Size(size.Width, size.Height);
     public static explicit operator PointF(SizeF size) => new PointF(size.Width, size.Height);
 
     public static SizeF operator +(SizeF left, SizeF right) => Add(left, right);

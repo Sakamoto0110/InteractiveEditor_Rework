@@ -66,9 +66,6 @@ public struct Color : IEquatable<Color>
     public static implicit operator System.Drawing.Color(Color color) => System.Drawing.Color.FromArgb(color.A, color.R, color.G, color.B);
     public static implicit operator Color(System.Drawing.Color color) => new Color(color.A, color.R, color.G, color.B);
 
-    public static implicit operator System.Windows.Media.Color(Color color) => System.Windows.Media.Color.FromArgb(color.A, color.R, color.G, color.B);
-    public static implicit operator Color(System.Windows.Media.Color color) => new Color(color.A, color.R, color.G, color.B);
-
     public static explicit operator int(Color color) => color.ToArgb();
     public static explicit operator Color(int argb) => new Color(argb);
 
