@@ -1,0 +1,16 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AvaloniaHost.MainWindow"
+        Title="InteractiveEditor - Avalonia host"
+        Width="960" Height="680">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="10,6" BorderThickness="0,1,0,0" BorderBrush="#40808080">
+            <TextBlock x:Name="Status" />
+        </Border>
+        <DockPanel DockPanel.Dock="Left" Width="180" Margin="10">
+            <Button x:Name="RefreshButton" DockPanel.Dock="Bottom" Content="Refresh" HorizontalAlignment="Stretch" Margin="0,10,0,0" />
+            <ListBox x:Name="Targets" />
+        </DockPanel>
+        <ContentControl x:Name="InspectorHost" Margin="0,10,10,10" />
+    </DockPanel>
+</Window>

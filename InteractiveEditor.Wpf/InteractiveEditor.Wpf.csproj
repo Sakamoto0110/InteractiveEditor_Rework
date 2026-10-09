@@ -1,7 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,8 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\InteractiveEditor.Wpf\InteractiveEditor.Wpf.csproj" />
+    <ProjectReference Include="..\InteractiveEditor\InteractiveEditor.csproj" />
   </ItemGroup>
 
 </Project>

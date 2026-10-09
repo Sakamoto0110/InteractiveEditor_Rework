@@ -5,12 +5,14 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Lets the solution build (not run) on Linux/macOS; ignored on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\InteractiveEditor\InteractiveEditor.csproj" />
+    <ProjectReference Include="..\InteractiveEditor.WinForms\InteractiveEditor.WinForms.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,14 @@
 <Solution>
+  <Project Path="AvaloniaHost/AvaloniaHost.csproj" />
   <Project Path="DemoObjects/DemoObjects.csproj" />
+  <Project Path="ImGuiHost/ImGuiHost.csproj" />
   <Project Path="InteractiveEditor/InteractiveEditor.csproj" />
+  <Project Path="InteractiveEditor.Avalonia/InteractiveEditor.Avalonia.csproj" />
+  <Project Path="InteractiveEditor.ImGui/InteractiveEditor.ImGui.csproj" />
+  <Project Path="InteractiveEditor.WinForms/InteractiveEditor.WinForms.csproj" />
+  <Project Path="InteractiveEditor.Wpf/InteractiveEditor.Wpf.csproj" />
   <Project Path="NoHost/NoHost.csproj" Id="99a5cfd7-88f1-4cb1-a621-49e600cfce44" />
+  <Project Path="TerminalHost/TerminalHost.csproj" />
   <Project Path="TuxHost/TuxHost.csproj" />
   <Project Path="WindowsHost/WindowsHost.csproj" />
   <Project Path="WpfHost/WpfHost.csproj" />
