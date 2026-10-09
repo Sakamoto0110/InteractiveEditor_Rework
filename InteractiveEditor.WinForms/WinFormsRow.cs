@@ -130,15 +130,15 @@ internal sealed class WinFormsRow : IDisposable
         Editor.Control.TabIndex = tab++;
     }
 
-    // The value and the state; a row that shows whole again leaves its fault behind.
+    // The value and the state; a row that shows whole again leaves its fault behind. The label and the
+    // value are shown apart, so an object that cannot be shown does not take the label with it.
     public void Show()
     {
-        Try(() =>
-        {
-            Editor?.ShowValue();
-            ShowLabel();
+        var whole = Try(ShowLabel);
+        whole &= Try(() => Editor?.ShowValue());
+
+        if (whole)
             Fault = null;
-        });
 
         ShowEditorState();
     }
@@ -153,11 +153,12 @@ internal sealed class WinFormsRow : IDisposable
     // Runs the row's own work with the objects (their ToString in the editor, their Equals for the mixed
     // values): what throws there turns the row light red with the message, as a failure of the node
     // does, and the view goes on (3.11); the row tries again at the next change.
-    public void Try(Action show)
+    public bool Try(Action show)
     {
         try
         {
             show();
+            return true;
         }
         catch (Exception e)
         {
@@ -166,6 +167,7 @@ internal sealed class WinFormsRow : IDisposable
 
             Fault = $"This row could not show its objects.\n{e.Message}";
             ShowEditorState();
+            return false;
         }
     }
 
