@@ -13,8 +13,10 @@ namespace InteractiveEditor.Avalonia;
 // its own. A group is an expander instead, with the label and the type in its header and the rows of the
 // group in a panel inside, which opens and closes with the node's Collapsed (P7.10); a collection's
 // selector or list goes on top of them. The label goes italic when the objects hold different values
-// (P7.19), and its tooltip has the node's tooltip, its long help, and its type and path. What fails while
-// the row shows its objects, and what the core refuses as a mistake, stays in the row (P7.11, 3.11).
+// (P7.19), and its tooltip has the node's tooltip and its type and path. A node with Help has the help
+// mark, (?), right before its editor, or right after a group's label, which opens the long help (P7.15).
+// What fails while the row shows its objects, and what the core refuses as a mistake, stays in the row
+// (P7.11, 3.11).
 internal sealed class AvaloniaRow : IDisposable
 {
     // The column of the labels, the same at every level, as the property grid had it.
@@ -29,6 +31,11 @@ internal sealed class AvaloniaRow : IDisposable
     // The message of a failure under an editor that does not show one itself (a check box, a button, a
     // display, a list), in the theme's color for errors.
     private readonly TextBlock Message = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+
+    private readonly HelpMark Mark = new();
+
+    // The column of the help marks, between the label and the editor of a leaf.
+    private readonly ColumnDefinition? Marks;
 
     private readonly Expander? Group;
     private readonly AvaloniaEditor? Editor;
@@ -58,6 +65,8 @@ internal sealed class AvaloniaRow : IDisposable
         // The node's path names the controls for UI automation and tests, as in the WPF view (P7.16); the
         // Name and the Tag stay free for whoever uses the library.
         AutomationProperties.SetAutomationId(Label, node.Path + "#label");
+        AutomationProperties.SetAutomationId(Mark, node.Path + "#help");
+        Mark.Clicked += ShowHelp;
 
         if (Editor != null)
         {
@@ -74,7 +83,7 @@ internal sealed class AvaloniaRow : IDisposable
 
             Group = new Expander
             {
-                Header = Label,
+                Header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { Label, Mark } },
                 Content = Editor == null ? Panel : new StackPanel { Spacing = 4, Children = { Editor.Control, Message, Panel } },
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             };
@@ -83,11 +92,14 @@ internal sealed class AvaloniaRow : IDisposable
             return;
         }
 
+        Marks = new ColumnDefinition(0, GridUnitType.Pixel);
+
         var line = new Grid
         {
             ColumnDefinitions =
             {
                 new ColumnDefinition(LabelWidth, GridUnitType.Pixel),
+                Marks,
                 new ColumnDefinition(1, GridUnitType.Star),
             },
             RowDefinitions = new RowDefinitions("Auto,Auto"),
@@ -98,7 +110,7 @@ internal sealed class AvaloniaRow : IDisposable
         if (Kind == EditorKind.Header)
         {
             Label.FontWeight = FontWeight.Bold;
-            Grid.SetColumnSpan(Label, 2);
+            Grid.SetColumnSpan(Label, 3);
         }
 
         if (Kind != EditorKind.Separator)
@@ -107,18 +119,25 @@ internal sealed class AvaloniaRow : IDisposable
         if (Editor != null)
         {
             if (Kind == EditorKind.Separator)
-                Grid.SetColumnSpan(Editor.Control, 2);
+                Grid.SetColumnSpan(Editor.Control, 3);
             else
-                Grid.SetColumn(Editor.Control, 1);
+                Grid.SetColumn(Editor.Control, 2);
 
             line.Children.Add(Editor.Control);
 
             if (!Editor.ShowsErrors)
             {
                 Grid.SetRow(Message, 1);
-                Grid.SetColumn(Message, 1);
+                Grid.SetColumn(Message, 2);
                 line.Children.Add(Message);
             }
+        }
+
+        if (Kind is not (EditorKind.Header or EditorKind.Separator))
+        {
+            Mark.HorizontalAlignment = HorizontalAlignment.Left;
+            Grid.SetColumn(Mark, 1);
+            line.Children.Add(Mark);
         }
 
         Control = line;
@@ -141,6 +160,18 @@ internal sealed class AvaloniaRow : IDisposable
     public bool Mixed => ViewRules.ShowsMixed(Kind, Node);
 
     public bool Fits() => ViewRules.KindFor(Node) == Kind && Node.IsGroup == IsGroup && Node.ValueType == MadeFor;
+
+    // The column of the help marks (P7.15): on every row when any node of the tree has Help, so the
+    // editors line up, and as wide as the layout step makes it; with no Help anywhere, it is not there.
+    public void ShowMarks(bool any)
+    {
+        if (Marks == null)
+            return;
+
+        var options = Node.Inspector.Options;
+        Marks.Width = new GridLength(any ? options.HelpWidth + options.LabelSpacing : 0, GridUnitType.Pixel);
+        Mark.Width = options.HelpWidth;
+    }
 
     // The value and the state; a row that shows whole again leaves its fault behind.
     public void Show()
@@ -247,6 +278,8 @@ internal sealed class AvaloniaRow : IDisposable
     // A row with no editor shows its failure in the label's tooltip, and a group's in its header.
     private void ShowEditorState()
     {
+        Mark.IsVisible = Kind is not (EditorKind.Header or EditorKind.Separator) && !string.IsNullOrEmpty(Node.Help);
+
         var failure = Error ?? Fault ?? Describe(Node.Failure);
         ToolTip.SetTip(Label, LabelTip(Editor == null ? failure : null));
 
@@ -285,12 +318,12 @@ internal sealed class AvaloniaRow : IDisposable
         }
     }
 
-    // The short tooltip, the long help (the view has no (?) mark for it), and the type and the path of
-    // the node, which the property grid always showed; a failure goes first.
+    // The short tooltip and the type and the path of the node, which the property grid always showed; a
+    // failure goes first. The long help is the (?) mark's.
     private string LabelTip(string? failure)
     {
         var where = Node.ValueType is { } type ? $"{TypeNames.Of(type)}  {Node.Path}" : Node.Path;
-        string?[] parts = [failure, Node.Tooltip, Node.Help, where];
+        string?[] parts = [failure, Node.Tooltip, where];
         return string.Join("\n\n", parts.Where(part => !string.IsNullOrEmpty(part)));
     }
 
@@ -300,6 +333,18 @@ internal sealed class AvaloniaRow : IDisposable
             return null;
 
         return failure.Message.Contains(failure.Reason) ? failure.Message : $"{failure.Message}\n{failure.Reason}";
+    }
+
+    // The long help over the window the view is in, which it blocks until it closes; in a top level that
+    // is not a window, the help opens on its own.
+    private void ShowHelp(object? sender, EventArgs e)
+    {
+        var dialog = new HelpDialog(Node.Label, Node.Help ?? string.Empty);
+
+        if (TopLevel.GetTopLevel(Mark) is Window owner)
+            _ = dialog.ShowDialog(owner);
+        else
+            dialog.Show();
     }
 
     // The user opened or closed the group.

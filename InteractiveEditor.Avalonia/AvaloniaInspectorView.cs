@@ -118,8 +118,13 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
         foreach (var (panel, controls) in wanted)
             Arrange(panel, controls);
 
+        var marks = Inspector.Any(node => !string.IsNullOrEmpty(node.Help));
+
         foreach (var row in shown)
+        {
+            row.ShowMarks(marks);
             row.Show();
+        }
     }
 
     // Puts the rows a panel should hold in it, in their order. A control that is already in its place is
