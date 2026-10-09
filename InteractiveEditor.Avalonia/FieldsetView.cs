@@ -24,7 +24,7 @@ internal sealed class FieldsetView : Grid
         ColumnDefinitions = new ColumnDefinitions("160,*");
 
         var name = new TextBlock { Text = descriptor.Name, VerticalAlignment = VerticalAlignment.Center };
-        ToolTip.SetTip(name, $"{InspectorView.TypeName(descriptor.Type)}  {descriptor.FullPath}");
+        ToolTip.SetTip(name, $"{ValueText.TypeName(descriptor.Type)}  {descriptor.FullPath}");
 
         Editor.Control.IsEnabled = descriptor.Accessors.Getter != null && descriptor.Accessors.Setter != null;
         Editor.Edited += Commit;

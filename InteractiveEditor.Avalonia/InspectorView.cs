@@ -8,13 +8,6 @@ using InteractiveEditor.Presentation;
 
 namespace InteractiveEditor.Avalonia;
 
-public sealed class FieldEditedEventArgs(Fieldset field, Exception? error) : EventArgs
-{
-    public Fieldset Field { get; } = field;
-    // Set when parsing or SetValue failed; the editor then shows the error and the current value again.
-    public Exception? Error { get; } = error;
-}
-
 /// <summary>
 /// Property-grid style view of an <see cref="InteractiveEditor.Inspector"/>: nested inspectors become expanders and
 /// fieldsets become rows with an editor picked from the member type. The core raises no change notifications,
@@ -91,19 +84,6 @@ public class InspectorView : UserControl, IInspectorView
             field.Refresh(clearError: clearErrors);
     }
 
-    internal static string TypeName(Type type)
-    {
-        if (Nullable.GetUnderlyingType(type) is { } underlying)
-            return $"{TypeName(underlying)}?";
-
-        var tick = type.Name.IndexOf('`');
-
-        if (!type.IsGenericType || tick < 0)
-            return type.Name;
-
-        return $"{type.Name[..tick]}<{string.Join(", ", type.GetGenericArguments().Select(TypeName))}>";
-    }
-
     private Control Build(Inspector inspector)
     {
         var panel = new StackPanel { Spacing = 4 };
@@ -138,7 +118,7 @@ public class InspectorView : UserControl, IInspectorView
 
     private static string HeaderText(Inspector node)
     {
-        var type = node.Descriptor is { } descriptor ? TypeName(descriptor.Type) : string.Empty;
+        var type = node.Descriptor is { } descriptor ? ValueText.TypeName(descriptor.Type) : string.Empty;
 
         try
         {

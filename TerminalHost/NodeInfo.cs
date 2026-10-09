@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Reflection;
 using InteractiveEditor;
 using InteractiveEditor.Binding;
@@ -14,20 +13,6 @@ internal static class NodeInfo
             return descriptor.Type;
 
         return TryGetValue(node, out var value) ? value?.GetType() : null;
-    }
-
-    // Int32?, List<String>, ... instead of Nullable`1 and List`1.
-    public static string TypeName(Type type)
-    {
-        if (Nullable.GetUnderlyingType(type) is { } underlying)
-            return $"{TypeName(underlying)}?";
-
-        var tick = type.Name.IndexOf('`');
-
-        if (!type.IsGenericType || tick < 0)
-            return type.Name;
-
-        return $"{type.Name[..tick]}<{string.Join(", ", type.GetGenericArguments().Select(TypeName))}>";
     }
 
     public static bool TryGetValue(InspectorNode node, out object? value)
@@ -47,36 +32,17 @@ internal static class NodeInfo
     public static Exception Unwrap(Exception ex) =>
         ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
 
-    public static string Format(object? value) => value switch
-    {
-        null => "null",
-        string s => $"\"{s}\"",
-        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-        _ => value.ToString() ?? value.GetType().Name
-    };
+    public static string Format(object? value) => ValueText.Format(value);
 
-    // The raw text shown in the edit box, which is also what Parse accepts back.
-    public static string EditText(object? value) => value switch
-    {
-        null => "null",
-        string s => s,
-        _ => Format(value)
-    };
+    // The edit box spells null out, so that reference members (strings included) can be set to null too.
+    public static string EditText(object? value) => value == null ? "null" : ValueText.ToText(value);
 
     public static object? Parse(string text, Type type)
     {
         if (text == "null" && (!type.IsValueType || Nullable.GetUnderlyingType(type) != null))
             return null;
 
-        if (type == typeof(string))
-            return text;
-
-        var converter = TypeDescriptor.GetConverter(type);
-
-        if (!converter.CanConvertFrom(typeof(string)))
-            throw new NotSupportedException($"'{type.Name}' cannot be converted from text.");
-
-        return converter.ConvertFromInvariantString(text);
+        return ValueText.Parse(text, type);
     }
 
     public static string Label(InspectorNode node)
@@ -111,8 +77,8 @@ internal static class NodeInfo
             lines.Add(("Path", descriptor.Path));
             lines.Add(("Full path", descriptor.FullPath));
             lines.Add(("Member", descriptor.MemberType.ToString()));
-            lines.Add(("Type", TypeName(descriptor.Type)));
-            lines.Add(("Owner type", TypeName(descriptor.OwnerType)));
+            lines.Add(("Type", ValueText.TypeName(descriptor.Type)));
+            lines.Add(("Owner type", ValueText.TypeName(descriptor.OwnerType)));
             lines.Add(("Getter", accessors.Getter != null ? "yes" : "no"));
             lines.Add(("Setter", accessors.Setter != null ? "yes" : "no"));
             lines.Add(("Parent", node.Parent?.Name ?? "-"));
@@ -124,7 +90,7 @@ internal static class NodeInfo
         if (ok)
         {
             lines.Add(("Value", Format(value)));
-            lines.Add(("Value type", value == null ? "-" : TypeName(value.GetType())));
+            lines.Add(("Value type", value == null ? "-" : ValueText.TypeName(value.GetType())));
         }
         else
         {

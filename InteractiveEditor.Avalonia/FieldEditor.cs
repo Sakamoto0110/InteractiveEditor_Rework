@@ -1,8 +1,8 @@
-﻿using System.ComponentModel;
-using System.Globalization;
+﻿using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
+using InteractiveEditor.Binding;
 
 namespace InteractiveEditor.Avalonia;
 
@@ -32,7 +32,7 @@ internal abstract class FieldEditor
         if (NumericEditor.Supports(underlying))
             return new NumericEditor(type);
 
-        if (TextEditor.Supports(type))
+        if (ValueText.CanParse(type))
             return new TextEditor(type);
 
         return new ReadOnlyEditor();
@@ -147,23 +147,18 @@ internal sealed class NumericEditor : FieldEditor
 }
 
 /// <summary>
-/// Free text for anything a <see cref="TypeConverter"/> can parse (string, float, double, char, DateTime, Guid,
+/// Free text for anything <see cref="ValueText"/> can parse (string, float, double, char, DateTime, Guid,
 /// nullable enums...). The text is committed on Enter or when focus leaves; Escape puts the shown value back.
 /// </summary>
 internal sealed class TextEditor : FieldEditor
 {
     private readonly TextBox Box;
     private readonly Type Type;
-    private readonly TypeConverter Converter;
     private string Shown = string.Empty;
-
-    public static bool Supports(Type type) =>
-        type == typeof(string) || TypeDescriptor.GetConverter(type).CanConvertFrom(typeof(string));
 
     public TextEditor(Type type)
     {
         Type = type;
-        Converter = TypeDescriptor.GetConverter(type);
         Box = new TextBox();
 
         Box.LostFocus += (_, _) => Commit();
@@ -186,14 +181,7 @@ internal sealed class TextEditor : FieldEditor
 
     protected override void Display(object? value)
     {
-        Shown = value switch
-        {
-            null => string.Empty,
-            string s => s,
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => Converter.ConvertToInvariantString(value) ?? string.Empty
-        };
-
+        Shown = ValueText.ToText(value);
         Box.Text = Shown;
         Box.PlaceholderText = value == null ? "null" : null;
     }
@@ -203,18 +191,7 @@ internal sealed class TextEditor : FieldEditor
         var text = Box.Text ?? string.Empty;
 
         if (text != Shown)
-            RaiseEdited(() => Parse(text));
-    }
-
-    private object? Parse(string text)
-    {
-        if (Type == typeof(string))
-            return text;
-
-        if (text.Length == 0 && Nullable.GetUnderlyingType(Type) != null)
-            return null;
-
-        return Converter.ConvertFromInvariantString(text);
+            RaiseEdited(() => ValueText.Parse(text, Type));
     }
 }
 
@@ -224,5 +201,5 @@ internal sealed class ReadOnlyEditor : FieldEditor
 
     public override Control Control => Block;
 
-    protected override void Display(object? value) => Block.Text = value?.ToString() ?? "null";
+    protected override void Display(object? value) => Block.Text = ValueText.Format(value);
 }
