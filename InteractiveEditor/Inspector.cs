@@ -1,151 +1,493 @@
-﻿using InteractiveEditor.Binding;
+﻿using System.Collections;
+using System.Linq.Expressions;
+using System.Reflection;
+using InteractiveEditor.Diagnostics;
+using InteractiveEditor.Events;
+using InteractiveEditor.Layout;
 using InteractiveEditor.Model;
-using System.Collections;
+using InteractiveEditor.Options;
+using InteractiveEditor.Options.Policies;
 
 namespace InteractiveEditor;
 
-public class Inspector : InspectorNode, IEnumerable<InspectorNode>
+// Holds the tree and the bound objects. It is not a node itself: the options live on the nodes,
+// and the root stays inside.
+public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 {
-    protected object? Host;
-    protected Type? Target;
+    private static int LastId;
 
-    private object? Instance;
-    private List<InspectorNode> Children = [];
+    private readonly RootNode Root;
+    private readonly InstanceWatcher Watcher;
+    private bool IsDisposed;
 
-    protected Inspector() { }
-
-    public override string Name => Descriptor?.Name ?? Target?.Name ?? " -- ";
-
-    public static Inspector Create<T>()
+    private Inspector(Type target, TypeBinderMode mode, bool typed)
     {
-        var inspector = new Inspector
+        Id = Interlocked.Increment(ref LastId);
+        Mode = mode;
+        Root = new RootNode(target, this, typed);
+        Watcher = new InstanceWatcher(Root);
+        Options.Changed += option => OnOptionChanged(null, option);
+    }
+
+    // Raised inside the Create, before anyone can subscribe to the new inspector, so they are
+    // static; the inspector is the sender and comes in the args.
+    public static event EventHandler<InspectorEventArgs>? DiscoveryFinished;
+    public static event EventHandler<InspectorFailureEventArgs>? DiscoveryFailed;
+    public static event EventHandler<InspectorCreatedEventArgs>? Created;
+
+    // Tells inspectors apart, so an event can be traced back to the one that raised it.
+    public int Id { get; }
+
+    // How the Create built the tree: Automatic found every member, Manual left them to Add.
+    public TypeBinderMode Mode { get; }
+
+    // Objects coming into the bind and leaving it; Unbound when the last one leaves.
+    public event EventHandler<BindEventArgs>? BindRegistered;
+    public event EventHandler<BindEventArgs>? BindRemoved;
+    public event EventHandler<InspectorEventArgs>? Unbound;
+
+    // Raised after each forced operation, an override or a fallback for when the normal flow (Apply(),
+    // Reload() and Refresh()) failed or does not fit.
+    public event EventHandler<InspectorEventArgs>? ForcedApply;
+    public event EventHandler<InspectorEventArgs>? ForcedReload;
+    public event EventHandler<InspectorEventArgs>? ForcedClear;
+
+    // An option of a node, or of the inspector (Node null), changed: what a view built before the change
+    // needs to show it (P7.8). Only a real change raises it.
+    public event EventHandler<OptionChangedEventArgs>? OptionChanged;
+
+    // The inspector was disposed: the objects were unbound and the tree disposed, so a view that
+    // still shows it lets it go (P7.13).
+    public event EventHandler<InspectorEventArgs>? Disposed;
+
+    // What went wrong during the Create, for whoever checks after it.
+    public InspectorReport Report { get; } = new();
+
+    // The options of this inspector, between the global ones and those of each node.
+    public InspectorOptions Options { get; } = new();
+
+    public string Name => Root.Name;
+
+    // The first bound object, or null. A struct at the root is the inspector's own copy, read back
+    // here.
+    public object? Instance => Root.Instances.FirstOrDefault();
+
+    // Every bound object, in the order they were bound.
+    public IReadOnlyList<object> Instances => Root.Instances.AsReadOnly();
+
+    // True when a node holds a value waiting for Apply().
+    public bool HasPendingValues => Root.Any(node => node.HasPendingValue);
+
+    // A failure inside the Create does not stop it: the failed piece falls back or is left out, and
+    // it is reported. Only a fatal one (the type itself cannot be read) reaches the caller. A manual
+    // inspector starts with no members; they come one by one, through Add.
+    public static Inspector Create<T>(TypeBinderMode mode = TypeBinderMode.Automatic)
+    {
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Not a TypeBinderMode.");
+
+        var inspector = new Inspector(typeof(T), mode, typed: true);
+
+        // The global options are read below, so they are frozen from here until the Dispose.
+        GlobalOptions.Lock(inspector.Id);
+
+        try
         {
-            Target = typeof(T)
-        };
+            if (mode == TypeBinderMode.Automatic)
+                ReflectionDiscovery.AddMembers(inspector.Root, typeof(T), inspector);
 
-        var descriptors = ReflectionDiscovery.ResolveFor(typeof(T));
-        var inspectors = new Dictionary<string, Inspector>();
+            OnDiscoveryFinished(inspector);
 
-        foreach (var descriptor in descriptors)
+            // The layers, in order: reflection, then attributes. Whatever the caller sets afterwards comes last.
+            foreach (var node in inspector.Root.Descendants().OfType<MemberNode>())
+            {
+                ReflectionPolicy.Apply(node, inspector);
+                AttributePolicy.Apply(node, inspector);
+            }
+        }
+        catch (Exception e)
         {
-            var hasChildren = descriptors.Any(f =>
-                f.FullPath.StartsWith(descriptor.FullPath + ".", StringComparison.Ordinal));
-
-            InspectorNode node;
-
-            if (hasChildren)
-            {
-                node = new Inspector
-                {
-                    Descriptor = descriptor
-                };
-            }
-            else
-            {
-                node = new Fieldset
-                {
-                    Descriptor = descriptor
-                };
-            }
-
-            var separator = descriptor.FullPath.LastIndexOf('.');
-
-            Inspector parent;
-
-            if (separator == -1)
-            {
-                parent = inspector;
-            }
-            else
-            {
-                var parentPath = descriptor.FullPath[..separator];
-                parent = inspectors[parentPath];
-            }
-
-            node.Parent = parent;
-            parent.Children.Add(node);
-
-            if (node is Inspector nestedInspector)
-                inspectors.Add(descriptor.FullPath, nestedInspector);
+            GlobalOptions.Unlock(inspector.Id);
+            inspector.OnDiscoveryFailed(string.Empty, FailureSeverity.Fatal, e,
+                $"'{inspector.Name}' could not be created.");
+            throw;
         }
 
+        OnCreated(inspector);
         return inspector;
     }
 
-    public static Inspector Create<T>(System.Windows.Forms.Control host)
+    // An inspector with no type (P1.12, P1.14): manual, and its members, added by name, are only found
+    // at the bind. The first bind fixes the type, as in a typed one, until the Unbind() lets the next
+    // bind choose again; a name the object does not have throws there.
+    public static Inspector Create()
     {
-        var inspector = new Presentation.WF.InspectorView(host);
-
-         
-
+        var inspector = new Inspector(typeof(object), TypeBinderMode.Manual, typed: false);
+        GlobalOptions.Lock(inspector.Id);
+        OnDiscoveryFinished(inspector);
+        OnCreated(inspector);
         return inspector;
     }
 
-    public static Inspector Create<T>(System.Windows.Controls.Control host)
+    // A path from the root ("Moo.MooY"); chaining works too: inspector["Moo"]["MooY"].
+    public InspectorNode this[string path] => Root[path];
+
+    // The same with a member chain from the root, checked by the compiler:
+    // inspector.Node<Foo>(f => f.Moo.MooY).
+    public InspectorNode Node<T>(Expression<Func<T, object?>> selector) => Root.Node(selector);
+
+    // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
+    public IEnumerable<InspectorNode> Rows => Root.Rows;
+
+    // The rows at the top, the first level of Rows (P7.23).
+    public IEnumerable<InspectorNode> ShownChildren => Root.ShownChildren;
+
+    // The rectangles of those rows in an area this wide (P7.5), worked out here with no UI, from the
+    // collapsed groups and the layout options; a view only puts its controls on them.
+    public InspectorLayout Layout(double width) => InspectorLayout.Compute(Root, Options, width);
+
+    // Nodes added by hand at the top of the tree (P1.6, P1.12); inspector["Moo"].Add("MooX") and the
+    // like put one inside another node.
+    public MemberNode Add(string name) => Root.Add(name);
+
+    public ButtonNode AddButton(string name, string text, Action press) => Root.AddButton(name, text, press);
+
+    public DisplayNode AddDisplay(string name, Func<object?> read) => Root.AddDisplay(name, read);
+
+    // Binding over a bound object throws: the swap is explicit (Rebind), and adding one is AddBind.
+    public void Bind(object instance)
     {
-        var inspector = new Presentation.WPF.InspectorView(host);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-         
+        if (Root.Instances.Count > 0)
+            throw new InvalidOperationException($"'{Name}' is already bound; call Unbind(), Rebind() or AddBind().");
 
-        return inspector;
+        Register([instance], CheckBindable([instance], Root.Instances));
     }
 
-
-
-    public void bind<T>(T instance)
+    // Puts more objects in the bind (multi-bind). With nothing bound, it binds them.
+    public void AddBind(params object[] instances)
     {
-        if (Parent != null)
-            throw new InvalidOperationException($"Only the root inspector can be bound; '{Name}' is nested.");
-
-        if (instance == null)
-            throw new ArgumentNullException(nameof(instance));
-
-        Instance = instance;
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        Register(instances, CheckBindable(instances, Root.Instances));
     }
 
-    public override object? GetValue() => Parent == null ? Instance : base.GetValue();
-
-    public override void SetValue(object? value)
+    // Takes one object out of the bind; taking the last one out is the same as Unbind().
+    public void RemoveBind(object instance)
     {
-        if (Parent == null)
-            Instance = value;
-        else
-            base.SetValue(value);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        var index = Root.Instances.FindIndex(bound => ReferenceEquals(bound, instance));
+
+        if (index < 0)
+            throw new ArgumentException($"'{Name}' does not have this object bound.", nameof(instance));
+
+        Root.Instances.RemoveAt(index);
+        ResetNodes();
+        OnBindRemoved([instance]);
+
+        if (Root.Instances.Count == 0)
+            OnUnbound();
     }
 
-    public InspectorNode this[string name]
+    public void Unbind()
     {
-        get
+        if (Root.Instances.Count == 0)
+            return;
+
+        var removed = Root.Instances.ToList();
+        Root.Instances.Clear();
+        ResetNodes();
+        OnBindRemoved(removed);
+        OnUnbound();
+    }
+
+    // Unbind and bind again, with one object or several.
+    public void Rebind(params object[] instances)
+    {
+        // Checked before unbinding, so a refused instance leaves the current ones bound; the current
+        // ones are about to leave, so binding one of them again is fine.
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        var found = CheckBindable(instances, []);
+
+        Unbind();
+        Register(instances, found);
+    }
+
+    // Reads every node again and raises ValueChanged (Refresh) where something changed since the last
+    // read: the natural way to catch changes in objects that do not report them. Groups whose object
+    // was replaced outside are found first, and their branches are left out. It is the way from the
+    // objects to the view on its own, so without InstanceToView it does nothing; pending values stay.
+    public void Refresh()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        if (Options.InstanceToView)
+            ReadAll(node => node.Update(ValueSource.Refresh), ValueSource.Refresh);
+    }
+
+    // Writes the values the nodes hold while ViewToInstance is off: the normal flow for writing by
+    // hand. A node that cannot take its value now keeps it, and the row shows why.
+    public void Apply()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        foreach (var node in Root)
+            node.ApplyPending();
+    }
+
+    // Drops the pending values and reads every node again, raising ValueChanged (Reload) where the view
+    // changed: the normal flow for reading by hand, whatever the binder control. Replaced groups are
+    // found first, as in Refresh().
+    public void Reload()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ReadAll(node => node.Reload(), ValueSource.Reload);
+    }
+
+    // Writes what the view holds (the pending values, and the values read last) into every bound
+    // object, whatever the binder control: for when the objects went their own way and the view is
+    // right. ValueChanged (Force) comes where the view changed with it: a pending value that went, or
+    // a value a setter changed on its way in.
+    public void ForceApply()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        // Taken before anything is written, because a write reads its branch again.
+        var held = Root.Select(node => (Node: node, Values: node.HeldValues())).ToList();
+        var dropped = new HashSet<InspectorNode>();
+
+        foreach (var (node, values) in held)
         {
-            if (Parent == null && Name == name)
-                return this;
-
-            var child = Children.FirstOrDefault(c => c.Name == name);
-
-            if (child == null)
-                throw new KeyNotFoundException(
-                    $"Node '{name}' not found in inspector '{Name}'.");
-
-            return child;
+            if (node.ForceWrite(values))
+                dropped.Add(node);
         }
+
+        foreach (var node in Root)
+            node.Update(ValueSource.Force, dropped.Contains(node));
+
+        Root.CheckRules(ValueSource.Force);
+        Watcher.Rewire();
+        OnForcedApply();
     }
 
+    // Starts over from what the objects hold now, whatever the binder control: pending values and
+    // failures go, and a branch disabled by a replaced group takes the new object, as a Rebind with the
+    // same objects would, without the bind events. ValueChanged (Force) says what the view has to show
+    // again.
+    public void ForceReload()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        foreach (var node in Root)
+            node.Reset(ValueSource.Force);
+
+        Root.CheckRules(ValueSource.Force);
+        Watcher.Rewire();
+        OnForcedReload();
+    }
+
+    // Empties what the view shows (zero, false, an empty text or null), whatever the binder control.
+    // The objects keep their values, and the next read brings them back.
+    public void ForceClear()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        foreach (var node in Root)
+            node.Clear();
+
+        OnForcedClear();
+    }
+
+    // The whole tree, as discovered: ignored nodes and the insides of closed groups too.
     public IEnumerator<InspectorNode> GetEnumerator()
     {
-        foreach (var child in Children)
-        {
-            yield return child;
-
-            if (child is Inspector inspector)
-            {
-                 foreach (var node in inspector)
-                    yield return node;
-            }
-        }
+        return Root.GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    // Unbinds, disposes the nodes and releases this inspector's hold on the global options.
+    public void Dispose()
+    {
+        if (IsDisposed)
+            return;
+
+        IsDisposed = true;
+
+        try
+        {
+            Unbind();
+            Root.Dispose();
+        }
+        finally
+        {
+            GlobalOptions.Unlock(Id);
+        }
+
+        OnDisposed();
+    }
+
+    internal void OnOptionChanged(InspectorNode? node, string option)
+    {
+        OptionChanged?.Invoke(this, new OptionChangedEventArgs(this, node, option));
+    }
+
+    // Keeps a failure of the Create in the report and raises DiscoveryFailed with it.
+    internal InspectorFailureEventArgs OnDiscoveryFailed(string path, FailureSeverity severity, Exception exception,
+        string message, string? suggestion = null)
+    {
+        var failure = new InspectorFailureEventArgs(this, path, severity, exception, message, suggestion);
+        Report.Add(failure);
+        DiscoveryFailed?.Invoke(this, failure);
+        return failure;
+    }
+
+    private static void OnDiscoveryFinished(Inspector inspector)
+    {
+        DiscoveryFinished?.Invoke(inspector, new InspectorEventArgs(inspector));
+    }
+
+    private static void OnCreated(Inspector inspector)
+    {
+        Created?.Invoke(inspector, new InspectorCreatedEventArgs(inspector));
+    }
+
+    // The members an inspector with no type found for the new objects are taken before they come in.
+    private void Register(object[] instances, Found? found)
+    {
+        if (found is { } members)
+        {
+            Root.Target = members.Target;
+
+            foreach (var (node, member) in members.Members)
+                node.Take(member);
+        }
+
+        Root.Instances.AddRange(instances);
+        ResetNodes();
+        OnBindRegistered(instances);
+    }
+
+    // The objects the watcher listens to may have changed.
+    internal void Rewire()
+    {
+        Watcher.Rewire();
+    }
+
+    // Replaced groups first, from the top down, so a parent is checked before its children (the tree
+    // comes in pre-order); then every node is read, and then the rules of visibility.
+    private void ReadAll(Action<InspectorNode> read, ValueSource source)
+    {
+        foreach (var node in Root)
+        {
+            if (!node.IsCompromised)
+                node.CheckReplaced();
+        }
+
+        foreach (var node in Root)
+            read(node);
+
+        Root.CheckRules(source);
+        Watcher.Rewire();
+    }
+
+    // The bound objects changed, so every node starts over from what they hold now, and the rules of
+    // visibility are read again, with no event, as the values.
+    private void ResetNodes()
+    {
+        foreach (var node in Root)
+            node.Reset();
+
+        Root.CheckRules(null);
+        Watcher.Rewire();
+    }
+
+    // The tree was built for Target, so only an instance of it (or of a type derived from it) fits,
+    // and an object is bound once. Without a type, a bind into nothing fixes the type of its first
+    // object and finds every member by name in it, before anything changes (P1.14).
+    private Found? CheckBindable(object[] instances, IEnumerable<object> alreadyBound)
+    {
+        if (instances == null)
+            throw new ArgumentNullException(nameof(instances));
+
+        foreach (var instance in instances)
+        {
+            if (instance == null)
+                throw new ArgumentNullException(nameof(instance));
+        }
+
+        var fixing = !Root.Typed && !alreadyBound.Any() && instances.Length > 0;
+        var target = fixing ? instances[0].GetType() : Root.Target;
+
+        foreach (var instance in instances)
+        {
+            if (!target.IsInstanceOfType(instance))
+                throw new ArgumentException($"'{Name}' cannot bind an instance of '{instance.GetType().Name}'.", nameof(instance));
+
+            if (alreadyBound.Concat(instances).Count(bound => ReferenceEquals(bound, instance)) > 1)
+                throw new ArgumentException($"'{Name}' already has this object bound.", nameof(instance));
+        }
+
+        return fixing ? new Found(target, FindMembers(target)) : null;
+    }
+
+    // Every member added by name, found in the type from the top down, so a member is found in the type
+    // of the one above it. A name the type does not have throws, and nothing was taken yet.
+    private Dictionary<MemberNode, MemberInfo> FindMembers(Type target)
+    {
+        var found = new Dictionary<MemberNode, MemberInfo>();
+
+        foreach (var node in Root.OfType<MemberNode>().Where(n => n.ByName))
+        {
+            var owner = node.Parent is MemberNode above && found.TryGetValue(above, out var member)
+                ? MemberNode.TypeOf(member)
+                : target;
+
+            found[node] = ReflectionDiscovery.MemberNamed(owner, node.Name, node.Parent!.Name);
+        }
+
+        return found;
+    }
+
+    // What a bind into an inspector with no type fixes: the type, and the member of each node.
+    private sealed record Found(Type Target, Dictionary<MemberNode, MemberInfo> Members);
+
+    private void OnBindRegistered(IReadOnlyList<object> instances)
+    {
+        BindRegistered?.Invoke(this, new BindEventArgs(this, instances));
+    }
+
+    private void OnBindRemoved(IReadOnlyList<object> instances)
+    {
+        BindRemoved?.Invoke(this, new BindEventArgs(this, instances));
+    }
+
+    private void OnUnbound()
+    {
+        Unbound?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedApply()
+    {
+        ForcedApply?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedReload()
+    {
+        ForcedReload?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnForcedClear()
+    {
+        ForcedClear?.Invoke(this, new InspectorEventArgs(this));
+    }
+
+    private void OnDisposed()
+    {
+        Disposed?.Invoke(this, new InspectorEventArgs(this));
     }
 }

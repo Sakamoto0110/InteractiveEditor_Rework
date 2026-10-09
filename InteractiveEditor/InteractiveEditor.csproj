@@ -1,11 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The core builds and runs anywhere. Each UI framework has its own project next to it
+       (InteractiveEditor.WinForms, .Wpf, .Avalonia and .ImGui), so the core depends on none of them. -->
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <UseWPF>true</UseWPF>
-	 <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- A copy of PixieLib for now (external/PixieLib/README.md). The adapters get PixieLib through
+         this reference. -->
+    <ProjectReference Include="..\external\PixieLib\PixieLib\PixieLib.csproj" />
+  </ItemGroup>
+
+  <!-- The views were part of the core until the adapters had projects of their own, and they still
+       use what the views of every framework decide the same way (ViewRules), which is not public API
+       until a view from outside needs it (P7.21). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="InteractiveEditor.WinForms" />
+    <InternalsVisibleTo Include="InteractiveEditor.Wpf" />
+    <InternalsVisibleTo Include="InteractiveEditor.Avalonia" />
+    <InternalsVisibleTo Include="InteractiveEditor.ImGui" />
+  </ItemGroup>
 
 </Project>

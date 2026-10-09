@@ -3,13 +3,8 @@
 ################################################################################
 
 /.vs
-/DemoObjects/bin/Debug/net10.0
-/DemoObjects/obj
-/InteractiveEditor/bin/Debug/net10.0-windows
-/InteractiveEditor/obj
-/WindowsHost/bin/Debug/net10.0-windows
-/WindowsHost/obj
+[Bb]in/
+[Oo]bj/
 *.user
-/WpfHost/bin/Debug/net10.0-windows
-/WpfHost/obj
+imgui.ini
 /NoHost
