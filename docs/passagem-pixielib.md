@@ -120,7 +120,7 @@ P8.1 a P8.9. Em resumo:
   mesmo `vaddps` que chamar direto (testado no assembly do JIT). O `System.Numerics` só tem float,
   então double e int são implementação própria.
 - **A precisão padrão** é double (P8.6, 27/09), como o `Vec2` do C++; o InteractiveEditor passou
-  tudo para double (P8.1, commit `2951ce3`).
+  tudo para double (P8.1, commit `0acfce7`).
 - **As regras de conversão** (P8.5): implícita quando não perde nada, explícita quando perde ou pode
   lançar.
 - **Proposta, não decidido**: o código em C# numa pasta `dotnet/` ao lado da `cpp/`, no mesmo
@@ -133,8 +133,8 @@ P8.1 a P8.9. Em resumo:
 
 ## 5. O que o InteractiveEditor tem hoje, e que vai mudar de lugar
 
-Em `InteractiveEditor/Primitives`, no namespace `InteractiveEditor.Primitives` (commits `21cbeda`,
-`9e15f6e`, `2951ce3`, `3544a8e`, `f1de920` e `ccc3a5d`):
+Em `InteractiveEditor/Primitives`, no namespace `InteractiveEditor.Primitives` (commits `eaadb07`,
+`bea77a1`, `0acfce7`, `2e31357`, `fa223d7` e `e6cca32`):
 
 - `PxPoint` (`X`, `Y`), `PxSize` (`Width`, `Height`), `PxRect` (`X`, `Y`, `Width`, `Height`,
   `Right`, `Bottom`, `Contains`) e `PxPadding` (`Left`, `Top`, `Right`, `Bottom`, `Horizontal`,
@@ -149,7 +149,7 @@ Em `InteractiveEditor/Primitives`, no namespace `InteractiveEditor.Primitives` (
   `Color`), nos dois alvos, porque o `System.Drawing.Primitives` existe fora do Windows: implícitas
   dele para o `Px`, explícitas de volta (o int arredonda, como o `Point.Round`; o float estreita);
   com o `Color`, implícitas nos dois sentidos.
-- Conversões com o WinForms e o WPF (commit `ccc3a5d`), em arquivos parciais `*.Windows.cs`, que só
+- Conversões com o WinForms e o WPF (commit `e6cca32`), em arquivos parciais `*.Windows.cs`, que só
   o alvo `net10.0-windows` compila: o `Point` do WPF, implícito nos dois sentidos; o `Size` e o
   `Rect` do WPF, implícitos deles e explícitos de volta (eles lançam com largura ou altura
   negativa); o `Padding` do WinForms, implícito dele e explícito de volta, arredondando; a
