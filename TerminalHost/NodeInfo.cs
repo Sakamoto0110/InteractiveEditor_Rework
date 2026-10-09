@@ -111,7 +111,7 @@ internal static class NodeInfo
             EditorKind.Choice => $"Choices: {string.Join(", ", node.GetChoices().Select(choice => NodeText.Format(node, choice)))}",
             EditorKind.Toggle => "True or False.",
             EditorKind.Color => "A color: (r, g, b, a) or #RRGGBB[AA].",
-            EditorKind.Slider when node.Range is { } range => string.Create(NodeText.CultureOf(node.Inspector),
+            EditorKind.Slider when node.Range is { } range => string.Create(node.Inspector.Options.CultureInUse,
                 $"From {range.Min} to {range.Max}, step {range.Step}; the core clamps the value."),
             _ when node.ValueType is { } type && Nullable.GetUnderlyingType(type) != null => "Empty or null for no value.",
             _ => "Enter sets the text; the core converts it.",
@@ -134,7 +134,7 @@ internal static class NodeInfo
             ("Objects", instances.Count == 0 ? "none" : string.Join(", ", instances.Select(i => NodeText.TypeName(i.GetType())))),
             ("Nodes", $"{inspector.Count()}, {inspector.Rows.Count()} shown as rows"),
             ("Binder", inspector.Options.BinderControl.ToString()),
-            ("Culture", NodeText.CultureOf(inspector) is { Name: "" } ? "invariant" : NodeText.CultureOf(inspector).Name),
+            ("Culture", inspector.Options.CultureInUse is { Name: "" } ? "invariant" : inspector.Options.CultureInUse.Name),
             ("Pending", inspector.HasPendingValues ? "yes" : "no"),
             ("Report", failures.Count == 0 ? "no failures" : $"{failures.Count} failures (see the log)"),
         };
@@ -207,7 +207,7 @@ internal static class NodeInfo
     // The editor option, with what goes along with it.
     private static string Editor(InspectorNode node)
     {
-        var culture = NodeText.CultureOf(node.Inspector);
+        var culture = node.Inspector.Options.CultureInUse;
         var parts = new List<string> { EditorName(node) };
 
         if (node.Range is { } range)

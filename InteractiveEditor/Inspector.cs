@@ -139,6 +139,9 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows => Root.Rows;
 
+    // The rows at the top, the first level of Rows (P7.23).
+    public IEnumerable<InspectorNode> ShownChildren => Root.ShownChildren;
+
     // The rectangles of those rows in an area this wide (P7.5), worked out here with no UI, from the
     // collapsed groups and the layout options; a view only puts its controls on them.
     public InspectorLayout Layout(double width) => InspectorLayout.Compute(Root, Options, width);

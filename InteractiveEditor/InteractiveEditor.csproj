@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <!-- The views were part of the core until the adapters had projects of their own, and they still
-       use what the views of every framework decide the same way (ViewRules) and the culture of the
-       options (CultureInUse), which are not public API. -->
+       use what the views of every framework decide the same way (ViewRules), which is not public API
+       until a view from outside needs it (P7.21). -->
   <ItemGroup>
     <InternalsVisibleTo Include="InteractiveEditor.WinForms" />
     <InternalsVisibleTo Include="InteractiveEditor.Wpf" />

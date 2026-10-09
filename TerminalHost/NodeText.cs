@@ -1,19 +1,13 @@
-﻿using System.Globalization;
-using System.Reflection;
+﻿using System.Reflection;
 using InteractiveEditor;
 using InteractiveEditor.Options;
 
 namespace TerminalHost;
 
 // The text of the values the host shows and takes. It uses the culture the core reads typed text with
-// (the inspector's Culture, or the current one), so what the host shows can be typed back as is.
+// (CultureInUse), so what the host shows can be typed back as is.
 internal static class NodeText
 {
-    public static CultureInfo CultureOf(Inspector inspector)
-    {
-        return inspector.Options.Culture ?? CultureInfo.CurrentCulture;
-    }
-
     // For reading: null reads "null" and strings are quoted, so an empty text and null look different.
     public static string Format(InspectorNode node, object? value)
     {
@@ -88,7 +82,7 @@ internal static class NodeText
             return color;
 
         return value is IFormattable formattable
-            ? formattable.ToString(null, CultureOf(node.Inspector))
+            ? formattable.ToString(null, node.Inspector.Options.CultureInUse)
             : value.ToString() ?? string.Empty;
     }
 }

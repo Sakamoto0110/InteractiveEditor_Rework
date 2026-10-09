@@ -4,10 +4,10 @@ using Terminal.Gui.Views;
 
 namespace TerminalHost;
 
-// The tree of the window: the inspector at the top, and below it the rows a view shows (Rows): ignored
-// and hidden nodes left out, siblings by Order, and members below a group only. A branch is open while
-// its group is not Collapsed, the core's word for it, both ways: the tree opens and closes branches as
-// the groups say, and writes what the user opened or closed into them.
+// The tree of the window: the inspector at the top, and below it the rows a view shows, a level at a
+// time (ShownChildren): ignored and hidden nodes left out, siblings by Order, and members below a group
+// only. A branch is open while its group is not Collapsed, the core's word for it, both ways: the tree
+// opens and closes branches as the groups say, and writes what the user opened or closed into them.
 internal sealed class NodeTree : TreeView<object>
 {
     // The inspector at the top of the tree, or null.
@@ -83,8 +83,8 @@ internal sealed class NodeTree : TreeView<object>
     {
         return item switch
         {
-            Inspector inspector => inspector.Rows.Where(row => row.Parent is { Parent: null }),
-            InspectorNode { IsGroup: true } node => node.Rows.Where(row => row.Parent == node),
+            Inspector inspector => inspector.ShownChildren,
+            InspectorNode { IsGroup: true } node => node.ShownChildren,
             _ => [],
         };
     }

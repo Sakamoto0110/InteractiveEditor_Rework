@@ -111,7 +111,9 @@ public sealed class InspectorOptions
     // The name of an option that changed; the inspector passes it on as OptionChanged.
     internal event Action<string>? Changed;
 
-    internal CultureInfo CultureInUse => Culture ?? CultureInfo.CurrentCulture;
+    // The culture a conversion uses now: Culture, or the current culture when it is null. Public, so a
+    // view or a host shows values in the same culture the core reads typed text with (P7.21).
+    public CultureInfo CultureInUse => Culture ?? CultureInfo.CurrentCulture;
 
     internal bool ViewToInstance => BinderControl.HasFlag(BinderControlMode.ViewToInstance);
 
