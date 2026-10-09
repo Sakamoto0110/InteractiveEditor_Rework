@@ -3,10 +3,8 @@ using PixieLib;
 
 namespace InteractiveEditor.ImGui;
 
-/// <summary>
-/// Conversions between the PixieLib primitives and the System.Numerics vectors ImGui works with: positions
-/// and sizes are Vector2, colors are RGBA Vector4 with components from 0 to 1.
-/// </summary>
+// Conversions between the PixieLib primitives and the System.Numerics vectors ImGui works with: positions
+// and sizes are Vector2, colors are RGBA Vector4 with components from 0 to 1.
 public static class PrimitiveConversions
 {
     public static Vector4 ToVector4(this PxColorRgba color) => new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
