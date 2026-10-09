@@ -47,7 +47,8 @@ internal sealed class NumberEditor : AvaloniaEditor
 
     public override void ShowValue()
     {
-        var mixed = Row.Mixed;
+        // A number that scrubs shows the first object's value, as P2.4 has it; the label stays italic.
+        var mixed = Row.Mixed && !Row.Scrubs;
         var value = Node.ViewValue;
         var (min, max) = Limit;
         var step = 1m;

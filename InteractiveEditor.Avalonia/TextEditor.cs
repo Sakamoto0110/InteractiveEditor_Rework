@@ -44,7 +44,8 @@ internal sealed class TextEditor : AvaloniaEditor
         if (!force && Box.IsKeyboardFocusWithin && Box.Text != Shown)
             return;
 
-        var mixed = Row.Mixed;
+        // A number that scrubs shows the first object's value, as P2.4 has it; the label stays italic.
+        var mixed = Row.Mixed && !Row.Scrubs;
         var value = Node.ViewValue;
 
         Shown = mixed ? string.Empty : Format(value);

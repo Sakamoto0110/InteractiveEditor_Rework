@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using InteractiveEditor.Diagnostics;
@@ -12,8 +13,8 @@ namespace InteractiveEditor.Avalonia;
 // One row of the property grid: the label and the editor of a node side by side, the label in a column of
 // its own. A group is an expander instead, with the label and the type in its header and the rows of the
 // group in a panel inside, which opens and closes with the node's Collapsed (P7.10); a collection's
-// selector or list goes on top of them. The label goes italic when the objects hold different values
-// (P7.19), and its tooltip has the node's tooltip and its type and path. A node with Help has the help
+// selector or list goes on top of them. A number's label can be dragged to scrub it (P7.18). The label
+// goes italic when the objects hold different values (P7.19), and its tooltip has the node's tooltip and its type and path. A node with Help has the help
 // mark, (?), right before its editor, or right after a group's label, which opens the long help (P7.15).
 // What fails while the row shows its objects, and what the core refuses as a mistake, stays in the row
 // (P7.11, 3.11).
@@ -21,6 +22,10 @@ internal sealed class AvaloniaRow : IDisposable
 {
     // The column of the labels, the same at every level, as the property grid had it.
     private const double LabelWidth = 160;
+
+    // The cursors of a label that scrubs, across or up and down.
+    private static readonly Cursor Across = new(StandardCursorType.SizeWestEast);
+    private static readonly Cursor UpAndDown = new(StandardCursorType.SizeNorthSouth);
 
     private readonly TextBlock Label = new()
     {
@@ -40,6 +45,7 @@ internal sealed class AvaloniaRow : IDisposable
 
     private readonly Expander? Group;
     private readonly AvaloniaEditor? Editor;
+    private readonly LabelScrub? Scrub;
 
     // The type the row was made for: a node of an inspector with no type takes another at the bind.
     private readonly Type? MadeFor;
@@ -118,6 +124,13 @@ internal sealed class AvaloniaRow : IDisposable
         if (Kind != EditorKind.Separator)
             line.Children.Add(Label);
 
+        // The label's column takes the mouse in all of it, for the drag of scrubbing.
+        if (Kind is not (null or EditorKind.Header or EditorKind.Separator))
+        {
+            Label.Background = Brushes.Transparent;
+            Scrub = new LabelScrub(this, Label, view);
+        }
+
         if (Editor != null)
         {
             if (Kind == EditorKind.Separator)
@@ -164,6 +177,9 @@ internal sealed class AvaloniaRow : IDisposable
     public EditorKind? Kind { get; }
 
     public bool IsGroup { get; }
+
+    // Whether the label scrubs the number now (P7.17).
+    public bool Scrubs => Scrub != null && ViewRules.CanScrub(Node);
 
     // Whether the row shows its objects as holding different values (P7.19).
     public bool Mixed => ViewRules.ShowsMixed(Kind, Node);
@@ -255,6 +271,8 @@ internal sealed class AvaloniaRow : IDisposable
 
     public void Dispose()
     {
+        Scrub?.Dispose();
+
         if (Group != null)
             Group.PropertyChanged -= OnGroupChanged;
 
@@ -272,6 +290,9 @@ internal sealed class AvaloniaRow : IDisposable
 
             if (Kind != EditorKind.Header)
                 Label.FontStyle = Mixed ? FontStyle.Italic : FontStyle.Normal;
+
+            if (Scrub != null)
+                Label.Cursor = !Scrubs ? null : Node.ScrubAxis == ScrubAxis.Vertical ? UpAndDown : Across;
 
             return;
         }
