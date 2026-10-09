@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 using System.Runtime.CompilerServices;
-using InteractiveEditor.Primitives;
+using PixieLib;
 
 namespace InteractiveEditor.Options;
 

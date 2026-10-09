@@ -1,7 +1,7 @@
 using DemoObjects.ViewObjects;
 using InteractiveEditor;
 using InteractiveEditor.Events;
-using InteractiveEditor.Views.WinForms;
+using InteractiveEditor.WinForms;
 
 namespace WindowsHost;
 

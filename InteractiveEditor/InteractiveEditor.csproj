@@ -1,29 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The core builds and runs anywhere. Each UI framework has its own project next to it
+       (InteractiveEditor.WinForms, .Wpf, .Avalonia and .ImGui), so the core depends on none of them. -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
-  <!-- The code for WinForms and WPF is only in the windows target (P7.1): the conversions of the
-       primitives, in *.Windows.cs files, and the views, in the Views folder. The core builds and runs
-       anywhere. -->
-  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
-    <UseWindowsForms>true</UseWindowsForms>
-    <UseWPF>true</UseWPF>
-  </PropertyGroup>
-
-  <!-- WinForms adds System.Drawing and System.Windows.Forms to the implicit usings of the windows
-       target; taken out, the core sees no WinForms names there, and the Windows files say what they use. -->
-  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
-    <Using Remove="System.Drawing" />
-    <Using Remove="System.Windows.Forms" />
+  <ItemGroup>
+    <!-- A copy of PixieLib for now (external/PixieLib/README.md). The adapters get PixieLib through
+         this reference. -->
+    <ProjectReference Include="..\external\PixieLib\PixieLib\PixieLib.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'windows'">
-    <Compile Remove="**/*.Windows.cs;Views/**" />
+  <!-- The views were part of the core until the adapters had projects of their own, and they still
+       use what the views of every framework decide the same way (ViewRules) and the culture of the
+       options (CultureInUse), which are not public API. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="InteractiveEditor.WinForms" />
+    <InternalsVisibleTo Include="InteractiveEditor.Wpf" />
   </ItemGroup>
 
 </Project>

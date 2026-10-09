@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The WinForms view of the inspector (P7.2), and the conversions of the primitives with WinForms
+       types, as extensions (PixieLib 4.4). -->
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
@@ -8,6 +10,13 @@
     <!-- Lets the solution build (not run) on Linux/macOS; ignored on Windows. -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+
+  <!-- WinForms adds System.Drawing and System.Windows.Forms to the implicit usings; taken out, each
+       file says what it uses, as in the core. -->
+  <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\InteractiveEditor\InteractiveEditor.csproj" />

@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using DemoObjects.ViewObjects;
 using InteractiveEditor;
 using InteractiveEditor.Events;
-using InteractiveEditor.Views.Wpf;
+using InteractiveEditor.Wpf;
 
 namespace WpfHost;
 

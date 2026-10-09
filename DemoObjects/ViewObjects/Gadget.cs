@@ -1,7 +1,7 @@
 ﻿using DemoObjects.ClassObjects;
 using InteractiveEditor.Attributes;
 using InteractiveEditor.Options;
-using InteractiveEditor.Primitives;
+using PixieLib;
 
 namespace DemoObjects.ViewObjects;
 
@@ -29,7 +29,7 @@ public class Gadget
     public int Opacity { get; set; } = 200;
 
     [InspectorEditor(EditorKind.Color)]
-    public PxColorArgb Fill { get; set; } = new(255, 0, 128, 255);
+    public PxColorRgba Fill { get; set; } = new(0, 128, 255);
 
     public Moo Inner { get; set; } = new();
 

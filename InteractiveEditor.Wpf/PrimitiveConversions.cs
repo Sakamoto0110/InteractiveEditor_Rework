@@ -25,6 +25,11 @@ public static class PrimitiveConversions
     public static PxSize ToPrimitive(this System.Windows.Size size) => new PxSize(size.Width, size.Height);
     public static PxRect ToPrimitive(this System.Windows.Rect rect) => new PxRect(rect.X, rect.Y, rect.Width, rect.Height);
 
+    public static System.Windows.Thickness ToWpf(this PxPadding padding) =>
+        new System.Windows.Thickness(padding.Left, padding.Top, padding.Right, padding.Bottom);
+    public static PxPadding ToPrimitive(this System.Windows.Thickness thickness) =>
+        new PxPadding(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
+
     // PxColorRgba takes the alpha last, the other way around from Color.FromArgb.
     public static PxColorRgba ToPrimitive(this System.Windows.Media.Color color) => new PxColorRgba(color.R, color.G, color.B, color.A);
 }

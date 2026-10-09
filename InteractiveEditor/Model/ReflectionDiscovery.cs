@@ -1,13 +1,13 @@
 ﻿using System.Reflection;
 using InteractiveEditor.Diagnostics;
-using InteractiveEditor.Primitives;
+using PixieLib;
 
 namespace InteractiveEditor.Model;
 
 internal static class ReflectionDiscovery
 {
     // Types that fit more than one editor (P5.5): a color can be its fields, a hex text or a picker.
-    private static readonly HashSet<Type> ManyEditors = [typeof(System.Drawing.Color), typeof(PxColorArgb), typeof(PxColorHsl)];
+    private static readonly HashSet<Type> ManyEditors = [typeof(System.Drawing.Color), typeof(PxColorRgba), typeof(PxColorHsl)];
 
     // A member whose type cannot be read is left out and reported; the root type failing to read
     // is fatal and propagates.
