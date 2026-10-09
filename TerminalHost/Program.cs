@@ -5,7 +5,8 @@ namespace TerminalHost;
 internal static class Program
 {
     // TerminalHost              interactive inspector
-    // TerminalHost --dump [T]   prints the tree and the binding check, for one target or all; exit code 1 on mismatch
+    // TerminalHost --dump [T]   prints the whole tree and the binding check, for one target or all; exit
+    //                           code 1 on a mismatch, 2 for an unknown target
     private static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "--dump")
