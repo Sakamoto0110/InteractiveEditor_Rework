@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The Avalonia view of the inspector (P7.2), a property grid, and the conversions of the primitives
+       with Avalonia types, as extensions (PixieLib 4.4). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

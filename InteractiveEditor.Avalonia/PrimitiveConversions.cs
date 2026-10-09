@@ -3,6 +3,7 @@ using AvaloniaColor = Avalonia.Media.Color;
 using AvaloniaPoint = Avalonia.Point;
 using AvaloniaRect = Avalonia.Rect;
 using AvaloniaSize = Avalonia.Size;
+using AvaloniaThickness = Avalonia.Thickness;
 
 namespace InteractiveEditor.Avalonia;
 
@@ -27,6 +28,13 @@ public static class PrimitiveConversions
     public static PxPoint ToPrimitive(this AvaloniaPoint p) => new PxPoint(p.X, p.Y);
     public static PxSize ToPrimitive(this AvaloniaSize size) => new PxSize(size.Width, size.Height);
     public static PxRect ToPrimitive(this AvaloniaRect rect) => new PxRect(rect.X, rect.Y, rect.Width, rect.Height);
+
+    // The padding of the layout options (InspectorOptions.Padding) and Avalonia's thickness, as in the
+    // other views.
+    public static AvaloniaThickness ToAvalonia(this PxPadding padding) =>
+        new AvaloniaThickness(padding.Left, padding.Top, padding.Right, padding.Bottom);
+    public static PxPadding ToPrimitive(this AvaloniaThickness thickness) =>
+        new PxPadding(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
 
     // PxColorRgba takes the alpha last, the other way around from Color.FromArgb.
     public static PxColorRgba ToPrimitive(this AvaloniaColor color) => new PxColorRgba(color.R, color.G, color.B, color.A);
