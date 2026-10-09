@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 9 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `6f02064`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `b0deeb2`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
@@ -12,7 +12,8 @@ Em 09/10, a pedido do neko, a branch das views novas (`claude/vibrant-fermi-smwj
 `main` em 25/09, sem os commits do rework) entrou nesta, numa sessão do projeto da PixieLib: o
 núcleo passou a usar os primitivos da PixieLib, cada framework ganhou um projeto, e as views do
 Avalonia e do ImGui e o host do Terminal.Gui foram refeitos sobre o núcleo do rework (seção 5). As
-escolhas que eu fiz nisso estão em aberto, nas perguntas 7.20 a 7.23.
+escolhas que eu fiz nisso o neko aceitou no mesmo dia (P7.20 a P7.23), e o que elas pediam entrou
+nos commits `ad79532` a `b0deeb2`.
 
 ---
 
@@ -29,7 +30,10 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   git config commit.gpgsign false
   ```
 
-- No fim da mensagem, os trailers de coautoria e de sessão que a própria sessão indicar.
+- Sem trailers no fim da mensagem, nem os de coautoria nem os de sessão, mesmo que a sessão os
+  indique: em 09/10 o histórico desde o `99518fa` foi reescrito para tirá-los (commit `0770e7d`).
+  Um clone de antes disso diverge da branch; trazer só os commits novos para cima dela, sem
+  `--force`.
 - Depois do push, conferir no GitHub que os commits aparecem com o login `Sakamoto0110`. Com `N`
   sendo quantos commits olhar, devem sair duas linhas por commit (author e committer), todas com
   `Sakamoto0110`:
@@ -70,14 +74,14 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: em aberto, da 7.20 à 7.23, as escolhas do merge de 09/10. As da
-  view WinForms (7.7 a 7.13) ele respondeu em 02/10 com as sugestões (seção 0 das notas, Views). Em
-  29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu
-  tinha deixado para ele confirmar, em 01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5
-  (4.7, 5.11, 5.12, 5.13 e 7.6), e em 02/10 as da 6.2 e da 6.3; tudo isso está na seção 0 das
-  notas, e a explicação que ele pediu da 6.2 e da 6.3 (o `VariablePool` e o `EditField()` lidos no
-  0.7.1a e no OverlayApplication) está na seção 3.12. Os números antigos valem, e os novos seguem a
-  numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: sem pergunta em aberto. As do merge de 09/10 (7.20 a 7.23) ele
+  aceitou no mesmo dia, com as sugestões. As da view WinForms (7.7 a 7.13) ele respondeu em 02/10
+  com as sugestões (seção 0 das notas, Views). Em 29/09 ele aceitou as sugestões das que sobravam
+  (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha deixado para ele confirmar, em 01/10 as
+  das cinco escolhas que sobraram da 5.10 e da 7.5 (4.7, 5.11, 5.12, 5.13 e 7.6), e em 02/10 as da
+  6.2 e da 6.3; tudo isso está na seção 0 das notas, e a explicação que ele pediu da 6.2 e da 6.3
+  (o `VariablePool` e o `EditField()` lidos no 0.7.1a e no OverlayApplication) está na seção 3.12.
+  Os números antigos valem, e os novos seguem a numeração de cada seção.
 - `docs/passagem-pixielib.md`: a passagem da PixieLib em C# (02/10), para uma sessão própria, no
   repositório `Sakamoto0110/PixieLib`. Ela fica aqui porque a sessão que a escreveu podia ler a
   PixieLib, mas não subir nada nela (o app do Claude no GitHub sem permissão de escrita); o lugar
@@ -152,6 +156,11 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   serve de roteiro para refazer o que for preciso. Desde o commit `424f6d0`, os três de Windows
   referenciam `InteractiveEditor.WinForms` ou `InteractiveEditor.Wpf`, e não mais o alvo `-windows`
   do núcleo, e os primitivos são os da PixieLib; nenhum dos cinco rodou depois do merge de 09/10.
+  Em 09/10 foram feitos mais dois, também no scratchpad, que não passam para a próxima sessão: um
+  do Avalonia, numa tela virtual, com os eventos de ponteiro e de teclado simulados (106
+  checagens: os editores, os grupos, os mistos, as falhas, o `(?)`, as válvulas e o scrubbing), e um
+  de WinForms e WPF no Wine para o rótulo de uma linha que não mostra os objetos (commit `e5960e1`).
+  A seção 3.5 das notas diz o que o do Avalonia confere.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -237,6 +246,16 @@ Pegadinhas já vistas:
   repositório `Sakamoto0110/PixieLib`, e volta numa cópia nova.
 - Dentro do namespace `InteractiveEditor.ImGui`, o nome `ImGui` sozinho é o namespace, e não a
   classe do ImGui.NET; os arquivos usam o alias `Gui`.
+- A view do Avalonia faz as linhas quando é carregada (commit `8853770`): um teste que cria a view
+  precisa pô-la numa janela e esperar a fila da interface antes de procurar os controles.
+- Para fechar um app que roda em segundo plano, não usar `pkill -f` com o nome dele: o padrão casa
+  com a linha de comando do próprio shell que roda o `pkill`, e o derruba junto. Matar pelo PID, ou
+  `wineserver -k` (com o mesmo `WINEPREFIX`) para o que roda no Wine.
+- Eventos de ponteiro simulados no Avalonia: `new PointerPressedEventArgs(alvo, ponteiro, janela,
+  ponto, 0, new PointerPointProperties(RawInputModifiers.LeftMouseButton,
+  PointerUpdateKind.LeftButtonPressed), KeyModifiers.None)` e o `RaiseEvent` no controle, com um
+  `Avalonia.Input.Pointer` só para o teste (o nome `Pointer` sozinho colide com o do
+  `System.Reflection`). O `xdotool` dá o mouse de verdade, para conferir que os simulados batem.
 
 ## 5. O código hoje, em resumo
 
@@ -324,10 +343,11 @@ Pegadinhas já vistas:
   onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As
   opções (`RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`, `LabelSpacing`, `Padding` e `ListRows`)
   ficam no `InspectorOptions`. Não lê os objetos, e roda no Linux.
-- Um projeto por framework (commit `424f6d0`, no lugar dos dois alvos da P7.1; pergunta 7.20): o
-  núcleo é `net10.0`, e as views ficam em `InteractiveEditor.WinForms`, `.Wpf`, `.Avalonia` e
-  `.ImGui`, cada uma com o namespace do projeto. As `ViewRules` (`InteractiveEditor/Views`) e a
-  `CultureInUse` ficam `internal`, e os quatro as veem pelo `InternalsVisibleTo` (pergunta 7.21).
+- Um projeto por framework (P7.20, commit `424f6d0`, no lugar dos dois alvos da P7.1): o núcleo é
+  `net10.0`, e as views ficam em `InteractiveEditor.WinForms`, `.Wpf`, `.Avalonia` e `.ImGui`, cada
+  uma com o namespace do projeto. As `ViewRules` (`InteractiveEditor/Views`) ficam `internal`, e os
+  quatro as veem pelo `InternalsVisibleTo`; a `CultureInUse` e o `ShownChildren` (no nó e no
+  inspector) são públicos (P7.21, P7.23; commit `ad79532`).
   As views WinForms e WPF descritas abaixo ficaram em `Views/WinForms` e `Views/Wpf` até o
   `424f6d0`.
 - Eventos para as views (commit `4db6457`): o `OptionChanged` do inspector sai quando uma opção de
@@ -378,8 +398,10 @@ Pegadinhas já vistas:
   commit `1d86b96`) e o host do Terminal.Gui (commit `6ba0290`), da branch das views novas,
   refeitos sobre este núcleo. O Avalonia põe as linhas nos painéis dele, com um expander por grupo;
   o ImGui desenha uma tabela a cada quadro, relendo os objetos antes (`RefreshEachFrame`, ligado
-  por padrão). O que elas não têm da WinForms está na pergunta 7.22, e o `TerminalHost` usa
-  só a API pública (pergunta 7.23). Detalhes na seção 0 das notas (Views).
+  por padrão). Nenhuma usa o passo de layout (P7.22). O Avalonia tem, como as outras, o `(?)` com a
+  janela, as válvulas com o `RowFailed` e o scrubbing (commits `507b528`, `8853770` e `b0deeb2`);
+  o ImGui fica sem válvulas e com a ajuda no tooltip do `(?)`. O `TerminalHost` usa só a API
+  pública. Detalhes na seção 0 das notas (Views) e na 3.5.
 
 ## 6. O que falta
 
@@ -401,18 +423,17 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   commits `31df507` e `ce15b9f`. O corte 4, as válvulas (P7.4) e a premissa de erros nas views,
   entrou no commit `6632d73`, e o 5, a view WPF, no `a93b75c`.
 - Com as views: nada no código; falta o neko conferir os dois hosts no Windows (seção 7).
-- Em 09/10, o merge da branch das views novas (commits `36f0afa` a `6f02064`): falta o neko
-  responder da 7.20 à 7.23, e o que a 7.22 pedir entra nas views do Avalonia e do ImGui. O PR 2,
-  dessa branch para a `main`, ficou contido na `rework-claude`; fechar ou não é com o neko.
+- Em 09/10, o merge da branch das views novas (commits `36f0afa` a `6f02064`), e as respostas da
+  7.20 à 7.23, com as sugestões, aplicadas nos commits `ad79532` a `b0deeb2`. O PR 2, dessa branch
+  para a `main`, ficou contido na `rework-claude`; fechar ou não é com o neko.
 - Sessões próprias: o cache do modelo de tipo (P5.6). A da PixieLib (P8.7) já foi feita, no
   repositório dela, e os primitivos dela já estão aqui (commit `424f6d0`).
 
 ## 7. Próximo passo
 
-Em 09/10, antes de tudo abaixo: o neko responder da 7.20 à 7.23 (as escolhas do merge das views
-novas) e, com as respostas, mudar o que ele escolher e pôr nas views do Avalonia e do ImGui o que a
-7.22 pedir, um commit por coisa. O AvaloniaHost, o ImGuiHost e o TerminalHost também ficam para ele
-conferir.
+Em 09/10 entraram as views novas e as respostas da 7.20 à 7.23. Falta o neko conferir, junto com o
+item 2, o AvaloniaHost (o `(?)` e a janela dele, `Count` e `Ratio` à direita pela válvula, o
+scrubbing em `Count` e `Ratio`), o ImGuiHost e o TerminalHost.
 
 1. As views estão completas: os cinco cortes da seção 0 das notas (Views) entraram, o último, a view
    WPF, no commit `a93b75c`. O próximo passo é o neko conferir no Windows o WindowsHost e o WpfHost

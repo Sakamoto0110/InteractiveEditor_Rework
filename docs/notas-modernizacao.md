@@ -30,7 +30,8 @@ escolhas da view WinForms (P7.7 a P7.13). Depois de ver a view no Windows, ele p
 espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15), e respondeu as escolhas do
 corte 3, o scrubbing e os valores mistos (P7.16 a P7.19). Em 09/10, a pedido dele ("pode fazer
 isso?"), a branch das views novas entrou nesta, com a troca dos primitivos pelos da PixieLib e um
-projeto por framework; as escolhas que eu fiz nisso estão em aberto, nas perguntas 7.20 a 7.23.
+projeto por framework; no mesmo dia ele aceitou as sugestões das escolhas que eu fiz nisso (P7.20 a
+P7.23).
 
 ### Premissa
 
@@ -64,13 +65,15 @@ projeto por framework; as escolhas que eu fiz nisso estão em aberto, nas pergun
   Substitui o "as views entram nesta mesma DLL, com um alvo só" da decisão anterior. Os dois alvos
   voltaram no commit `e6cca32`, por enquanto com as conversões dos primitivos (3.7). Substituído em
   09/10 pelo projeto por framework, logo abaixo.
-- **Um projeto por framework** (09/10; escolha minha, na pergunta 7.20): o núcleo volta a ter um
+- **Um projeto por framework** (P7.20, 09/10; proposta minha, aceita): o núcleo volta a ter um
   alvo só, `net10.0`, e cada framework de interface tem um projeto ao lado dele, com o nome do
   projeto como namespace: `InteractiveEditor.WinForms` e `InteractiveEditor.Wpf`
   (`net10.0-windows`), `InteractiveEditor.Avalonia` e `InteractiveEditor.ImGui` (`net10.0`). Os do
   Avalonia e do ImGui vieram assim da branch das views novas, e as views do rework mudaram para os
-  outros dois. O que as views decidem igual (`Views/ViewRules.cs`) e a `CultureInUse` continuam
-  `internal` no núcleo, e os quatro projetos os veem pelo `InternalsVisibleTo` (pergunta 7.21).
+  outros dois. O que as views decidem igual (`Views/ViewRules.cs`) continua `internal` no núcleo,
+  e os quatro projetos o veem pelo `InternalsVisibleTo`, até aparecer uma view de fora, para não
+  fixar uma API que ainda pode mudar; a `CultureInUse`, que todo host que mostra valores precisa,
+  ficou pública (P7.21, commit `ad79532`).
   Quem usa uma view recebe três DLLs: o núcleo, a do framework (a view) e a `PixieLib` (os
   primitivos). Aplicado nos commits `36f0afa` (o merge) e `424f6d0` (3.7).
 - **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
@@ -432,13 +435,24 @@ projeto por framework; as escolhas que eu fiz nisso estão em aberto, nas pergun
   (o ImGui); o `IInspectorView` e o `ValueText` da branch saíram no `6f02064`. As fábricas seguem
   a P7.2 (`CreateAvaloniaView()` e `CreateImGuiView()`), e as duas views usam as `ViewRules`: o
   editor de cada linha, os grupos recolhíveis, a falha na linha, os mistos e a view vazia no
-  `Disposed`. As diferenças para a WinForms estão na pergunta 7.22: nenhuma usa o passo de layout
-  (o Avalonia empilha as linhas nos painéis dele, e o ImGui desenha uma tabela a cada quadro),
-  nenhuma tem as válvulas (P7.4), o Avalonia não faz scrubbing, e o `(?)` não abre a janela (no
-  Avalonia, o `Help` vai no tooltip do rótulo; no ImGui, no tooltip do `(?)`). O `TerminalHost` é
-  um host, e não uma view: a árvore das linhas, uma caixa que grava pelo núcleo e um log, só com a
-  API pública. Verificado fora do repositório: 65 checagens do Avalonia numa tela virtual, 43 do
-  ImGui sem janela, e o `--dump` do `TerminalHost` com todos os bindings certos.
+  `Disposed`. O `TerminalHost` é um host, e não uma view: a árvore das linhas, uma caixa que grava
+  pelo núcleo e um log, só com a API pública. Verificado fora do repositório: 65 checagens do
+  Avalonia numa tela virtual, 43 do ImGui sem janela, e o `--dump` do `TerminalHost` com todos os
+  bindings certos.
+- **O que as views novas fazem diferente da WinForms** (P7.22, 09/10): nenhuma usa o passo de
+  layout, porque os dois frameworks fazem o próprio (o Avalonia empilha as linhas nos painéis dele,
+  e o ImGui desenha uma tabela a cada quadro). O Avalonia ganhou o que faltava, um commit para cada:
+  o `(?)` com a janela (`507b528`), as válvulas com o `RowFailed` (`8853770`) e o scrubbing
+  (`b0deeb2`); detalhes na 3.5. O ImGui fica sem válvulas, porque não tem controles para entregar,
+  e com a ajuda no tooltip do `(?)`, que é o costume dele.
+- **Os filhos de um nó** (P7.23, 09/10): o `ShownChildren`, os filhos que uma view mostra embaixo de
+  um nó (sem os ignorados e os escondidos, pelo `Order`), ficou público no nó, e o inspector ganhou
+  o mesmo para as linhas de cima (commit `ad79532`). O `TerminalHost` usa os dois, e a
+  `CultureInUse`, em vez das cópias que tinha.
+- **O rótulo de uma linha que não mostra os objetos** (09/10; commit `e5960e1`): nas três views, o
+  `Show` da linha mostrava o valor e depois o rótulo no mesmo `Try`, então um `ToString` que lança
+  (3.11) deixava a linha sem rótulo. Achado ao testar o `RowFailed` do Avalonia; agora os dois vão
+  em separado, e a falha só sai quando os dois passam.
 
 ### Primitivos e PixieLib
 
@@ -1211,6 +1225,30 @@ mostra mistos, que antes estavam na linha e no scrubbing do WinForms.
   não avisa o WPF de que saiu (no Windows avisa), então a checagem sai para outra janela do app. O
   WpfHost mostra o `Gadget` como o WindowsHost, com a mesma válvula (commit `a93b75c`).
 
+A view do Avalonia (09/10, P7.22) não usa os retângulos do layout: cada linha é uma grade com a
+coluna do rótulo (160), a das marcas e a do editor, e um grupo é um expander. O que ela ganhou para
+ficar com o contrato das outras:
+
+- **O `(?)`** (commit `507b528`). A coluna das marcas tem `HelpWidth` mais `LabelSpacing`, como no
+  passo de layout, em todas as linhas quando algum nó da árvore tem `Help`, e some quando nenhum
+  tem. Num grupo, a marca fica logo depois do rótulo, no cabeçalho do expander, e pega o clique,
+  para não abrir nem fechar o grupo. A janela é modal sobre a da view, com o rótulo como título, o
+  texto só leitura e um OK (Enter ou Esc fecham). O tooltip do rótulo perdeu o `Help`.
+- **As válvulas e o `RowFailed`** (commit `8853770`): os mesmos eventos, com os args do núcleo no
+  `Control` do Avalonia. Para quem assina logo depois do `CreateAvaloniaView()` ver todos os
+  controles, as linhas passaram a ser feitas quando a view é carregada (`OnLoaded`), como na WPF,
+  e não no construtor. O AvaloniaHost usa a válvula como o WpfHost, com `Count` e `Ratio` à
+  direita, e põe o `RowFailed` na linha de status.
+- **O scrubbing** (commit `b0deeb2`): o mesmo gesto, com a distância medida em relação à view. O Esc
+  vem da janela (o `TopLevel`), num handler de túnel que só existe durante o arraste.
+- **Verificado** num console fora do repositório, numa tela virtual, com os eventos de ponteiro e de
+  teclado simulados: 106 checagens (as 65 do port e 41 novas). Quebrando de propósito a coluna, a
+  marca que deixa o clique passar, as linhas feitas no construtor, a falha avisada a cada leitura, o
+  limiar do arraste, o Esc e o misto de um número que faz scrubbing, cada um falha. No AvaloniaHost,
+  com o mouse de verdade (xdotool), um arraste de 25 px levou o `Count` de 3 a 28, o Esc no meio do
+  arraste do `Ratio` voltou a 0,5, e com a janela da ajuda aberta a de trás não recebeu o texto
+  digitado.
+
 ### 3.6 Serviços (decidido: descartados)
 
 O service locator do original existia para tirar responsabilidades de um arquivo monolítico e
@@ -1265,12 +1303,12 @@ são as conversões dos primitivos (3.4); as views entram do mesmo jeito.
   lança, e o `net10.0` sem nenhuma), rodado no Wine; com conversões quebradas de propósito, 5
   falham.
 
-Em 09/10 o desenho mudou de novo, com a branch das views novas (seção 0, Estrutura; pergunta
-7.20): o núcleo voltou a ter só `net10.0`, como no `cead7b1`, e cada framework ganhou um projeto
+Em 09/10 o desenho mudou de novo, com a branch das views novas (seção 0, Estrutura; P7.20): o
+núcleo voltou a ter só `net10.0`, como no `cead7b1`, e cada framework ganhou um projeto
 (`InteractiveEditor.WinForms`, `.Wpf`, `.Avalonia` e `.ImGui`). Os arquivos `*.Windows.cs` e as
 pastas `Views/WinForms` e `Views/Wpf` saíram do núcleo; as conversões viraram extensões nos projetos
 do WinForms e do WPF, e são eles que tiram os usings implícitos do WinForms. No núcleo ficou só o
-`Views/ViewRules.cs`, que os quatro veem pelo `InternalsVisibleTo` (pergunta 7.21). Commits
+`Views/ViewRules.cs`, que os quatro veem pelo `InternalsVisibleTo` (P7.21). Commits
 `36f0afa` e `424f6d0`. Verificado no `6f02064`: a solução compila sem warnings e sem erros nos 13
 projetos (e nos dois da cópia da PixieLib), e o TuxHost imprime as mesmas 67 linhas; no `424f6d0`,
 o WindowsHost e o WpfHost mostram o `Gadget` no Wine como antes.
@@ -1662,8 +1700,8 @@ Estrutura
 - [x] Dois alvos de novo, com o código de Windows só no `-windows`, em arquivos `*.Windows.cs`
       (P7.1; 3.7; commit `e6cca32`).
 - [x] Um projeto por framework: o núcleo em `net10.0`, e as views em `InteractiveEditor.WinForms`,
-      `.Wpf`, `.Avalonia` e `.ImGui`, com as regras comuns pelo `InternalsVisibleTo` (perguntas
-      7.20 e 7.21; 3.7; commits `36f0afa` e `424f6d0`).
+      `.Wpf`, `.Avalonia` e `.ImGui`, com as regras comuns pelo `InternalsVisibleTo` (P7.20, P7.21;
+      3.7; commits `36f0afa` e `424f6d0`). A `CultureInUse` pública (P7.21; commit `ad79532`).
 - [x] NoHost em `net10.0` (commit `cd4ccf2`).
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `4c4fe9e`).
       O NoHost voltou para `net10.0-windows` (commit `b1eba84`), e voltou a ser ignorado pelo
@@ -1802,8 +1840,11 @@ Apresentação
       views decidem igual em `Views/ViewRules.cs`.
 - [x] Views do Avalonia e do ImGui e o host do Terminal.Gui, da branch das views novas, refeitos
       sobre o núcleo do rework (commits `6ba0290`, `a885789`, `1d86b96` e `6f02064`).
-- [ ] O que as views do Avalonia e do ImGui não têm da WinForms, conforme a resposta da 7.22.
-- [ ] Os filhos que uma view mostra embaixo de um nó, na API pública (pergunta 7.23).
+- [x] No Avalonia, o `(?)` com a janela, as válvulas com o `RowFailed` e o scrubbing (P7.22; commits
+      `507b528`, `8853770` e `b0deeb2`); o ImGui fica como está.
+- [x] Os filhos que uma view mostra embaixo de um nó, na API pública: o `ShownChildren` (P7.23;
+      commit `ad79532`).
+- [x] O rótulo de uma linha que não mostra os objetos, nas três views (3.11; commit `e5960e1`).
 
 Pendências da primeira revisão (já conhecidas)
 
@@ -1943,8 +1984,10 @@ ideia.
 scrubbing com os valores mistos, as válvulas com a premissa de erros nas views e a view WPF, nos
 commits `e6cca32`, `8dfaab4`, `ce15b9f`, `6632d73` e `a93b75c`. Em 09/10 vieram as do Avalonia e
 do ImGui e o host do Terminal.Gui (commits `6ba0290`, `a885789` e `1d86b96`), cada framework num
-projeto (commit `424f6d0`), e os primitivos passaram a ser os da PixieLib; o que vem depois é a
-sessão própria do cache do modelo de tipo. Já entraram o `ValueChanged` (commit `305952f`),
-os sanitizadores (commit `7f3cb63`), os nós manuais, botão e campo só de exibição (commit
-`42e2129`), o layout no `InspectorOptions` (commit `9674fca`), a visibilidade condicional (commit
-`bdf7ef8`) e os itens de escolha (commit `cf909c1`); o gancho de conversão saiu da lista (P2.9).
+projeto (commit `424f6d0`), e os primitivos passaram a ser os da PixieLib; com as respostas do mesmo
+dia, o Avalonia ganhou o `(?)`, as válvulas e o scrubbing (commits `507b528`, `8853770` e
+`b0deeb2`). O que vem depois é a sessão própria do cache do modelo de tipo. Já entraram o
+`ValueChanged` (commit `305952f`), os sanitizadores (commit `7f3cb63`), os nós manuais, botão e
+campo só de exibição (commit `42e2129`), o layout no `InspectorOptions` (commit `9674fca`), a
+visibilidade condicional (commit `bdf7ef8`) e os itens de escolha (commit `cf909c1`); o gancho de
+conversão saiu da lista (P2.9).
