@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- A git submodule pinned to a PixieLib commit, so clone with submodules. The adapters get
-         PixieLib through this reference. -->
-    <ProjectReference Include="..\external\PixieLib\dotnet\PixieLib\PixieLib.csproj" />
+    <!-- A copy of PixieLib for now (external/PixieLib/README.md). The adapters get PixieLib through
+         this reference. -->
+    <ProjectReference Include="..\external\PixieLib\PixieLib\PixieLib.csproj" />
   </ItemGroup>
 
 </Project>
