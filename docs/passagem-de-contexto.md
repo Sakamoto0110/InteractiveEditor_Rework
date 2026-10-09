@@ -1,12 +1,18 @@
 # Passagem de contexto
 
-Para retomar o trabalho num contexto novo. Estado de 2 de outubro de 2026, na branch
+Para retomar o trabalho num contexto novo. Estado de 9 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `9148c81`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `44246a7`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
 (`docs/passagem-pixielib.md`, seção 3).
+
+Em 09/10, a pedido do neko, a branch das views novas (`claude/vibrant-fermi-smwjw5`, aberta da
+`main` em 25/09, sem os commits do rework) entrou nesta, numa sessão do projeto da PixieLib: o
+núcleo passou a usar os primitivos da PixieLib, cada framework ganhou um projeto, e as views do
+Avalonia e do ImGui e o host do Terminal.Gui foram refeitos sobre o núcleo do rework (seção 5). As
+escolhas que eu fiz nisso estão em aberto, nas perguntas 7.20 a 7.23.
 
 ---
 
@@ -64,27 +70,32 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   o número da pergunta (`P2.2` é a pergunta 2.2); o `Inspector` na 3.10, a premissa de erros na
   3.11, a PixieLib na 3.9, o que sobrou da lista antiga de decisões em aberto na seção 5, o
   checklist na 6 e o modelo de opções na 7.
-- `docs/perguntas-em-aberto.md`: sem pergunta em aberto. As da view WinForms (7.7 a 7.13) ele
-  respondeu em 02/10 com as sugestões (seção 0 das notas, Views). Em 29/09 ele aceitou as sugestões
-  das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu tinha deixado para ele
-  confirmar, em 01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5 (4.7, 5.11, 5.12, 5.13 e
-  7.6), e em 02/10 as da 6.2 e da 6.3; tudo isso está na seção 0 das notas, e a explicação que ele
-  pediu da 6.2 e da 6.3 (o `VariablePool` e o `EditField()` lidos no 0.7.1a e no OverlayApplication)
-  está na seção 3.12. Os números antigos valem, e os novos seguem a numeração de cada seção.
+- `docs/perguntas-em-aberto.md`: em aberto, da 7.20 à 7.23, as escolhas do merge de 09/10. As da
+  view WinForms (7.7 a 7.13) ele respondeu em 02/10 com as sugestões (seção 0 das notas, Views). Em
+  29/09 ele aceitou as sugestões das que sobravam (1.14, 5.9, 5.10, 6.7 e 7.5) e as escolhas que eu
+  tinha deixado para ele confirmar, em 01/10 as das cinco escolhas que sobraram da 5.10 e da 7.5
+  (4.7, 5.11, 5.12, 5.13 e 7.6), e em 02/10 as da 6.2 e da 6.3; tudo isso está na seção 0 das
+  notas, e a explicação que ele pediu da 6.2 e da 6.3 (o `VariablePool` e o `EditField()` lidos no
+  0.7.1a e no OverlayApplication) está na seção 3.12. Os números antigos valem, e os novos seguem a
+  numeração de cada seção.
 - `docs/passagem-pixielib.md`: a passagem da PixieLib em C# (02/10), para uma sessão própria, no
   repositório `Sakamoto0110/PixieLib`. Ela fica aqui porque a sessão que a escreveu podia ler a
   PixieLib, mas não subir nada nela (o app do Claude no GitHub sem permissão de escrita); o lugar
-  dela é lá. Não é trabalho desta passagem: a troca dos primitivos do InteractiveEditor pelos da
-  PixieLib é a pergunta 6.8 de lá, e vem depois dos cortes das views.
+  dela é lá. A troca dos primitivos do InteractiveEditor pelos da PixieLib, a pergunta 6.8 de lá,
+  entrou em 09/10 (commit `ad0a5a0`), sobre a cópia dela em `external/PixieLib`.
 - Relatório "Fluxo e políticas do Inspector": https://claude.ai/artifact/N2gTyxg93rniNGogj2U4wk
   (privado). O HTML não está no repositório; para atualizar, ler o artifact pela URL, editar e
   publicar de novo na mesma URL. Ele descreve o código em `9a1fffa` e ficou velho em quase tudo
   depois desta rodada; atualizar só se o neko pedir.
-- Projetos da solução: `InteractiveEditor` (a biblioteca, `net10.0` e `net10.0-windows`),
-  `DemoObjects` (os tipos de teste: `Foo`, `Moo`, `Doo`, `Boo`, e o `Gadget`, com um membro por
-  editor das views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do neko,
-  `net10.0-windows`), `WindowsHost` (mostra um `Gadget` na view WinForms, commit `4445761`) e
-  `WpfHost`.
+- Projetos da solução (13, desde 09/10): `InteractiveEditor` (o núcleo, `net10.0`), as views
+  `InteractiveEditor.WinForms` e `InteractiveEditor.Wpf` (`net10.0-windows`),
+  `InteractiveEditor.Avalonia` e `InteractiveEditor.ImGui` (`net10.0`), `DemoObjects` (os tipos de
+  teste: `Foo`, `Moo`, `Doo`, `Boo`, `Coo`, `Hoo`, e o `Gadget`, com um membro por editor das
+  views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do neko,
+  `net10.0-windows`), os hosts `WindowsHost` (mostra um `Gadget` na view WinForms, commit
+  `4445761`), `WpfHost`, `AvaloniaHost` e `ImGuiHost`, e o `TerminalHost` (Terminal.Gui, roda no
+  Linux, com o `--dump` da seção 4). Fora da solução, mas compilados junto, o `PixieLib` e o
+  `PixieLib.Generators` da cópia em `external/PixieLib`, que não se edita aqui.
 
 ## 4. Como verificar uma mudança
 
@@ -98,7 +109,7 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   ```
 
 - Build da solução inteira, inclusive os hosts de Windows, no Linux. Tem que dar 0 warnings e 0
-  erros nos 6 projetos:
+  erros nos 13 projetos e nos dois da cópia da PixieLib:
 
   ```
   dotnet build InteractiveEditorSolution.slnx -p:EnableWindowsTargeting=true
@@ -110,6 +121,16 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   ```
   dotnet run --project TuxHost/TuxHost.csproj
   ```
+
+- O `TerminalHost` tem um modo sem janela, que imprime a árvore de cada objeto de teste e confere o
+  binding de cada linha; todas as linhas `bindings:` têm que sair `ok` (desde o commit `5520835`):
+
+  ```
+  dotnet run --project TerminalHost/TerminalHost.csproj -- --dump
+  ```
+
+- O `AvaloniaHost` e o `ImGuiHost` (Silk.NET, com OpenGL) são `net10.0` e abrem no Linux, numa tela
+  virtual (`DISPLAY=:99`, com o Xvfb de baixo).
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
@@ -128,7 +149,9 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   recebeu uma cópia deles (`console-de-testes.zip`, com um `LEIA-ME.txt` que diz como rodar; a
   última de 02/10 tem os cinco). Se ele mandar o zip, descompactar fora do
   repositório e corrigir o caminho do clone nos `.csproj`, se for outro; se não, a lista acima
-  serve de roteiro para refazer o que for preciso.
+  serve de roteiro para refazer o que for preciso. Desde o commit `ad0a5a0`, os três de Windows
+  referenciam `InteractiveEditor.WinForms` ou `InteractiveEditor.Wpf`, e não mais o alvo `-windows`
+  do núcleo, e os primitivos são os da PixieLib; nenhum dos cinco rodou depois do merge de 09/10.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -208,6 +231,12 @@ Pegadinhas já vistas:
   das notas é para um número, não para texto.
 - Um `dotnet publish` a partir do repositório compila em Release; desde o commit `02329ca`, o
   `.gitignore` cobre as pastas `bin/Release` também.
+- O `PxColorRgba` da PixieLib recebe o alfa no fim, `new(r, g, b, a = 255)`; o `PxColorArgb` antigo
+  recebia no começo. Um `new(a, r, g, b)` de quatro bytes compila e dá outra cor.
+- A PixieLib em `external/PixieLib` é uma cópia: não se edita aqui. O que precisar mudar vai para o
+  repositório `Sakamoto0110/PixieLib`, e volta numa cópia nova.
+- Dentro do namespace `InteractiveEditor.ImGui`, o nome `ImGui` sozinho é o namespace, e não a
+  classe do ImGui.NET; os arquivos usam o alias `Gui`.
 
 ## 5. O código hoje, em resumo
 
@@ -283,20 +312,24 @@ Pegadinhas já vistas:
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa pelo `WriteTo` interno (commit `a2d8ffe`).
-- Primitivos em `InteractiveEditor/Primitives` (commits `2951ce3`, `3544a8e` e `f1de920`):
-  `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxDock`, `PxColorArgb` e `PxColorHsl`,
-  sem conversão implícita entre as cores. O `PxRect`, o `PxSize` e o `PxPadding` são usados pelo
-  passo de layout. As conversões com o `System.Drawing` ficam nos dois alvos, e as com o WinForms e
-  o WPF (o `Point`, o `Size`, o `Rect`, a `Thickness` e a `Color` do WPF, o `Padding` e o
-  `DockStyle` do WinForms) só no `-windows`, nos arquivos `*.Windows.cs` (commit `ccc3a5d`).
+- Primitivos (commit `ad0a5a0`): os da PixieLib, pela cópia em `external/PixieLib`: `PxPoint`,
+  `PxSize`, `PxRect` e `PxPadding` em `double`, `PxColorRgba` e `PxColorHsl`, sem conversão
+  implícita entre as cores. No núcleo ficou só o `PxDock` (`InteractiveEditor/Primitives`). O
+  `PxRect`, o `PxSize` e o `PxPadding` são usados pelo passo de layout. As conversões com o
+  `System.Drawing` vêm da PixieLib, e as com o WinForms e o WPF (o `Point`, o `Size`, o `Rect`, a
+  `Thickness` e a `Color` do WPF, o `Padding` e o `DockStyle` do WinForms) são métodos de extensão
+  nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`).
 - Passo de layout (commit `166ec4a`): `inspector.Layout(largura)` devolve as linhas de cima e o
   tamanho; cada `LayoutRow` tem os retângulos da linha, do rótulo e do editor nas coordenadas de
   onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As
   opções (`RowHeight`, `RowSpacing`, `Indent`, `LabelWidth`, `LabelSpacing`, `Padding` e `ListRows`)
   ficam no `InspectorOptions`. Não lê os objetos, e roda no Linux.
-- Dois alvos, `net10.0` e `net10.0-windows` (P7.1, commit `ccc3a5d`): cada consumidor recebe uma
-  DLL, a do alvo dele. O código de Windows fica em arquivos `*.Windows.cs` (as conversões dos
-  primitivos) e na pasta `Views` (as views), que o `net10.0` não compila.
+- Um projeto por framework (commit `ad0a5a0`, no lugar dos dois alvos da P7.1; pergunta 7.20): o
+  núcleo é `net10.0`, e as views ficam em `InteractiveEditor.WinForms`, `.Wpf`, `.Avalonia` e
+  `.ImGui`, cada uma com o namespace do projeto. As `ViewRules` (`InteractiveEditor/Views`) e a
+  `CultureInUse` ficam `internal`, e os quatro as veem pelo `InternalsVisibleTo` (pergunta 7.21).
+  As views WinForms e WPF descritas abaixo ficaram em `Views/WinForms` e `Views/Wpf` até o
+  `ad0a5a0`.
 - Eventos para as views (commit `569525a`): o `OptionChanged` do inspector sai quando uma opção de
   um nó (menos as listas de regras) ou de cultura e layout do `InspectorOptions` muda de fato, com
   o nó (null para as do inspector) e o nome da opção (P7.8); o `Disposed`, no fim do `Dispose`
@@ -341,6 +374,12 @@ Pegadinhas já vistas:
 - No Wine sem gerenciador de janelas, o mouse que sai de uma janela WPF para onde não há janela não
   avisa o WPF (`IsMouseOver` continua verdadeiro); o `probe-wpf` sai para outra janela do app. Uma
   janela WPF sem conteúdo não dispara o `ContentRendered`, então o probe começa no `Loaded`.
+- As views do Avalonia (`CreateAvaloniaView()`, commit `4cf9630`) e do ImGui (`CreateImGuiView()`,
+  commit `ea50b28`) e o host do Terminal.Gui (commit `5520835`), da branch das views novas,
+  refeitos sobre este núcleo. O Avalonia põe as linhas nos painéis dele, com um expander por grupo;
+  o ImGui desenha uma tabela a cada quadro, relendo os objetos antes (`RefreshEachFrame`, ligado
+  por padrão). O que elas não têm da WinForms está na pergunta 7.22, e o `TerminalHost` usa
+  só a API pública (pergunta 7.23). Detalhes na seção 0 das notas (Views).
 
 ## 6. O que falta
 
@@ -362,15 +401,24 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
   commits `d1d4c13` e `5a0f6e8`. O corte 4, as válvulas (P7.4) e a premissa de erros nas views,
   entrou no commit `2a17c8c`, e o 5, a view WPF, no `9148c81`.
 - Com as views: nada no código; falta o neko conferir os dois hosts no Windows (seção 7).
-- Sessões próprias: a PixieLib (P8.7) e o cache do modelo de tipo (P5.6).
+- Em 09/10, o merge da branch das views novas (commits `3b84bd2` a `44246a7`): falta o neko
+  responder da 7.20 à 7.23, e o que a 7.22 pedir entra nas views do Avalonia e do ImGui. O PR 2,
+  dessa branch para a `main`, ficou contido na `rework-claude`; fechar ou não é com o neko.
+- Sessões próprias: o cache do modelo de tipo (P5.6). A da PixieLib (P8.7) já foi feita, no
+  repositório dela, e os primitivos dela já estão aqui (commit `ad0a5a0`).
 
 ## 7. Próximo passo
+
+Em 09/10, antes de tudo abaixo: o neko responder da 7.20 à 7.23 (as escolhas do merge das views
+novas) e, com as respostas, mudar o que ele escolher e pôr nas views do Avalonia e do ImGui o que a
+7.22 pedir, um commit por coisa. O AvaloniaHost, o ImGuiHost e o TerminalHost também ficam para ele
+conferir.
 
 1. As views estão completas: os cinco cortes da seção 0 das notas (Views) entraram, o último, a view
    WPF, no commit `9148c81`. O próximo passo é o neko conferir no Windows o WindowsHost e o WpfHost
    (item 2) e responder às escolhas dos cortes 4 e 5 que eu tomei sem perguntar (item 3); o que o
-   neko pedir para mudar vem primeiro. Depois, as sessões próprias: a PixieLib, com a passagem dela
-   (`docs/passagem-pixielib.md`), e o cache do modelo de tipo (P5.6). Para reler o original:
+   neko pedir para mudar vem primeiro. Depois, a sessão própria do cache do modelo de tipo (P5.6);
+   a da PixieLib já foi feita, e os primitivos dela entraram no `ad0a5a0`. Para reler o original:
    `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
 2. O neko viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)` (P7.14,

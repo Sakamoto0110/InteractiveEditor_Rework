@@ -28,7 +28,9 @@ sobraram ao aplicar a 5.10 e a 7.5 (P4.7, P5.11, P5.12, P5.13 e P7.6), e a de 02
 falta (as views antes das sessões próprias, na ordem da seção Views abaixo) e as sugestões das
 escolhas da view WinForms (P7.7 a P7.13). Depois de ver a view no Windows, ele pediu e confirmou o
 espaçador e a largura máxima (P7.14) e o `(?)` da ajuda longa (P7.15), e respondeu as escolhas do
-corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
+corte 3, o scrubbing e os valores mistos (P7.16 a P7.19). Em 09/10, a pedido dele ("pode fazer
+isso?"), a branch das views novas entrou nesta, com a troca dos primitivos pelos da PixieLib e um
+projeto por framework; as escolhas que eu fiz nisso estão em aberto, nas perguntas 7.20 a 7.23.
 
 ### Premissa
 
@@ -60,11 +62,22 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   `net10.0;net10.0-windows`, com o código delas só no alvo `-windows`, pelo bloco condicional: o
   núcleo continua rodando fora do Windows, e cada consumidor recebe uma DLL só, a do alvo dele.
   Substitui o "as views entram nesta mesma DLL, com um alvo só" da decisão anterior. Os dois alvos
-  voltaram no commit `ccc3a5d`, por enquanto com as conversões dos primitivos (3.7).
+  voltaram no commit `ccc3a5d`, por enquanto com as conversões dos primitivos (3.7). Substituído em
+  09/10 pelo projeto por framework, logo abaixo.
+- **Um projeto por framework** (09/10; escolha minha, na pergunta 7.20): o núcleo volta a ter um
+  alvo só, `net10.0`, e cada framework de interface tem um projeto ao lado dele, com o nome do
+  projeto como namespace: `InteractiveEditor.WinForms` e `InteractiveEditor.Wpf`
+  (`net10.0-windows`), `InteractiveEditor.Avalonia` e `InteractiveEditor.ImGui` (`net10.0`). Os do
+  Avalonia e do ImGui vieram assim da branch das views novas, e as views do rework mudaram para os
+  outros dois. O que as views decidem igual (`Views/ViewRules.cs`) e a `CultureInUse` continuam
+  `internal` no núcleo, e os quatro projetos os veem pelo `InternalsVisibleTo` (pergunta 7.21).
+  Quem usa uma view recebe três DLLs: o núcleo, a do framework (a view) e a `PixieLib` (os
+  primitivos). Aplicado nos commits `3b84bd2` (o merge) e `ad0a5a0` (3.7).
 - **TuxHost para as verificações, NoHost local**: o TuxHost (`net10.0`) roda em qualquer sistema e é
   o console de verificação versionado; o NoHost voltou a ser só para os seus testes, em
   `net10.0-windows`, versionado como na `main` e com a pasta no `.gitignore`. Aplicado nos commits
-  `e11b2df`, `176f366` e `9587e12`.
+  `e11b2df`, `176f366` e `9587e12`. Em 09/10 entrou o `TerminalHost` (Terminal.Gui, da branch das
+  views novas) ao lado do NoHost, e não no lugar dele (commit `3b84bd2`).
 - **Service locator descartado.** Localizar e aplicar já estão cobertos pela enumeração e pelo
   indexador (3.6).
 - **Paginação substituída por scroll.** Um app que quiser páginas implementa por cima.
@@ -413,6 +426,19 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   resultado em árvore, um painel por grupo, como a view vai percorrer (P7.3). Confirmado em 01/10
   (P7.6): os editores numa coluna só, com o rótulo perdendo o recuo a cada nível, e os valores
   padrão como estão.
+- **As views do Avalonia e do ImGui e o host do Terminal.Gui** (09/10): vieram da branch
+  `claude/vibrant-fermi-smwjw5`, feitas sobre o núcleo antigo (o `Fieldset`), e foram refeitas
+  sobre o do rework nos commits `5520835` (o `TerminalHost`), `4cf9630` (o Avalonia) e `ea50b28`
+  (o ImGui); o `IInspectorView` e o `ValueText` da branch saíram no `44246a7`. As fábricas seguem
+  a P7.2 (`CreateAvaloniaView()` e `CreateImGuiView()`), e as duas views usam as `ViewRules`: o
+  editor de cada linha, os grupos recolhíveis, a falha na linha, os mistos e a view vazia no
+  `Disposed`. As diferenças para a WinForms estão na pergunta 7.22: nenhuma usa o passo de layout
+  (o Avalonia empilha as linhas nos painéis dele, e o ImGui desenha uma tabela a cada quadro),
+  nenhuma tem as válvulas (P7.4), o Avalonia não faz scrubbing, e o `(?)` não abre a janela (no
+  Avalonia, o `Help` vai no tooltip do rótulo; no ImGui, no tooltip do `(?)`). O `TerminalHost` é
+  um host, e não uma view: a árvore das linhas, uma caixa que grava pelo núcleo e um log, só com a
+  API pública. Verificado fora do repositório: 65 checagens do Avalonia numa tela virtual, 43 do
+  ImGui sem janela, e o `--dump` do `TerminalHost` com todos os bindings certos.
 
 ### Primitivos e PixieLib
 
@@ -428,7 +454,18 @@ corte 3, o scrubbing e os valores mistos (P7.16 a P7.19).
   `2951ce3` e `f1de920`, e com o WinForms e o WPF no commit `ccc3a5d`, só no alvo `-windows` (3.4).
 - **PixieLib** (P8.6 a P8.9): a precisão padrão é `double`. Por enquanto os primitivos ficam neste
   projeto, sem `PixieLib.dll`; a mudança para a PixieLib, com o sufixo de precisão, fica para uma
-  sessão própria.
+  sessão própria. A sessão foi feita, e a mudança entrou em 09/10 (abaixo).
+- **Os primitivos da PixieLib** (09/10; a pergunta 6.8 de lá): aplicado no commit `ad0a5a0`. O
+  núcleo referencia a cópia da PixieLib em `external/PixieLib` (o `PixieLib` e o
+  `PixieLib.Generators` do commit `7e0ec32` de lá), que o neko pôs na branch das views novas até
+  haver um pacote; a cópia não se edita aqui, e o que mudar vai para a PixieLib e volta numa cópia
+  nova. A pasta `Primitives` ficou só com o `PxDock`, que é vocabulário da interface. O
+  `PxColorArgb` dá lugar ao `PxColorRgba`, com o alfa no fim (`new(r, g, b, a = 255)`): o
+  `new(255, 0, 128, 255)` do jeito antigo compilaria e daria outra cor, que era o caso do
+  `Gadget.Fill`. As conversões com o `System.Drawing` vêm da PixieLib; as com o WinForms e o WPF
+  viraram métodos de extensão nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`), como
+  a PixieLib pede. Uma diferença de comportamento: a PixieLib passa um `PxRect` para o `Rectangle`
+  arredondando as bordas, e não os campos; com as opções inteiras, nada se move.
 
 ---
 
@@ -1183,7 +1220,7 @@ agrupar funcionalidades. No rework ele não volta:
   numa fração das linhas;
 - manipular e vincular viram métodos do inspector e dos nós.
 
-### 3.7 Um projeto, uma DLL por alvo (aplicado)
+### 3.7 Um projeto, uma DLL por alvo (aplicado; substituído em 09/10)
 
 Primeiro veio o multi-target, no commit `c537554`: `net10.0` e `net10.0-windows` num projeto só, com
 o código de Windows em arquivos parciais `*.Windows.cs` (as fábricas `Create<T>(host)` e as
@@ -1228,6 +1265,16 @@ são as conversões dos primitivos (3.4); as views entram do mesmo jeito.
   lança, e o `net10.0` sem nenhuma), rodado no Wine; com conversões quebradas de propósito, 5
   falham.
 
+Em 09/10 o desenho mudou de novo, com a branch das views novas (seção 0, Estrutura; pergunta
+7.20): o núcleo voltou a ter só `net10.0`, como no `5560223`, e cada framework ganhou um projeto
+(`InteractiveEditor.WinForms`, `.Wpf`, `.Avalonia` e `.ImGui`). Os arquivos `*.Windows.cs` e as
+pastas `Views/WinForms` e `Views/Wpf` saíram do núcleo; as conversões viraram extensões nos projetos
+do WinForms e do WPF, e são eles que tiram os usings implícitos do WinForms. No núcleo ficou só o
+`Views/ViewRules.cs`, que os quatro veem pelo `InternalsVisibleTo` (pergunta 7.21). Commits
+`3b84bd2` e `ad0a5a0`. Verificado no `44246a7`: a solução compila sem warnings e sem erros nos 13
+projetos (e nos dois da cópia da PixieLib), e o TuxHost imprime as mesmas 67 linhas; no `ad0a5a0`,
+o WindowsHost e o WpfHost mostram o `Gadget` no Wine como antes.
+
 ### 3.8 Performance
 
 - Descoberta uma vez por tipo (cache), em vez de reflection a cada bind (o original chama
@@ -1244,7 +1291,7 @@ são as conversões dos primitivos (3.4); as views entram do mesmo jeito.
 - Leitura pela cadeia de pais: um getter por nível a cada `GetValue` (profundidade 3 = 3 chamadas de
   reflection). Irrelevante na escala do editor; se pesar, cachear os valores por ciclo de refresh.
 
-### 3.9 PixieLib: primitivos e matemática fora do inspector (adiado)
+### 3.9 PixieLib: primitivos e matemática fora do inspector (aplicado em 09/10)
 
 Discutido e prototipado fora do repositório; nada mudou no código. Fica registrado para quando for a
 vez.
@@ -1282,6 +1329,9 @@ vez.
 - **Decidido em 27/09**: a precisão padrão é `double`, como o `Vec2` do C++ (P8.6). A PixieLib
   ainda não é usada (P8.7, P8.8): os primitivos ficam no InteractiveEditor, sem `PixieLib.dll`, e a
   mudança para lá, com o sufixo de precisão (P8.9) e o "onde" acima, fica para uma sessão própria.
+- **Aplicado em 09/10**: a PixieLib existe em C# no repositório `Sakamoto0110/PixieLib`
+  (`dotnet/`), e o núcleo usa os primitivos dela pela cópia em `external/PixieLib` (seção 0,
+  Primitivos e PixieLib; commit `ad0a5a0`).
 
 ### 3.10 O `Inspector`: hoje raso
 
@@ -1611,13 +1661,17 @@ Estrutura
       condicionais (3.7; commit `5560223`).
 - [x] Dois alvos de novo, com o código de Windows só no `-windows`, em arquivos `*.Windows.cs`
       (P7.1; 3.7; commit `ccc3a5d`).
+- [x] Um projeto por framework: o núcleo em `net10.0`, e as views em `InteractiveEditor.WinForms`,
+      `.Wpf`, `.Avalonia` e `.ImGui`, com as regras comuns pelo `InternalsVisibleTo` (perguntas
+      7.20 e 7.21; 3.7; commits `3b84bd2` e `ad0a5a0`).
 - [x] NoHost em `net10.0` (commit `c537554`).
 - [x] TuxHost: console de verificação em `net10.0`, com a mesma saída do NoHost (commit `e11b2df`).
       O NoHost voltou para `net10.0-windows` (commit `176f366`), e voltou a ser ignorado pelo
       `.gitignore`, como na `main`, sem sair do repositório (commit `9587e12` e o seguinte).
 - [x] Fábricas por plataforma com nomes distintos, para não obrigar o consumidor a referenciar as
       duas plataformas (3.5; decidido, P7.2). A do WinForms, `CreateWinFormsView()`, entrou no
-      commit `60d4203` (P7.7), e a do WPF, `CreateWpfView()`, no `9148c81`.
+      commit `60d4203` (P7.7), a do WPF, `CreateWpfView()`, no `9148c81`, e as do Avalonia e do
+      ImGui, `CreateAvaloniaView()` e `CreateImGuiView()`, no `4cf9630` e no `ea50b28`.
 - [x] Primitivos: nomes provisórios `SKPoint`, `SKPointF`, `SKSize`, `SKSizeF`, `ArgbColor` e
       `HslColor` (commit `21cbeda`).
 - [x] Primitivos: prefixo `Px` no lugar do `SK` provisório (`PxPoint`, `PxPointF`, `PxSize` e
@@ -1631,8 +1685,9 @@ Estrutura
       `Thickness` e `DockStyle`, e também o `Rect` e a `Color` do WPF), no alvo `-windows` (3.4;
       commit `ccc3a5d`).
 - [x] Primitivos novos: `PxRect`, `PxPadding` e `PxDock` (decidido, P8.2; commit `f1de920`).
-- [ ] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
-      PixieLib, com source generator para as precisões (3.9; adiado para uma sessão própria, P8.7).
+- [x] PixieLib em C#: primitivos e matemática fora do inspector, em `dotnet/` no repositório
+      PixieLib, com source generator para as precisões (3.9; P8.7). Feita lá, numa sessão própria,
+      e usada aqui pela cópia em `external/PixieLib` (commit `ad0a5a0`).
 
 Núcleo (portar a essência)
 
@@ -1745,6 +1800,10 @@ Apresentação
       `2a17c8c`).
 - [x] View WPF, pelo mesmo caminho (o corte 5; commit `9148c81`), com as regras que as duas
       views decidem igual em `Views/ViewRules.cs`.
+- [x] Views do Avalonia e do ImGui e o host do Terminal.Gui, da branch das views novas, refeitos
+      sobre o núcleo do rework (commits `5520835`, `4cf9630`, `ea50b28` e `44246a7`).
+- [ ] O que as views do Avalonia e do ImGui não têm da WinForms, conforme a resposta da 7.22.
+- [ ] Os filhos que uma view mostra embaixo de um nó, na API pública (pergunta 7.23).
 
 Pendências da primeira revisão (já conhecidas)
 
@@ -1882,8 +1941,10 @@ ideia.
 
 **As views**: os cinco cortes entraram, os dois alvos (P7.1), a view WinForms (P7.2, P7.3), o
 scrubbing com os valores mistos, as válvulas com a premissa de erros nas views e a view WPF, nos
-commits `ccc3a5d`, `60d4203`, `5a0f6e8`, `2a17c8c` e `9148c81`; o que vem depois são as sessões
-próprias (a PixieLib e o cache do modelo de tipo). Já entraram o `ValueChanged` (commit `eb497c6`),
+commits `ccc3a5d`, `60d4203`, `5a0f6e8`, `2a17c8c` e `9148c81`. Em 09/10 vieram as do Avalonia e
+do ImGui e o host do Terminal.Gui (commits `5520835`, `4cf9630` e `ea50b28`), cada framework num
+projeto (commit `ad0a5a0`), e os primitivos passaram a ser os da PixieLib; o que vem depois é a
+sessão própria do cache do modelo de tipo. Já entraram o `ValueChanged` (commit `eb497c6`),
 os sanitizadores (commit `e136f82`), os nós manuais, botão e campo só de exibição (commit
 `0c97638`), o layout no `InspectorOptions` (commit `166ec4a`), a visibilidade condicional (commit
 `c589e2a`) e os itens de escolha (commit `b92267c`); o gancho de conversão saiu da lista (P2.9).
