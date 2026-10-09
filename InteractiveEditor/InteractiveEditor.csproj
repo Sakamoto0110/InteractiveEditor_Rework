@@ -6,4 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- A git submodule pinned to a PixieLib commit, so clone with submodules. The adapters get
+         PixieLib through this reference. -->
+    <ProjectReference Include="..\external\PixieLib\dotnet\PixieLib\PixieLib.csproj" />
+  </ItemGroup>
+
 </Project>

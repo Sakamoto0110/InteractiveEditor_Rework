@@ -1,0 +1,3 @@
+[submodule "external/PixieLib"]
+	path = external/PixieLib
+	url = https://github.com/Sakamoto0110/PixieLib.git
