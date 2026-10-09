@@ -48,7 +48,7 @@ internal static class BindingCheck
             if (value == null)
                 return null;
 
-            value = NodeInfo.FindMember(value.GetType(), name) switch
+            value = FindMember(value.GetType(), name) switch
             {
                 FieldInfo fi => fi.GetValue(value),
                 PropertyInfo pi => pi.GetValue(value),
@@ -58,6 +58,10 @@ internal static class BindingCheck
 
         return value;
     }
+
+    private static MemberInfo? FindMember(Type owner, string name) =>
+        owner.GetMember(name, BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(mi => mi is FieldInfo or PropertyInfo);
 
     public static bool Same(object? a, object? b)
     {

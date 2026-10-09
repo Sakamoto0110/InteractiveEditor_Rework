@@ -8,22 +8,26 @@ namespace TerminalHost;
 
 internal static class NodeInfo
 {
-    public static MemberInfo? FindMember(Type owner, string name) =>
-        owner.GetMember(name, BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(mi => mi is FieldInfo or PropertyInfo);
-
-    // FieldDescriptor.Type is the type that owns the member, so the member's own type is looked up from it.
     public static Type? MemberTypeOf(InspectorNode node)
     {
-        if (node.Descriptor is not { } descriptor)
-            return TryGetValue(node, out var value) ? value?.GetType() : null;
+        if (node.Descriptor is { } descriptor)
+            return descriptor.Type;
 
-        return FindMember(descriptor.Type, descriptor.Name) switch
-        {
-            FieldInfo fi => fi.FieldType,
-            PropertyInfo pi => pi.PropertyType,
-            _ => null
-        };
+        return TryGetValue(node, out var value) ? value?.GetType() : null;
+    }
+
+    // Int32?, List<String>, ... instead of Nullable`1 and List`1.
+    public static string TypeName(Type type)
+    {
+        if (Nullable.GetUnderlyingType(type) is { } underlying)
+            return $"{TypeName(underlying)}?";
+
+        var tick = type.Name.IndexOf('`');
+
+        if (!type.IsGenericType || tick < 0)
+            return type.Name;
+
+        return $"{type.Name[..tick]}<{string.Join(", ", type.GetGenericArguments().Select(TypeName))}>";
     }
 
     public static bool TryGetValue(InspectorNode node, out object? value)
@@ -107,8 +111,8 @@ internal static class NodeInfo
             lines.Add(("Path", descriptor.Path));
             lines.Add(("Full path", descriptor.FullPath));
             lines.Add(("Member", descriptor.MemberType.ToString()));
-            lines.Add(("Owner type", $"{descriptor.Type.Name}  (FieldDescriptor.Type)"));
-            lines.Add(("Member type", MemberTypeOf(node)?.Name ?? "?"));
+            lines.Add(("Type", TypeName(descriptor.Type)));
+            lines.Add(("Owner type", TypeName(descriptor.OwnerType)));
             lines.Add(("Getter", accessors.Getter != null ? "yes" : "no"));
             lines.Add(("Setter", accessors.Setter != null ? "yes" : "no"));
             lines.Add(("Parent", node.Parent?.Name ?? "-"));
@@ -120,7 +124,7 @@ internal static class NodeInfo
         if (ok)
         {
             lines.Add(("Value", Format(value)));
-            lines.Add(("Value type", value?.GetType().Name ?? "-"));
+            lines.Add(("Value type", value == null ? "-" : TypeName(value.GetType())));
         }
         else
         {

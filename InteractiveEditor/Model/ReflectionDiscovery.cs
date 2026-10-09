@@ -50,7 +50,8 @@ public static class ReflectionDiscovery
 
             var descriptor = new FieldDescriptor
             {
-                Type = type,
+                Type = memberType,
+                OwnerType = type,
                 Name = mi.Name,
                 Path = $"{mi.DeclaringType?.Name ?? string.Empty}.{mi.Name}",
                 FullPath = fullPath,
