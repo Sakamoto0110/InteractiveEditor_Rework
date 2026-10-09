@@ -98,8 +98,8 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do neko,
   `net10.0-windows`), os hosts `WindowsHost` (mostra um `Gadget` na view WinForms, commit
   `042a7fe`), `WpfHost`, `AvaloniaHost` e `ImGuiHost`, e o `TerminalHost` (Terminal.Gui, roda no
-  Linux, com o `--dump` da seção 4). Fora da solução, mas compilados junto, o `PixieLib` e o
-  `PixieLib.Generators` da cópia em `external/PixieLib`, que não se edita aqui.
+  Linux, com o `--dump` da seção 4). A PixieLib vem do nuget.org, o pacote `PixieLib` 0.1.0 (commit
+  `6b7cd80`): só o núcleo a referencia, e as views e os hosts a recebem por ele.
 
 ## 4. Como verificar uma mudança
 
@@ -113,7 +113,7 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   ```
 
 - Build da solução inteira, inclusive os hosts de Windows, no Linux. Tem que dar 0 warnings e 0
-  erros nos 13 projetos e nos dois da cópia da PixieLib:
+  erros nos 13 projetos:
 
   ```
   dotnet build InteractiveEditorSolution.slnx -p:EnableWindowsTargeting=true
@@ -242,8 +242,9 @@ Pegadinhas já vistas:
   `.gitignore` cobre as pastas `bin/Release` também.
 - O `PxColorRgba` da PixieLib recebe o alfa no fim, `new(r, g, b, a = 255)`; o `PxColorArgb` antigo
   recebia no começo. Um `new(a, r, g, b)` de quatro bytes compila e dá outra cor.
-- A PixieLib em `external/PixieLib` é uma cópia: não se edita aqui. O que precisar mudar vai para o
-  repositório `Sakamoto0110/PixieLib`, e volta numa cópia nova.
+- A PixieLib vem do pacote do nuget.org (commit `6b7cd80`). O que precisar mudar nela vai para o
+  repositório `Sakamoto0110/PixieLib`, e volta numa versão nova do pacote, trocando o `Version` no
+  `InteractiveEditor.csproj`.
 - Dentro do namespace `InteractiveEditor.ImGui`, o nome `ImGui` sozinho é o namespace, e não a
   classe do ImGui.NET; os arquivos usam o alias `Gui`.
 - A view do Avalonia faz as linhas quando é carregada (commit `8853770`): um teste que cria a view
@@ -331,13 +332,13 @@ Pegadinhas já vistas:
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa pelo `WriteTo` interno (commit `739850b`).
-- Primitivos (commit `424f6d0`): os da PixieLib, pela cópia em `external/PixieLib`: `PxPoint`,
-  `PxSize`, `PxRect` e `PxPadding` em `double`, `PxColorRgba` e `PxColorHsl`, sem conversão
-  implícita entre as cores. No núcleo ficou só o `PxDock` (`InteractiveEditor/Primitives`). O
-  `PxRect`, o `PxSize` e o `PxPadding` são usados pelo passo de layout. As conversões com o
-  `System.Drawing` vêm da PixieLib, e as com o WinForms e o WPF (o `Point`, o `Size`, o `Rect`, a
-  `Thickness` e a `Color` do WPF, o `Padding` e o `DockStyle` do WinForms) são métodos de extensão
-  nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`).
+- Primitivos (commit `424f6d0`): os da PixieLib, pelo pacote do nuget.org (commit `6b7cd80`):
+  `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxColorRgba` e `PxColorHsl`, sem
+  conversão implícita entre as cores. No núcleo ficou só o `PxDock`
+  (`InteractiveEditor/Primitives`). O `PxRect`, o `PxSize` e o `PxPadding` são usados pelo passo de
+  layout. As conversões com o `System.Drawing` vêm da PixieLib, e as com o WinForms e o WPF (o
+  `Point`, o `Size`, o `Rect`, a `Thickness` e a `Color` do WPF, o `Padding` e o `DockStyle` do
+  WinForms) são métodos de extensão nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`).
 - Passo de layout (commit `9674fca`): `inspector.Layout(largura)` devolve as linhas de cima e o
   tamanho; cada `LayoutRow` tem os retângulos da linha, do rótulo e do editor nas coordenadas de
   onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As

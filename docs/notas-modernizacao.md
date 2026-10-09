@@ -480,6 +480,14 @@ P7.23).
   viraram métodos de extensão nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`), como
   a PixieLib pede. Uma diferença de comportamento: a PixieLib passa um `PxRect` para o `Rectangle`
   arredondando as bordas, e não os campos; com as opções inteiras, nada se move.
+- **A PixieLib pelo nuget.org** (09/10): aplicado no commit `6b7cd80`. O pacote que faltava saiu, a
+  `PixieLib` 0.1.0 (`net10.0` e `net481`), e o núcleo o referencia no lugar da cópia, que saiu
+  inteira com o `PixieLib.Generators`: o pacote já traz os tipos gerados, e nada daqui usa o
+  gerador. Da `7e0ec32` à 0.1.0 a API pública não mudou, só os metadados do pacote e o interior do
+  `PxText` (os dígitos saem do valor exato; no .NET 10 o texto é o mesmo), e nenhuma linha do editor
+  mudou. O build deu 0 avisos, a saída do `TerminalHost --dump` e a do TuxHost ficaram iguais byte a
+  byte, o `PixieLib.dll` dos sete hosts é o do pacote, e no Windows o WindowsHost e o WpfHost abrem
+  com o `Gadget`. O que mudar na PixieLib volta numa versão nova do pacote.
 
 ---
 
