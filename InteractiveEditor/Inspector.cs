@@ -15,6 +15,9 @@ public class Inspector : InspectorNode, IEnumerable<InspectorNode>
 
     public override string Name => Descriptor?.Name ?? Target?.Name ?? " -- ";
 
+    // Direct children only; enumerating the inspector itself walks the whole subtree.
+    public IReadOnlyList<InspectorNode> Nodes => Children;
+
     public static Inspector Create<T>()
     {
         var inspector = new Inspector
