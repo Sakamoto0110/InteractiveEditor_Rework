@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Threading;
 using DemoObjects.ClassObjects;
 using DemoObjects.HybridObjects;
@@ -15,8 +16,9 @@ namespace AvaloniaHost;
 
 // The Avalonia view of each demo object, chosen in the list on the left, made with Create<T>() and Bind.
 // The Gadget, a member for each editor, has a button and a display added by hand, and a button that binds
-// a second gadget, for a look at the values they do not share (P7.19). The status line says what the last
-// edit wrote, or why it failed, from the inspector's own events.
+// a second gadget, for a look at the values they do not share (P7.19), and the escape valve aligns Count
+// and Ratio to the right, as in the WPF host (P7.4). The status line says what the last edit wrote, or why
+// it failed, from the inspector's own events and the view's RowFailed.
 public partial class MainWindow : Window
 {
     private static readonly (string Name, Func<Inspector> Create)[] DemoTargets =
@@ -68,6 +70,8 @@ public partial class MainWindow : Window
         }
 
         View = Shown.CreateAvaloniaView();
+        View.ControlCreated += OnControlCreated;
+        View.RowFailed += OnRowFailed;
         InspectorHost.Content = View;
         Status.Text = $"Loaded {name}";
     }
@@ -97,6 +101,27 @@ public partial class MainWindow : Window
     private void OnBindFailed(object? sender, InspectorFailureEventArgs e)
     {
         Status.Text = $"{e.Path}: {e.Message} {e.Reason}";
+    }
+
+    private void OnRowFailed(object? sender, InspectorFailureEventArgs e)
+    {
+        Status.Text = $"{e.Path}: {e.Message}";
+    }
+
+    private static void OnControlCreated(object? sender, ControlCreatedEventArgs<Control> e)
+    {
+        if (e is not { Path: nameof(Gadget.Count) or nameof(Gadget.Ratio), Part: RowPart.Editor })
+            return;
+
+        switch (e.Control)
+        {
+            case TextBox box:
+                box.TextAlignment = TextAlignment.Right;
+                break;
+            case NumericUpDown spinner:
+                spinner.TextAlignment = TextAlignment.Right;
+                break;
+        }
     }
 
     private static Inspector Bind<T>(T instance)

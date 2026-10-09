@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
@@ -13,7 +14,8 @@ namespace InteractiveEditor.Avalonia;
 // objects: a value that changed shows on its row, and whatever changes the rows (an option, the bind, a
 // rule of visibility) builds them again. What comes from another thread moves to the UI thread first
 // (P7.12). A control has no Dispose, so the view has one of its own: disposing it lets the inspector go and
-// leaves it alone; when the inspector is disposed, the view empties (P7.13).
+// leaves it alone; when the inspector is disposed, the view empties (P7.13). The escape valves tell what
+// the view made for each node (P7.4), and RowFailed what failed in the view itself (3.11).
 public sealed class AvaloniaInspectorView : UserControl, IDisposable
 {
     // The rows at the top; the rows of a group go in the group's own panel. The margin keeps the overlay
@@ -38,9 +40,23 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
         inspector.ForcedClear += OnBindChanged;
         inspector.Disposed += OnInspectorDisposed;
 
-        // An Avalonia panel sizes itself, so the rows can be made at once, with no width to wait for.
-        Build();
+        // The rows are made when the view is loaded, as in the WPF view, so whoever subscribes to the
+        // valves right after CreateAvaloniaView sees every control.
+        BuildPending = true;
     }
+
+    // The escape valves (P7.4): a control the view made for a node, and then the node's row, whole, in
+    // its panel and showing its value. Each comes once, and again only for a row made anew (a node that
+    // changed its editor, or that shows again after it was hidden). An exception of a subscriber goes up
+    // through the view, as one of the inspector's events does (3.11).
+    public event EventHandler<ControlCreatedEventArgs<Control>>? ControlCreated;
+
+    public event EventHandler<RowCreatedEventArgs<Control>>? RowCreated;
+
+    // What failed in the view itself (3.11): a row that could not be made is left out with its branch
+    // until the next build (critical); one that could not show its objects keeps what it showed, with the
+    // message (worked around).
+    public event EventHandler<InspectorFailureEventArgs>? RowFailed;
 
     // The inspector shown; null once it was disposed.
     public Inspector? Inspector { get; private set; }
@@ -61,15 +77,30 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
             parent.Children.Remove(control);
     }
 
+    internal void OnRowFailed(InspectorNode node, FailureSeverity severity, Exception exception, string message)
+    {
+        RowFailed?.Invoke(this, new InspectorFailureEventArgs(node.Inspector, node.Path, severity, exception, message, suggestion: null));
+    }
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+
+        if (BuildPending)
+            Build();
+    }
+
     // Changes come in bursts (a handler that hides three rows, a bind), so the rows are built once, when
-    // the UI thread gets to it.
+    // the UI thread gets to it; before the view is loaded, the build waits for it.
     private void ScheduleBuild()
     {
         if (BuildPending || Inspector == null)
             return;
 
         BuildPending = true;
-        Dispatcher.UIThread.Post(Build);
+
+        if (IsLoaded)
+            Dispatcher.UIThread.Post(Build);
     }
 
     // Puts a row for every node the inspector shows in the panel of the group it belongs to, keeping the
@@ -85,6 +116,7 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
         Watch(Inspector);
 
         var shown = new List<AvaloniaRow>();
+        var made = new List<AvaloniaRow>();
         var wanted = new Dictionary<Panel, List<Control>> { [Area] = [] };
 
         foreach (var node in Inspector.Rows)
@@ -101,8 +133,21 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
             if (!RowsByNode.TryGetValue(node, out var row) || !row.Fits())
             {
                 Discard(node);
-                row = new AvaloniaRow(node);
+
+                // A row that cannot be made (a control the platform refuses) is left out with its
+                // branch, and made again at the next build (3.11).
+                try
+                {
+                    row = new AvaloniaRow(this, node);
+                }
+                catch (Exception e)
+                {
+                    OnRowFailed(node, FailureSeverity.Critical, e, $"The row of '{node.Path}' could not be made; it is left out until the next build.");
+                    continue;
+                }
+
                 RowsByNode[node] = row;
+                made.Add(row);
             }
 
             shown.Add(row);
@@ -125,6 +170,27 @@ public sealed class AvaloniaInspectorView : UserControl, IDisposable
             row.ShowMarks(marks);
             row.Show();
         }
+
+        // A valve that throws stops here; the view stays usable, and the rows it did not announce are
+        // not announced again.
+        foreach (var row in made)
+            Announce(row);
+    }
+
+    // The valves for a row this build made (P7.4): each of its controls, and then the row.
+    private void Announce(AvaloniaRow row)
+    {
+        var node = row.Node;
+        ControlCreated?.Invoke(this, new(node, RowPart.Label, row.LabelControl));
+        ControlCreated?.Invoke(this, new(node, RowPart.Help, row.HelpControl));
+
+        if (row.EditorControl is { } editor)
+            ControlCreated?.Invoke(this, new(node, RowPart.Editor, editor));
+
+        if (row.Panel is { } panel)
+            ControlCreated?.Invoke(this, new(node, RowPart.Panel, panel));
+
+        RowCreated?.Invoke(this, new(node, row.LabelControl, row.HelpControl, row.EditorControl, row.Panel));
     }
 
     // Puts the rows a panel should hold in it, in their order. A control that is already in its place is

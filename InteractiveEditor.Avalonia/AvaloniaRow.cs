@@ -32,6 +32,7 @@ internal sealed class AvaloniaRow : IDisposable
     // display, a list), in the theme's color for errors.
     private readonly TextBlock Message = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
 
+    private readonly AvaloniaInspectorView View;
     private readonly HelpMark Mark = new();
 
     // The column of the help marks, between the label and the editor of a leaf.
@@ -54,8 +55,9 @@ internal sealed class AvaloniaRow : IDisposable
     // the node.
     private bool Showing;
 
-    public AvaloniaRow(InspectorNode node)
+    public AvaloniaRow(AvaloniaInspectorView view, InspectorNode node)
     {
+        View = view;
         Node = node;
         Kind = ViewRules.KindFor(node);
         IsGroup = node.IsGroup;
@@ -145,6 +147,13 @@ internal sealed class AvaloniaRow : IDisposable
 
     public InspectorNode Node { get; }
 
+    // The controls the row made, for the escape valves (P7.4).
+    public Control LabelControl => Label;
+
+    public Control HelpControl => Mark;
+
+    public Control? EditorControl => Editor?.Control;
+
     // What the row puts in the panel it sits in: the line of a leaf, or the expander of a group.
     public Control Control { get; }
 
@@ -204,6 +213,9 @@ internal sealed class AvaloniaRow : IDisposable
         }
         catch (Exception e)
         {
+            if (Fault == null)
+                View.OnRowFailed(Node, FailureSeverity.WorkedAround, e, $"The row of '{Node.Path}' could not show its objects; it keeps what it showed.");
+
             Fault = $"This row could not show its objects.\n{e.Message}";
             ShowEditorState();
         }
