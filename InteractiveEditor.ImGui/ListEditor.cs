@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
-using ImGuiNET;
-using Gui = ImGuiNET.ImGui;
+using Hexa.NET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 

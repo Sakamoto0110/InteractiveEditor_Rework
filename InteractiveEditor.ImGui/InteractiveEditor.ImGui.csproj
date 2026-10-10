@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+    <PackageReference Include="Hexa.NET.ImGui" Version="2.2.9" />
   </ItemGroup>
 
   <ItemGroup>

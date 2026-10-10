@@ -1,7 +1,7 @@
-﻿using ImGuiNET;
+﻿using Hexa.NET.ImGui;
 using InteractiveEditor.Options;
 using InteractiveEditor.Views;
-using Gui = ImGuiNET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 
@@ -20,7 +20,7 @@ internal sealed class SliderEditor(ImGuiRow row) : ImGuiEditor(row)
         var current = Math.Clamp(ViewRules.ToDouble(Node.ViewValue, min), min, max);
         var value = current;
 
-        if (!Gui.SliderScalar("##value", ImGuiDataType.Double, (IntPtr)(&value), (IntPtr)(&min), (IntPtr)(&max), FormatFor(range),
+        if (!Gui.SliderScalar("##value", ImGuiDataType.Double, &value, &min, &max, FormatFor(range),
                 ImGuiSliderFlags.AlwaysClamp))
         {
             return;

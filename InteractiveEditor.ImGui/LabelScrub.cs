@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using InteractiveEditor.Options;
 using InteractiveEditor.Views;
-using Gui = ImGuiNET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 
@@ -58,7 +58,7 @@ internal sealed class LabelScrub(ImGuiRow row)
         var vertical = Node.ScrubAxis == ScrubAxis.Vertical;
 
         if (From != null || Gui.IsItemHovered())
-            Gui.SetMouseCursor(vertical ? ImGuiMouseCursor.ResizeNS : ImGuiMouseCursor.ResizeEW);
+            Gui.SetMouseCursor(vertical ? ImGuiMouseCursor.ResizeNs : ImGuiMouseCursor.ResizeEw);
 
         if (!active || Cancelled)
             return;
