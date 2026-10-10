@@ -316,8 +316,18 @@ P7.23).
   ou quem assina o `DiscoveryFailed`, no meio do `Create`, marcando o aviso como tratado.
   Confirmado em 29/09: o "só leitura" é o editor `Display`, que a view não edita, e o nó não fica
   `ReadOnly`, para que expandir nos campos funcione sem mais um passo.
-- **Cache** (P5.6): por enquanto, só a lista de membros por tipo; o desenho do cache fica para uma
-  sessão própria.
+- **Cache** (P5.6): decidido em 10/10, com a lista de membros e os atributos (a minha sugestão; o
+  neko respondeu "ok vai"). Um `TypeModel` por tipo (`Model/TypeModel.cs`) guarda os membros na
+  ordem de declaração e cada atributo lido no tipo e nos membros, numa `ConditionalWeakTable`, que
+  não prende os tipos de um assembly que pode ser descarregado. A descoberta, a busca por nome
+  (`FindMember`) e o `AttributePolicy` leem dele; os nós continuam de cada inspector, porque guardam
+  as opções. Uma leitura que falha fica guardada no modelo, e cada `Create` a reporta de novo, então
+  o `Report` diz o mesmo que sem o cache; só um tipo cujos membros não dá para listar não fica, e o
+  próximo `Create` tenta de novo. Aplicado no commit `81e72c9`: o `Create<Foo>` caiu de uns 235 µs
+  para uns 120, e o do `Gadget` de uns 450 para uns 290 (Release, no Linux). Efeito de lado: o
+  `GetMember` do reflection lia um `*` no fim do nome como prefixo, então o `Add("Mo*")` achava o
+  `Moo`, e o `Hide<T>("Mo*")` passava sem esconder nada; agora a busca é pelo nome exato, e os dois
+  lançam.
 
 ### Views
 
@@ -637,7 +647,8 @@ criado com `GenerateMyEditor<T>(form, nome, x, y, largura, altura, flags)`). O u
 ### 3.1 Camadas, tudo numa DLL
 
 1. **Descoberta** (agnóstica): tipo → árvore de nós. Os membros são lidos uma vez e cacheados por
-   `Type`; os nós são de cada inspector, porque guardam as opções (3.10).
+   `Type` (o `TypeModel`, commit `81e72c9`); os nós são de cada inspector, porque guardam as opções
+   (3.10).
 2. **Configuração** (agnóstica): o sucessor do `BindingArgs`. Diz *como* cada membro aparece, sem
    citar controles de nenhuma plataforma.
 3. **Binding** (agnóstico): a árvore de nós ligada a uma ou mais instâncias. Lê, grava, converte,
@@ -1337,8 +1348,8 @@ o WindowsHost e o WpfHost mostram o `Gadget` no Wine como antes.
 ### 3.8 Performance
 
 - Descoberta uma vez por tipo (cache), em vez de reflection a cada bind (o original chama
-  `GetField(nome)` a cada `BindToObject`). Por enquanto, só a lista de membros por tipo; o desenho
-  do cache fica para uma sessão própria (P5.6).
+  `GetField(nome)` a cada `BindToObject`). Feito no commit `81e72c9` (P5.6): a lista de membros e
+  os atributos são lidos uma vez por tipo, num `TypeModel`; detalhes na seção 0 (Descoberta).
 - Busca por caminho num dicionário, em vez de varrer a lista por nome. O original chama `LocateName`
   dentro de laços, o que vira O(n²) ao mudar a visibilidade de grupos.
 - Um passo de layout por mudança, com a view suspendendo o redesenho (`SuspendLayout`, `BeginInit`),
@@ -1421,8 +1432,9 @@ usam. Levantamento para o desenho, com as decisões de 27/09 e 29/09 no fim.
 - Resolvido no commit `77dda91`: uma troca feita por fora (`foo.Moo = new Moo()`) passava sem
   sinal, e o ramo só seguia o objeto novo; com null, as leituras davam null e só a gravação lançava.
   Agora é a detecção decidida em P3.3 e P3.4 (abaixo).
-- A descoberta roda de novo a cada `Create` (3.8). Os nós não podem ser compartilhados entre
-  inspectors, porque cada um tem as próprias opções; o que dá para cachear é a lista de membros.
+- Resolvido no commit `81e72c9` (P5.6): a descoberta relia tudo pelo reflection a cada `Create`
+  (3.8). Os nós não podem ser compartilhados entre inspectors, porque cada um tem as próprias
+  opções; o que ficou num cache por tipo foi a lista de membros e os atributos.
 
 **Decidido** (seção 0)
 
@@ -1826,7 +1838,8 @@ Núcleo (portar a essência)
       `e707583`).
 - [x] Eventos dos nós: `ValueChanged`, com a origem, e `BindFailed` (P1.4, P1.10; commit `305952f`).
 - [x] Evento do objeto do grupo trocado por fora: `ObjectReplaced` (P1.4, P3.6; commit `77dda91`).
-- [ ] Cache do modelo de tipo: por enquanto só a lista de membros (P5.6; sessão própria).
+- [x] Cache do modelo de tipo: a lista de membros e os atributos, lidos uma vez por tipo (P5.6;
+      commit `81e72c9`).
 - [x] Ordem de declaração dos irmãos, se der para recuperar sem muito custo (P5.1; commit
       `bb1184b`).
 - [x] Coleções sem os membros do tipo delas (`Capacity`, `Count`, `Length`...) (P5.2; commit
@@ -2010,7 +2023,8 @@ do ImGui e o host do Terminal.Gui (commits `6ba0290`, `a885789` e `1d86b96`), ca
 projeto (commit `424f6d0`), e os primitivos passaram a ser os da PixieLib; com as respostas do mesmo
 dia, o Avalonia ganhou o `(?)`, as válvulas e o scrubbing (commits `507b528`, `8853770` e
 `b0deeb2`). Em 10/10, o ImGui passou para o Hexa.NET.ImGui 2.2.9, com docking no host (commit
-`9e0e360`). O que vem depois é a sessão própria do cache do modelo de tipo. Já entraram o
+`9e0e360`), e entrou o cache do modelo de tipo, com a lista de membros e os atributos (P5.6,
+commit `81e72c9`), a última das sessões próprias. Já entraram o
 `ValueChanged` (commit `305952f`), os sanitizadores (commit `7f3cb63`), os nós manuais, botão e
 campo só de exibição (commit `42e2129`), o layout no `InspectorOptions` (commit `9674fca`), a
 visibilidade condicional (commit `bdf7ef8`) e os itens de escolha (commit `cf909c1`); o gancho de
