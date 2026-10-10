@@ -1,8 +1,8 @@
 # Passagem de contexto
 
-Para retomar o trabalho num contexto novo. Estado de 9 de outubro de 2026, na branch
+Para retomar o trabalho num contexto novo. Estado de 10 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `b0deeb2`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `9e0e360`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
@@ -14,6 +14,11 @@ núcleo passou a usar os primitivos da PixieLib, cada framework ganhou um projet
 Avalonia e do ImGui e o host do Terminal.Gui foram refeitos sobre o núcleo do rework (seção 5). As
 escolhas que eu fiz nisso o neko aceitou no mesmo dia (P7.20 a P7.23), e o que elas pediam entrou
 nos commits `ad79532` a `b0deeb2`.
+
+Em 10/10, a pedido do neko, o ImGui passou do ImGui.NET para o Hexa.NET.ImGui 2.2.9, o binding que
+a engine vai usar, com docking no `ImGuiHost` (commit `9e0e360`, seção 0 das notas, Views). O
+trabalho foi feito na branch `claude/vibrant-fermi-smwjw5`, aberta de novo a partir do
+`rework-claude`.
 
 ---
 
@@ -133,8 +138,9 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   dotnet run --project TerminalHost/TerminalHost.csproj -- --dump
   ```
 
-- O `AvaloniaHost` e o `ImGuiHost` (Silk.NET, com OpenGL) são `net10.0` e abrem no Linux, numa tela
-  virtual (`DISPLAY=:99`, com o Xvfb de baixo).
+- O `AvaloniaHost` e o `ImGuiHost` (GLFW e o OpenGL3 do próprio ImGui) são `net10.0` e abrem no
+  Linux, numa tela virtual (`DISPLAY=:99`, com o Xvfb de baixo). O `ImGuiHost` guarda o layout das
+  janelas encaixadas no `imgui.ini` da pasta onde roda; sem ele, abre com os alvos à esquerda.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
@@ -246,7 +252,12 @@ Pegadinhas já vistas:
   repositório `Sakamoto0110/PixieLib`, e volta numa versão nova do pacote, trocando o `Version` no
   `InteractiveEditor.csproj`.
 - Dentro do namespace `InteractiveEditor.ImGui`, o nome `ImGui` sozinho é o namespace, e não a
-  classe do ImGui.NET; os arquivos usam o alias `Gui`.
+  classe do Hexa.NET.ImGui; os arquivos usam o alias `Gui`.
+- No ImGui 1.92 (Hexa.NET.ImGui 2.2.9), um campo de texto com `EnterReturnsTrue` só devolve o texto
+  quando é solto, e no Esc devolve o que foi digitado; quem lê o texto trata o Esc à parte (commit
+  `9e0e360`). Num teste sem janela, o atlas de fontes vira textura do renderer
+  (`RendererHasTextures`): depois do `Render`, cada textura em `WantCreate` recebe um id e o status
+  `Ok`.
 - A view do Avalonia faz as linhas quando é carregada (commit `8853770`): um teste que cria a view
   precisa pô-la numa janela e esperar a fila da interface antes de procurar os controles.
 - Para fechar um app que roda em segundo plano, não usar `pkill -f` com o nome dele: o padrão casa
@@ -401,8 +412,9 @@ Pegadinhas já vistas:
   o ImGui desenha uma tabela a cada quadro, relendo os objetos antes (`RefreshEachFrame`, ligado
   por padrão). Nenhuma usa o passo de layout (P7.22). O Avalonia tem, como as outras, o `(?)` com a
   janela, as válvulas com o `RowFailed` e o scrubbing (commits `507b528`, `8853770` e `b0deeb2`);
-  o ImGui fica sem válvulas e com a ajuda no tooltip do `(?)`. O `TerminalHost` usa só a API
-  pública. Detalhes na seção 0 das notas (Views) e na 3.5.
+  o ImGui fica sem válvulas e com a ajuda no tooltip do `(?)`, e usa o Hexa.NET.ImGui 2.2.9 desde
+  o commit `9e0e360`. O `TerminalHost` usa só a API pública. Detalhes na seção 0 das notas (Views)
+  e na 3.5.
 
 ## 6. O que falta
 

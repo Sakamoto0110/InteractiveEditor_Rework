@@ -453,6 +453,19 @@ P7.23).
   `Show` da linha mostrava o valor e depois o rótulo no mesmo `Try`, então um `ToString` que lança
   (3.11) deixava a linha sem rótulo. Achado ao testar o `RowFailed` do Avalonia; agora os dois vão
   em separado, e a falha só sai quando os dois passam.
+- **O binding do ImGui** (10/10, a pedido do neko): o adapter e o `ImGuiHost` passaram do
+  ImGui.NET 1.91.6.1 para o Hexa.NET.ImGui 2.2.9 (ImGui 1.92.2b, do branch docking), o binding que
+  a engine vai usar. Uma view do ImGui precisa do mesmo binding e da mesma biblioteca nativa da
+  engine; com outro, ela desenha num contexto que ninguém renderiza. A 2.2.9 é a última estável, e
+  as 3.x ainda são experimentais. Aplicado no commit `9e0e360`: a API é a mesma, menos os ponteiros
+  do `InputScalar` e do `SliderScalar` e os nomes dos cursores. No 1.92, um campo de texto com
+  `EnterReturnsTrue` só devolve o texto quando é solto, e no Esc devolve o que foi digitado em vez
+  de reverter; o `TextEditor` passou a tratar o Esc como cancelamento. O `ImGuiHost` trocou o
+  Silk.NET pelo Hexa.NET.GLFW e pelos backends GLFW e OpenGL3 do próprio ImGui, com docking: uma
+  dockspace sobre a janela e, sem `imgui.ini`, os alvos à esquerda e o inspector à direita.
+  Verificado fora do repositório: 25 checagens do ImGui sem janela, com o mesmo resultado do
+  ImGui.NET (menos uma, que no 1.91 falhava no próprio teste, pelo foco), e o host numa tela
+  virtual.
 
 ### Primitivos e PixieLib
 
@@ -1853,6 +1866,8 @@ Apresentação
 - [x] Os filhos que uma view mostra embaixo de um nó, na API pública: o `ShownChildren` (P7.23;
       commit `ad79532`).
 - [x] O rótulo de uma linha que não mostra os objetos, nas três views (3.11; commit `e5960e1`).
+- [x] O ImGui no Hexa.NET.ImGui 2.2.9, o binding da engine, com docking no host (commit
+      `9e0e360`).
 
 Pendências da primeira revisão (já conhecidas)
 
@@ -1994,7 +2009,8 @@ commits `e6cca32`, `8dfaab4`, `ce15b9f`, `6632d73` e `a93b75c`. Em 09/10 vieram 
 do ImGui e o host do Terminal.Gui (commits `6ba0290`, `a885789` e `1d86b96`), cada framework num
 projeto (commit `424f6d0`), e os primitivos passaram a ser os da PixieLib; com as respostas do mesmo
 dia, o Avalonia ganhou o `(?)`, as válvulas e o scrubbing (commits `507b528`, `8853770` e
-`b0deeb2`). O que vem depois é a sessão própria do cache do modelo de tipo. Já entraram o
+`b0deeb2`). Em 10/10, o ImGui passou para o Hexa.NET.ImGui 2.2.9, com docking no host (commit
+`9e0e360`). O que vem depois é a sessão própria do cache do modelo de tipo. Já entraram o
 `ValueChanged` (commit `305952f`), os sanitizadores (commit `7f3cb63`), os nós manuais, botão e
 campo só de exibição (commit `42e2129`), o layout no `InspectorOptions` (commit `9674fca`), a
 visibilidade condicional (commit `bdf7ef8`) e os itens de escolha (commit `cf909c1`); o gancho de
