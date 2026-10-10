@@ -84,32 +84,28 @@ internal static class ReflectionDiscovery
         }
     }
 
-    // The public fields and properties, in the order they were declared. When that order cannot be
-    // read, the reflection's own order stays, and it is reported.
-    private static List<MemberInfo> MembersOf(Type type, InspectorNode parent, Inspector inspector)
+    // The public fields and properties, in the order they were declared, listed once per type (P5.6).
+    // When that order cannot be read, the reflection's own order stays, and each Create reports it.
+    private static IReadOnlyList<MemberInfo> MembersOf(Type type, InspectorNode parent, Inspector inspector)
     {
-        var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance)
-            .Where(member => member is FieldInfo or PropertyInfo)
-            .ToList();
+        var model = TypeModel.Of(type);
 
-        try
+        if (model.OrderFailure is { } failure)
         {
-            return DeclarationOrder.Sort(members);
-        }
-        catch (Exception e)
-        {
-            inspector.OnDiscoveryFailed(parent.Path, FailureSeverity.WorkedAround, e,
+            inspector.OnDiscoveryFailed(parent.Path, FailureSeverity.WorkedAround, failure,
                 $"The members of '{type.Name}' keep the reflection's order: the declaration order could not be read.",
                 "Use [InspectorOrder] to put them in order.");
-            return members;
         }
+
+        return model.Members;
     }
 
     // The public field or property with that name, the one of the most derived type when one hides
-    // another (P5.4); indexers do not count.
+    // another (P5.4); indexers do not count. It comes from the model, as the discovery's members do.
     internal static MemberInfo? FindMember(Type type, string name)
     {
-        return type.GetMember(name, MemberTypes.Field | MemberTypes.Property, BindingFlags.Public | BindingFlags.Instance)
+        return TypeModel.Of(type).Members
+            .Where(member => member.Name == name)
             .Where(member => member is not PropertyInfo property || property.GetIndexParameters().Length == 0)
             .OrderByDescending(member => DeclarationOrder.Depth(member.DeclaringType!))
             .FirstOrDefault();

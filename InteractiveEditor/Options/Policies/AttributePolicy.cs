@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using InteractiveEditor.Attributes;
+﻿using InteractiveEditor.Attributes;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Model;
 
@@ -14,9 +13,14 @@ internal static class AttributePolicy
         var chosen = node.Member != null && ApplyMember(node, inspector);
 
         // [InspectorExpandable] counts on the member or on its type, and only when there is something to open.
-        Use(node, inspector,
-            () => node.Member?.GetCustomAttribute<InspectorExpandableAttribute>()
-                ?? (Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType).GetCustomAttribute<InspectorExpandableAttribute>(),
+        Use<InspectorExpandableAttribute>(node, inspector,
+            () =>
+            {
+                var onMember = node.Member == null ? default : TypeModel.Read<InspectorExpandableAttribute>(node.Member);
+                return onMember.IsEmpty
+                    ? TypeModel.Read<InspectorExpandableAttribute>(Nullable.GetUnderlyingType(node.ValueType) ?? node.ValueType)
+                    : onMember;
+            },
             expandable =>
             {
                 if (!node.HasMembers)
@@ -85,26 +89,37 @@ internal static class AttributePolicy
     private static void Use<TAttribute>(MemberNode node, Inspector inspector, Action<TAttribute> apply)
         where TAttribute : Attribute
     {
-        Use(node, inspector, () => node.Member!.GetCustomAttribute<TAttribute>(), apply);
+        Use(node, inspector, () => TypeModel.Read<TAttribute>(node.Member!), apply);
     }
 
     // An attribute that cannot be read or applied is skipped: the node keeps what the reflection
-    // decided, and a subscriber can set the option itself.
-    private static void Use<TAttribute>(MemberNode node, Inspector inspector, Func<TAttribute?> read, Action<TAttribute> apply)
+    // decided, and a subscriber can set the option itself. The reading comes from the model of the
+    // type (P5.6), so one that failed is reported again by each Create.
+    private static void Use<TAttribute>(MemberNode node, Inspector inspector, Func<TypeModel.Reading> read, Action<TAttribute> apply)
         where TAttribute : Attribute
     {
+        Exception? failure;
+
         try
         {
-            if (read() is { } attribute)
+            var reading = read();
+            failure = reading.Failure;
+
+            if (reading.Attribute is TAttribute attribute)
                 apply(attribute);
         }
         catch (Exception e)
         {
-            var name = typeof(TAttribute).Name[..^"Attribute".Length];
-
-            inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround, e,
-                $"[{name}] on '{node.Path}' was ignored.",
-                $"Fix the attribute, or set the option on inspector[\"{node.Path}\"] after the Create.");
+            failure = e;
         }
+
+        if (failure == null)
+            return;
+
+        var name = typeof(TAttribute).Name[..^"Attribute".Length];
+
+        inspector.OnDiscoveryFailed(node.Path, FailureSeverity.WorkedAround, failure,
+            $"[{name}] on '{node.Path}' was ignored.",
+            $"Fix the attribute, or set the option on inspector[\"{node.Path}\"] after the Create.");
     }
 }

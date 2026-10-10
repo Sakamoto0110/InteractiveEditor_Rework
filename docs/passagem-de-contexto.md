@@ -2,7 +2,7 @@
 
 Para retomar o trabalho num contexto novo. Estado de 10 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `9e0e360`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `81e72c9`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
@@ -20,7 +20,8 @@ a engine vai usar, com docking no `ImGuiHost` (commit `9e0e360`, seção 0 das n
 mesmo dia, também a pedido dele, o `rework-claude` entrou na `main`, e as outras branches
 (`claude/vibrant-fermi-smwjw5` e `claude/laughing-heisenberg-gx3vov`) foram apagadas: sobraram a
 `main` e a `rework-claude`. Num clone de antes disso, `git fetch --prune` tira as referências
-delas.
+delas. Depois do merge, com o "ok vai" do neko para a minha sugestão, entrou o cache do modelo de
+tipo (P5.6, commit `81e72c9`): a lista de membros e os atributos, lidos uma vez por tipo.
 
 ---
 
@@ -168,7 +169,15 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   do Avalonia, numa tela virtual, com os eventos de ponteiro e de teclado simulados (106
   checagens: os editores, os grupos, os mistos, as falhas, o `(?)`, as válvulas e o scrubbing), e um
   de WinForms e WPF no Wine para o rótulo de uma linha que não mostra os objetos (commit `e5960e1`).
-  A seção 3.5 das notas diz o que o do Avalonia confere.
+  A seção 3.5 das notas diz o que o do Avalonia confere. Em 10/10, para o cache do modelo de tipo
+  (commit `81e72c9`), mais dois, também só no scratchpad. O de paridade cria cada tipo de teste
+  três vezes e imprime a árvore com as opções e o `Report`, para comparar com `diff` a saída de
+  antes da mudança com a de depois (28 casos). As falhas de leitura vêm de um projeto referenciado
+  com `Private="false"`, que não vai para a saída. O outro carrega o `DemoObjects` num
+  `AssemblyLoadContext` descarregável, cria inspectors dos tipos dele e confere que o contexto é
+  coletado depois do `Unload`; um controle que prende o tipo de propósito tem que falhar. A ordem
+  de declaração não falha por assembly ausente, porque o reflection só resolve o tipo de um membro
+  quando precisa, então esse caminho ficou sem teste.
 - Antes de dar uma mudança por pronta, conferir também que os testes pegam o erro: desfazer a
   mudança (ou quebrar de propósito uma cópia) e ver os testes novos falharem.
 - Para rodar um app `net10.0-windows` no Linux (se ele não tocar em WinForms ou WPF):
@@ -275,7 +284,9 @@ Pegadinhas já vistas:
 
 - `Inspector.Create<T>()`: a descoberta (`ReflectionDiscovery.AddMembers`) monta a árvore, e cada
   nó passa por `ReflectionPolicy.Apply` e depois `AttributePolicy.Apply`. A camada manual vem
-  depois, no próprio inspector (`inspector["Moo.MooX"].Label = ...`).
+  depois, no próprio inspector (`inspector["Moo.MooX"].Label = ...`). A lista de membros e os
+  atributos vêm do `TypeModel` do tipo, lido uma vez por tipo (P5.6, commit `81e72c9`); uma leitura
+  que falhou fica guardada nele, e cada `Create` a reporta de novo.
 - `Inspector` não é mais um nó (commit `1997209`): guarda a raiz num `RootNode` interno e expõe o
   `Id`, o `Name`, o `Mode`, as opções (`Options`), o objeto ligado (`Instance`), o indexador e o
   `Node<T>`, a enumeração e `Rows`. `InspectorNode` é abstrato, com as opções como propriedades, o
@@ -441,8 +452,9 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - Em 09/10, o merge da branch das views novas (commits `36f0afa` a `6f02064`), e as respostas da
   7.20 à 7.23, com as sugestões, aplicadas nos commits `ad79532` a `b0deeb2`. O PR 2, dessa branch
   para a `main`, foi fechado sem merge: o conteúdo dele já estava na `rework-claude`.
-- Sessões próprias: o cache do modelo de tipo (P5.6). A da PixieLib (P8.7) já foi feita, no
-  repositório dela, e os primitivos dela já estão aqui (commit `424f6d0`).
+- Sessões próprias: as duas já foram feitas. A do cache do modelo de tipo (P5.6) entrou no commit
+  `81e72c9`; a da PixieLib (P8.7), no repositório dela, e os primitivos dela já estão aqui (commit
+  `424f6d0`).
 
 ## 7. Próximo passo
 
@@ -453,8 +465,9 @@ scrubbing em `Count` e `Ratio`), o ImGuiHost e o TerminalHost.
 1. As views estão completas: os cinco cortes da seção 0 das notas (Views) entraram, o último, a view
    WPF, no commit `a93b75c`. O próximo passo é o neko conferir no Windows o WindowsHost e o WpfHost
    (item 2) e responder às escolhas dos cortes 4 e 5 que eu tomei sem perguntar (item 3); o que o
-   neko pedir para mudar vem primeiro. Depois, a sessão própria do cache do modelo de tipo (P5.6);
-   a da PixieLib já foi feita, e os primitivos dela entraram no `424f6d0`. Para reler o original:
+   neko pedir para mudar vem primeiro. As sessões próprias já foram feitas: a do cache do modelo de
+   tipo (P5.6) no commit `81e72c9`, e a da PixieLib, cujos primitivos entraram no `424f6d0`. Para
+   reler o original:
    `Sakamoto0110/InteractiveEditor` (branch `InspectorVariant0.7.1a`) e
    `Sakamoto0110/OverlayApplication`, públicos, clonados só para leitura.
 2. O neko viu o corte 2 no Windows em 02/10 ("90% perfeito") e pediu o espaçador e o `(?)` (P7.14,
