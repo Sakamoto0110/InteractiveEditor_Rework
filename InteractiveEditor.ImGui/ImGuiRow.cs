@@ -1,9 +1,9 @@
 ﻿using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Options;
 using InteractiveEditor.Views;
-using Gui = ImGuiNET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 

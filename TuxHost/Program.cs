@@ -17,6 +17,7 @@ internal class Program
         foo["Moo.MooX"].Tooltip = "Moo X position";
         foo["Moo"].Collapsed = true;
         foo["Moo2"].Ignored = true;
+        foo["Moo2"]["MooY"].ReadOnly = true;
         Print("Foo: manual layer", foo, new Foo());
 
         var boo = Inspector.Create<Boo>();

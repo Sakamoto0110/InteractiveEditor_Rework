@@ -3,26 +3,28 @@ using DemoObjects.ClassObjects;
 using DemoObjects.HybridObjects;
 using DemoObjects.StructObjects;
 using DemoObjects.ViewObjects;
-using ImGuiNET;
+using Hexa.NET.GLFW;
+using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Backends.GLFW;
+using Hexa.NET.ImGui.Backends.OpenGL3;
 using InteractiveEditor;
 using InteractiveEditor.Diagnostics;
 using InteractiveEditor.Events;
 using InteractiveEditor.ImGui;
-using Silk.NET.Core.Loader;
-using Silk.NET.Input;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.Windowing;
+// Hexa.NET.GLFW and the GLFW backend each have a window handle type, over the same GLFW window.
+using BackendWindow = Hexa.NET.ImGui.Backends.GLFW.GLFWwindowPtr;
+using GLFWmonitorPtr = Hexa.NET.GLFW.GLFWmonitorPtr;
+using GLFWwindowPtr = Hexa.NET.GLFW.GLFWwindowPtr;
 // Two of the demo types are called Boo: a class with attributes, and a struct.
 using AttributedBoo = DemoObjects.AttributedObjects.Boo;
 using StructBoo = DemoObjects.StructObjects.Boo;
 
 namespace ImGuiHost;
 
-// The Dear ImGui view of the demo objects on a Silk.NET window: the list of them on the left, with the
-// last value written or the last failure under it, and the view of the one chosen on the right. Each comes
-// with an inspector of its own, created and bound when it is chosen, and disposed when another is.
+// The Dear ImGui view of the demo objects on a GLFW window, through ImGui's own GLFW and OpenGL3 backends,
+// with docking on: the list of them on the left, with the last value written or the last failure under it,
+// and the view of the one chosen on the right, both docked in a dockspace over the window. Each comes with
+// an inspector of its own, created and bound when it is chosen, and disposed when another is.
 internal sealed class Program : IImGuiHost
 {
     private static readonly (string Name, Func<Inspector> Create)[] DemoTargets =
@@ -49,74 +51,98 @@ internal sealed class Program : IImGuiHost
     public event Action? Frame;
 
     [STAThread]
-    private static void Main()
+    private static void Main() => new Program().Run();
+
+    private unsafe void Run()
     {
-        AddRuntimeNativeDirectories();
-        new Program().Run();
-    }
+        if (GLFW.Init() == 0)
+            throw new InvalidOperationException("GLFW could not start.");
 
-    // Silk.NET 2.x looks for its native libraries (GLFW) without probing runtimes/<rid>/native, so on Linux it
-    // fails to find the one NuGet ships. The runtime already resolved those folders from deps.json; hand them over.
-    private static void AddRuntimeNativeDirectories()
-    {
-        var directories = (AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") as string)?
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries) ?? [];
+        // OpenGL 3.3 core, which macOS gives only forward compatible.
+        GLFW.WindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
+        GLFW.WindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 3);
+        GLFW.WindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
+        GLFW.WindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 
-        if (PathResolver.Default is DefaultPathResolver resolver)
-            resolver.Resolvers.Add(name => directories.Select(directory => Path.Combine(directory, name)));
-    }
+        var window = GLFW.CreateWindow(1000, 720, "InteractiveEditor - ImGui host", default(GLFWmonitorPtr), default(GLFWwindowPtr));
 
-    private void Run()
-    {
-        var options = WindowOptions.Default with
+        if (window.Handle == null)
         {
-            Title = "InteractiveEditor - ImGui host",
-            Size = new Vector2D<int>(1000, 720)
-        };
+            GLFW.Terminate();
+            throw new InvalidOperationException("GLFW could not open an OpenGL 3.3 window.");
+        }
 
-        using var window = Window.Create(options);
+        GLFW.MakeContextCurrent(window);
+        GLFW.SwapInterval(1);
 
-        GL? gl = null;
-        IInputContext? input = null;
-        ImGuiController? controller = null;
+        var context = ImGui.CreateContext();
+        ImGui.SetCurrentContext(context);
 
-        window.Load += () =>
+        // The layout of the docked windows goes to imgui.ini, next to where the host runs; with none yet,
+        // the first frame docks them side by side.
+        var firstLayout = !File.Exists("imgui.ini");
+        var io = ImGui.GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable;
+
+        ImGuiImplGLFW.SetCurrentContext(context);
+        ImGuiImplGLFW.InitForOpenGL(new BackendWindow((Hexa.NET.ImGui.Backends.GLFW.GLFWwindow*)window.Handle), true);
+        ImGuiImplOpenGL3.SetCurrentContext(context);
+        ImGuiImplOpenGL3.Init("#version 150");
+
+        LoadTarget(0);
+
+        while (GLFW.WindowShouldClose(window) == 0)
         {
-            gl = window.CreateOpenGL();
-            input = window.CreateInput();
-            controller = new ImGuiController(gl, window, input);
-            LoadTarget(0);
-        };
+            GLFW.PollEvents();
+            ImGuiImplOpenGL3.NewFrame();
+            ImGuiImplGLFW.NewFrame();
+            ImGui.NewFrame();
 
-        window.FramebufferResize += size => gl?.Viewport(size);
+            // The dockspace covers the window and paints its background, so the frame needs no clear.
+            var dockspace = ImGui.GetID("dockspace");
 
-        window.Render += delta =>
-        {
-            controller!.Update((float)delta);
+            if (firstLayout)
+            {
+                DockSideBySide(dockspace);
+                firstLayout = false;
+            }
 
-            gl!.ClearColor(0.11f, 0.11f, 0.13f, 1f);
-            gl.Clear(ClearBufferMask.ColorBufferBit);
+            ImGui.DockSpaceOverViewport(dockspace);
 
             DrawTargets();
 
-            // Applies to the attached view's window, which Begins next.
+            // Applies to the attached view's window, which Begins next, for when it is not docked.
             ImGui.SetNextWindowPos(new Vector2(220, 10), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new Vector2(770, 700), ImGuiCond.FirstUseEver);
             Frame?.Invoke();
 
-            controller.Render();
-        };
+            ImGui.Render();
+            ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+            GLFW.SwapBuffers(window);
+        }
 
-        window.Closing += () =>
-        {
-            View?.Dispose();
-            Current?.Dispose();
-            controller?.Dispose();
-            input?.Dispose();
-            gl?.Dispose();
-        };
+        View?.Dispose();
+        Current?.Dispose();
+        ImGuiImplOpenGL3.Shutdown();
+        ImGuiImplGLFW.Shutdown();
+        ImGui.DestroyContext(context);
+        GLFW.DestroyWindow(window);
+        GLFW.Terminate();
+    }
 
-        window.Run();
+    // The targets on the left fifth of the dockspace, and the inspector's window, by the ID its titles keep
+    // ("###inspector"), on the rest.
+    private static unsafe void DockSideBySide(uint dockspace)
+    {
+        ImGuiP.DockBuilderRemoveNode(dockspace);
+        ImGuiP.DockBuilderAddNode(dockspace, (ImGuiDockNodeFlags)ImGuiDockNodeFlagsPrivate.Space);
+        ImGuiP.DockBuilderSetNodeSize(dockspace, ImGui.GetMainViewport().Size);
+
+        uint left, right;
+        ImGuiP.DockBuilderSplitNode(dockspace, ImGuiDir.Left, 0.2f, &left, &right);
+        ImGuiP.DockBuilderDockWindow("Targets", left);
+        ImGuiP.DockBuilderDockWindow("###inspector", right);
+        ImGuiP.DockBuilderFinish(dockspace);
     }
 
     private void DrawTargets()

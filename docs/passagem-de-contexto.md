@@ -1,8 +1,8 @@
 # Passagem de contexto
 
-Para retomar o trabalho num contexto novo. Estado de 9 de outubro de 2026, na branch
+Para retomar o trabalho num contexto novo. Estado de 10 de outubro de 2026, na branch
 `rework-claude`, com as respostas do neko de 27/09, 29/09, 01/10 e 02/10 aplicadas; o último
-commit de código é o `b0deeb2`. Ler isto inteiro antes de mexer em qualquer coisa.
+commit de código é o `9e0e360`. Ler isto inteiro antes de mexer em qualquer coisa.
 
 Em 02/10 o neko pediu duas passagens: esta, para continuar as views do InteractiveEditor, e uma
 para a parte em C# da PixieLib, que é outro trabalho, numa sessão própria
@@ -14,6 +14,13 @@ núcleo passou a usar os primitivos da PixieLib, cada framework ganhou um projet
 Avalonia e do ImGui e o host do Terminal.Gui foram refeitos sobre o núcleo do rework (seção 5). As
 escolhas que eu fiz nisso o neko aceitou no mesmo dia (P7.20 a P7.23), e o que elas pediam entrou
 nos commits `ad79532` a `b0deeb2`.
+
+Em 10/10, a pedido do neko, o ImGui passou do ImGui.NET para o Hexa.NET.ImGui 2.2.9, o binding que
+a engine vai usar, com docking no `ImGuiHost` (commit `9e0e360`, seção 0 das notas, Views). No
+mesmo dia, também a pedido dele, o `rework-claude` entrou na `main`, e as outras branches
+(`claude/vibrant-fermi-smwjw5` e `claude/laughing-heisenberg-gx3vov`) foram apagadas: sobraram a
+`main` e a `rework-claude`. Num clone de antes disso, `git fetch --prune` tira as referências
+delas.
 
 ---
 
@@ -98,8 +105,8 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   views), `TuxHost` (o console de verificação, roda no Linux), `NoHost` (local do neko,
   `net10.0-windows`), os hosts `WindowsHost` (mostra um `Gadget` na view WinForms, commit
   `042a7fe`), `WpfHost`, `AvaloniaHost` e `ImGuiHost`, e o `TerminalHost` (Terminal.Gui, roda no
-  Linux, com o `--dump` da seção 4). Fora da solução, mas compilados junto, o `PixieLib` e o
-  `PixieLib.Generators` da cópia em `external/PixieLib`, que não se edita aqui.
+  Linux, com o `--dump` da seção 4). A PixieLib vem do nuget.org, o pacote `PixieLib` 0.1.0 (commit
+  `6b7cd80`): só o núcleo a referencia, e as views e os hosts a recebem por ele.
 
 ## 4. Como verificar uma mudança
 
@@ -113,7 +120,7 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   ```
 
 - Build da solução inteira, inclusive os hosts de Windows, no Linux. Tem que dar 0 warnings e 0
-  erros nos 13 projetos e nos dois da cópia da PixieLib:
+  erros nos 13 projetos:
 
   ```
   dotnet build InteractiveEditorSolution.slnx -p:EnableWindowsTargeting=true
@@ -133,8 +140,9 @@ Regra do neko: **só subir para o GitHub se o author for ele**.
   dotnet run --project TerminalHost/TerminalHost.csproj -- --dump
   ```
 
-- O `AvaloniaHost` e o `ImGuiHost` (Silk.NET, com OpenGL) são `net10.0` e abrem no Linux, numa tela
-  virtual (`DISPLAY=:99`, com o Xvfb de baixo).
+- O `AvaloniaHost` e o `ImGuiHost` (GLFW e o OpenGL3 do próprio ImGui) são `net10.0` e abrem no
+  Linux, numa tela virtual (`DISPLAY=:99`, com o Xvfb de baixo). O `ImGuiHost` guarda o layout das
+  janelas encaixadas no `imgui.ini` da pasta onde roda; sem ele, abre com os alvos à esquerda.
 
 - Para testar um comportamento, fazer um console pequeno fora do repositório, referenciando
   `InteractiveEditor.csproj` (e `DemoObjects.csproj`, se precisar dos tipos de teste). O desta
@@ -242,10 +250,16 @@ Pegadinhas já vistas:
   `.gitignore` cobre as pastas `bin/Release` também.
 - O `PxColorRgba` da PixieLib recebe o alfa no fim, `new(r, g, b, a = 255)`; o `PxColorArgb` antigo
   recebia no começo. Um `new(a, r, g, b)` de quatro bytes compila e dá outra cor.
-- A PixieLib em `external/PixieLib` é uma cópia: não se edita aqui. O que precisar mudar vai para o
-  repositório `Sakamoto0110/PixieLib`, e volta numa cópia nova.
+- A PixieLib vem do pacote do nuget.org (commit `6b7cd80`). O que precisar mudar nela vai para o
+  repositório `Sakamoto0110/PixieLib`, e volta numa versão nova do pacote, trocando o `Version` no
+  `InteractiveEditor.csproj`.
 - Dentro do namespace `InteractiveEditor.ImGui`, o nome `ImGui` sozinho é o namespace, e não a
-  classe do ImGui.NET; os arquivos usam o alias `Gui`.
+  classe do Hexa.NET.ImGui; os arquivos usam o alias `Gui`.
+- No ImGui 1.92 (Hexa.NET.ImGui 2.2.9), um campo de texto com `EnterReturnsTrue` só devolve o texto
+  quando é solto, e no Esc devolve o que foi digitado; quem lê o texto trata o Esc à parte (commit
+  `9e0e360`). Num teste sem janela, o atlas de fontes vira textura do renderer
+  (`RendererHasTextures`): depois do `Render`, cada textura em `WantCreate` recebe um id e o status
+  `Ok`.
 - A view do Avalonia faz as linhas quando é carregada (commit `8853770`): um teste que cria a view
   precisa pô-la numa janela e esperar a fila da interface antes de procurar os controles.
 - Para fechar um app que roda em segundo plano, não usar `pkill -f` com o nome dele: o padrão casa
@@ -331,13 +345,13 @@ Pegadinhas já vistas:
 - Binding pela cadeia de pais: só a raiz guarda a instância, struct é gravada de volta no dono, e a
   gravação respeita o `ReadOnly`. O `SetValue` público recusa grupo aberto e a raiz, e a gravação
   de volta passa pelo `WriteTo` interno (commit `739850b`).
-- Primitivos (commit `424f6d0`): os da PixieLib, pela cópia em `external/PixieLib`: `PxPoint`,
-  `PxSize`, `PxRect` e `PxPadding` em `double`, `PxColorRgba` e `PxColorHsl`, sem conversão
-  implícita entre as cores. No núcleo ficou só o `PxDock` (`InteractiveEditor/Primitives`). O
-  `PxRect`, o `PxSize` e o `PxPadding` são usados pelo passo de layout. As conversões com o
-  `System.Drawing` vêm da PixieLib, e as com o WinForms e o WPF (o `Point`, o `Size`, o `Rect`, a
-  `Thickness` e a `Color` do WPF, o `Padding` e o `DockStyle` do WinForms) são métodos de extensão
-  nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`).
+- Primitivos (commit `424f6d0`): os da PixieLib, pelo pacote do nuget.org (commit `6b7cd80`):
+  `PxPoint`, `PxSize`, `PxRect` e `PxPadding` em `double`, `PxColorRgba` e `PxColorHsl`, sem
+  conversão implícita entre as cores. No núcleo ficou só o `PxDock`
+  (`InteractiveEditor/Primitives`). O `PxRect`, o `PxSize` e o `PxPadding` são usados pelo passo de
+  layout. As conversões com o `System.Drawing` vêm da PixieLib, e as com o WinForms e o WPF (o
+  `Point`, o `Size`, o `Rect`, a `Thickness` e a `Color` do WPF, o `Padding` e o `DockStyle` do
+  WinForms) são métodos de extensão nos projetos de cada um (`ToWinForms`, `ToWpf` e `ToPrimitive`).
 - Passo de layout (commit `9674fca`): `inspector.Layout(largura)` devolve as linhas de cima e o
   tamanho; cada `LayoutRow` tem os retângulos da linha, do rótulo e do editor nas coordenadas de
   onde está, e um grupo tem o painel dele, com as linhas de dentro a partir do canto do painel. As
@@ -400,8 +414,9 @@ Pegadinhas já vistas:
   o ImGui desenha uma tabela a cada quadro, relendo os objetos antes (`RefreshEachFrame`, ligado
   por padrão). Nenhuma usa o passo de layout (P7.22). O Avalonia tem, como as outras, o `(?)` com a
   janela, as válvulas com o `RowFailed` e o scrubbing (commits `507b528`, `8853770` e `b0deeb2`);
-  o ImGui fica sem válvulas e com a ajuda no tooltip do `(?)`. O `TerminalHost` usa só a API
-  pública. Detalhes na seção 0 das notas (Views) e na 3.5.
+  o ImGui fica sem válvulas e com a ajuda no tooltip do `(?)`, e usa o Hexa.NET.ImGui 2.2.9 desde
+  o commit `9e0e360`. O `TerminalHost` usa só a API pública. Detalhes na seção 0 das notas (Views)
+  e na 3.5.
 
 ## 6. O que falta
 
@@ -425,7 +440,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - Com as views: nada no código; falta o neko conferir os dois hosts no Windows (seção 7).
 - Em 09/10, o merge da branch das views novas (commits `36f0afa` a `6f02064`), e as respostas da
   7.20 à 7.23, com as sugestões, aplicadas nos commits `ad79532` a `b0deeb2`. O PR 2, dessa branch
-  para a `main`, ficou contido na `rework-claude`; fechar ou não é com o neko.
+  para a `main`, foi fechado sem merge: o conteúdo dele já estava na `rework-claude`.
 - Sessões próprias: o cache do modelo de tipo (P5.6). A da PixieLib (P8.7) já foi feita, no
   repositório dela, e os primitivos dela já estão aqui (commit `424f6d0`).
 

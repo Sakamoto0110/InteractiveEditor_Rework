@@ -1,5 +1,5 @@
-﻿using ImGuiNET;
-using Gui = ImGuiNET.ImGui;
+﻿using Hexa.NET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 
@@ -59,9 +59,9 @@ internal sealed class NumberEditor(ImGuiRow row) : TextEditor(row)
         where T : unmanaged
     {
         var stepValue = step.GetValueOrDefault();
-        var stepPointer = step.HasValue ? (IntPtr)(&stepValue) : IntPtr.Zero;
+        var stepPointer = step.HasValue ? &stepValue : null;
 
-        if (!Gui.InputScalar("##value", dataType, (IntPtr)(&value), stepPointer, IntPtr.Zero, format, ImGuiInputTextFlags.None))
+        if (!Gui.InputScalar("##value", dataType, &value, stepPointer, null, format, ImGuiInputTextFlags.None))
             return null;
 
         return value;

@@ -5,13 +5,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- GLFW and the backends take native handles. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Window, input and an OpenGL ImGui renderer; the adapter itself only needs ImGui.NET. -->
-    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
+    <!-- The window (GLFW) and ImGui's own GLFW and OpenGL3 backends, the versions made with Hexa.NET.ImGui
+         2.2.9; the adapter itself only needs Hexa.NET.ImGui. -->
+    <PackageReference Include="Hexa.NET.GLFW" Version="1.0.5" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.18" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.18" />
   </ItemGroup>
 
   <ItemGroup>

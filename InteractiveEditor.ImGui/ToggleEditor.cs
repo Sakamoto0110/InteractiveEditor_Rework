@@ -1,4 +1,4 @@
-﻿using Gui = ImGuiNET.ImGui;
+﻿using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 

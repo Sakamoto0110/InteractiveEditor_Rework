@@ -1,5 +1,5 @@
-﻿using ImGuiNET;
-using Gui = ImGuiNET.ImGui;
+﻿using Hexa.NET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 
@@ -34,6 +34,10 @@ internal class TextEditor(ImGuiRow row) : ImGuiEditor(row)
         var hint = mixed ? MixedText : value == null ? "null" : string.Empty;
         var entered = Gui.InputTextWithHint("##value", hint, ref text, MaxLength, ImGuiInputTextFlags.EnterReturnsTrue);
 
+        // With EnterReturnsTrue, ImGui 1.92 hands the text back only when the field lets go, and on Esc it
+        // hands back what was typed instead of reverting it; a field let go on Esc is a cancel, not a write.
+        var cancelled = Gui.IsItemDeactivated() && Gui.IsKeyPressed(ImGuiKey.Escape, false);
+
         if (Gui.IsItemActive())
         {
             Typing = text;
@@ -42,7 +46,7 @@ internal class TextEditor(ImGuiRow row) : ImGuiEditor(row)
         {
             Typing = null;
 
-            if (entered || Gui.IsItemDeactivatedAfterEdit())
+            if (!cancelled && (entered || Gui.IsItemDeactivatedAfterEdit()))
                 Commit(text, shown);
         }
     }

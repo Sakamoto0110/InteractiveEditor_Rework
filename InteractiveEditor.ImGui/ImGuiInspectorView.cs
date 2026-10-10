@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using InteractiveEditor.Events;
 // Inside InteractiveEditor.ImGui the bare name ImGui resolves to this namespace, hence the alias.
-using Gui = ImGuiNET.ImGui;
+using Gui = Hexa.NET.ImGui.ImGui;
 
 namespace InteractiveEditor.ImGui;
 
