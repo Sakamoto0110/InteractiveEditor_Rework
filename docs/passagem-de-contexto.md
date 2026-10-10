@@ -16,9 +16,11 @@ escolhas que eu fiz nisso o neko aceitou no mesmo dia (P7.20 a P7.23), e o que e
 nos commits `ad79532` a `b0deeb2`.
 
 Em 10/10, a pedido do neko, o ImGui passou do ImGui.NET para o Hexa.NET.ImGui 2.2.9, o binding que
-a engine vai usar, com docking no `ImGuiHost` (commit `9e0e360`, seção 0 das notas, Views). O
-trabalho foi feito na branch `claude/vibrant-fermi-smwjw5`, aberta de novo a partir do
-`rework-claude`.
+a engine vai usar, com docking no `ImGuiHost` (commit `9e0e360`, seção 0 das notas, Views). No
+mesmo dia, também a pedido dele, o `rework-claude` entrou na `main`, e as outras branches
+(`claude/vibrant-fermi-smwjw5` e `claude/laughing-heisenberg-gx3vov`) foram apagadas: sobraram a
+`main` e a `rework-claude`. Num clone de antes disso, `git fetch --prune` tira as referências
+delas.
 
 ---
 
@@ -438,7 +440,7 @@ O checklist (seção 6 das notas) diz o que ficou e por quê. Em resumo:
 - Com as views: nada no código; falta o neko conferir os dois hosts no Windows (seção 7).
 - Em 09/10, o merge da branch das views novas (commits `36f0afa` a `6f02064`), e as respostas da
   7.20 à 7.23, com as sugestões, aplicadas nos commits `ad79532` a `b0deeb2`. O PR 2, dessa branch
-  para a `main`, ficou contido na `rework-claude`; fechar ou não é com o neko.
+  para a `main`, foi fechado sem merge: o conteúdo dele já estava na `rework-claude`.
 - Sessões próprias: o cache do modelo de tipo (P5.6). A da PixieLib (P8.7) já foi feita, no
   repositório dela, e os primitivos dela já estão aqui (commit `424f6d0`).
 
