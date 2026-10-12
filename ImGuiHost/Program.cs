@@ -7,10 +7,10 @@ using Hexa.NET.GLFW;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Backends.GLFW;
 using Hexa.NET.ImGui.Backends.OpenGL3;
-using InteractiveEditor;
-using InteractiveEditor.Diagnostics;
-using InteractiveEditor.Events;
-using InteractiveEditor.ImGui;
+using PixieInspector;
+using PixieInspector.Diagnostics;
+using PixieInspector.Events;
+using PixieInspector.ImGui;
 // Hexa.NET.GLFW and the GLFW backend each have a window handle type, over the same GLFW window.
 using BackendWindow = Hexa.NET.ImGui.Backends.GLFW.GLFWwindowPtr;
 using GLFWmonitorPtr = Hexa.NET.GLFW.GLFWmonitorPtr;
@@ -64,7 +64,7 @@ internal sealed class Program : IImGuiHost
         GLFW.WindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         GLFW.WindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 
-        var window = GLFW.CreateWindow(1000, 720, "InteractiveEditor - ImGui host", default(GLFWmonitorPtr), default(GLFWwindowPtr));
+        var window = GLFW.CreateWindow(1000, 720, "PixieInspector - ImGui host", default(GLFWmonitorPtr), default(GLFWwindowPtr));
 
         if (window.Handle == null)
         {

@@ -1,7 +1,7 @@
 using DemoObjects.ViewObjects;
-using InteractiveEditor;
-using InteractiveEditor.Events;
-using InteractiveEditor.WinForms;
+using PixieInspector;
+using PixieInspector.Events;
+using PixieInspector.WinForms;
 
 namespace WindowsHost;
 

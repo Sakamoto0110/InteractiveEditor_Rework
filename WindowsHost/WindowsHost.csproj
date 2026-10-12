@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\InteractiveEditor.WinForms\InteractiveEditor.WinForms.csproj" />
+    <ProjectReference Include="..\PixieInspector.WinForms\PixieInspector.WinForms.csproj" />
   </ItemGroup>
 
 </Project>

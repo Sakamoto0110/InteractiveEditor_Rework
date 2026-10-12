@@ -1,9 +1,9 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using DemoObjects.ViewObjects;
-using InteractiveEditor;
-using InteractiveEditor.Events;
-using InteractiveEditor.Wpf;
+using PixieInspector;
+using PixieInspector.Events;
+using PixieInspector.Wpf;
 
 namespace WpfHost;
 

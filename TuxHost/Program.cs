@@ -1,7 +1,7 @@
 ﻿using DemoObjects.AttributedObjects;
 using DemoObjects.ClassObjects;
-using InteractiveEditor;
-using InteractiveEditor.Options;
+using PixieInspector;
+using PixieInspector.Options;
 
 namespace TuxHost;
 

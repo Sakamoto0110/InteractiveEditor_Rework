@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using System.Reflection;
-using InteractiveEditor;
+using PixieInspector;
 
 namespace TerminalHost;
 

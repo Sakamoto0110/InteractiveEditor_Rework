@@ -1,6 +1,6 @@
 ﻿using DemoObjects.ClassObjects;
-using InteractiveEditor.Attributes;
-using InteractiveEditor.Options;
+using PixieInspector.Attributes;
+using PixieInspector.Options;
 using PixieLib;
 
 namespace DemoObjects.ViewObjects;

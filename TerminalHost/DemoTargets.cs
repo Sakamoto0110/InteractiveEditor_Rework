@@ -3,7 +3,7 @@ using DemoObjects.ClassObjects;
 using DemoObjects.HybridObjects;
 using DemoObjects.StructObjects;
 using DemoObjects.ViewObjects;
-using InteractiveEditor;
+using PixieInspector;
 using AttributedBoo = DemoObjects.AttributedObjects.Boo;
 
 namespace TerminalHost;

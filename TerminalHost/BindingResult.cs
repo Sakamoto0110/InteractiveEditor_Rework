@@ -1,4 +1,4 @@
-﻿using InteractiveEditor;
+﻿using PixieInspector;
 
 namespace TerminalHost;
 

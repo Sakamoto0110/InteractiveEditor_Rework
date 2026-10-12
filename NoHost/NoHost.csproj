@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\InteractiveEditor\InteractiveEditor.csproj" />
+    <ProjectReference Include="..\PixieInspector\PixieInspector.csproj" />
   </ItemGroup>
 
 </Project>

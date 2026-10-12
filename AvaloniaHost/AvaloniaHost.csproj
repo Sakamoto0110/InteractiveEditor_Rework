@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\InteractiveEditor.Avalonia\InteractiveEditor.Avalonia.csproj" />
+    <ProjectReference Include="..\PixieInspector.Avalonia\PixieInspector.Avalonia.csproj" />
   </ItemGroup>
 
 </Project>

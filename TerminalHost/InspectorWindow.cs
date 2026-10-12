@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
-using InteractiveEditor;
-using InteractiveEditor.Diagnostics;
-using InteractiveEditor.Events;
-using InteractiveEditor.Options;
+using PixieInspector;
+using PixieInspector.Diagnostics;
+using PixieInspector.Events;
+using PixieInspector.Options;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -49,7 +49,7 @@ internal sealed class InspectorWindow : Window
 
     public InspectorWindow()
     {
-        Title = "InteractiveEditor - Terminal host (F6 next panel, Esc quits)";
+        Title = "PixieInspector - Terminal host (F6 next panel, Esc quits)";
 
         var targetsFrame = new FrameView
         {

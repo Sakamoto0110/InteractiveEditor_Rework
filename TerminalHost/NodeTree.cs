@@ -1,4 +1,4 @@
-﻿using InteractiveEditor;
+﻿using PixieInspector;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 

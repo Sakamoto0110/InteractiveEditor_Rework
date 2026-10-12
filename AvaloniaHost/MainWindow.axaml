@@ -1,7 +1,7 @@
 ﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AvaloniaHost.MainWindow"
-        Title="InteractiveEditor - Avalonia host"
+        Title="PixieInspector - Avalonia host"
         Width="960" Height="680">
     <DockPanel>
         <Border DockPanel.Dock="Bottom" Padding="10,6" BorderThickness="0,1,0,0" BorderBrush="#40808080">
