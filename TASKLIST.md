@@ -39,19 +39,5 @@ and the section shape is in the
 
 ## Open breakdowns
 
-## `PXI-TODO-001` — Adopt the documentation policy
-
-**Parent:** PXI-TODO-001
-
-- `PXI-TASK-001` — **Status:** done — Archive the four documents written before
-  the policy, whole, as PXI-ARCHIVE-001 to 004 (`997c70d`).
-- `PXI-TASK-002` — **Status:** done — The policy, schema, templates, archive
-  router, and the eight proposals (`985e597`).
-- `PXI-TASK-003` — **Status:** in-progress — The root documents, the
-  development guide, and a `README.md` per host.
-- `PXI-TASK-004` — **Status:** open — The module documents of `core`.
-- `PXI-TASK-005` — **Status:** open — The module documents of `view-imgui`.
-- `PXI-TASK-006` — **Status:** open — The module documents of `view-avalonia`,
-  `view-winforms`, and `view-wpf`.
-- `PXI-TASK-007` — **Status:** open — The self-review of each module, then the
-  completion record.
+None as of 2026-10-12. The breakdown of PXI-TODO-001 is in its
+[archive record](docs/archive/documentation-foundation-2026-10-12.md).

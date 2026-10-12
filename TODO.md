@@ -39,34 +39,8 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-### `PXI-TODO-001` — Adopt the documentation policy
+None as of 2026-10-12.
 
-**Status:** in-progress
-
-**Source:** owner decision on 2026-10-12, accepting the migration map of the
-`inventory/design` step (questions 1 to 6)
-
-**Accepted scope:** the documentation policy, schema, and templates derived
-from PixieEngine's; the four documents written before it archived whole, in
-Portuguese, as imported records; the root documents, the development guide,
-and a `README.md` per host; the module documents (`MANIFEST.md`, `README.md`,
-`REFERENCE.md`) of `core`, `view-imgui`, `view-avalonia`, `view-winforms`, and
-`view-wpf`, written from the current source; the eight ideas of the PixieEngine
-editor discussion as proposals. Out of scope: any change to product code or
-public API, and the promotion of any proposal.
-
-**Dependencies and gates:**
-
-1. The owner accepts the migration map. Met on 2026-10-12.
-
-**Completion criteria:**
-
-- Every module has its three required surfaces, and every current claim in
-  them was checked against the source.
-- No current fact lives only in the archive.
-- Each module passes the self-review: metadata, links and anchors, one
-  normative reference, history kept as snapshots, proposals not presented as
-  facts.
-- The solution still builds with 0 warnings and 0 errors.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pxi-todo-001--adopt-the-documentation-policy)
+`PXI-TODO-001` (adopt the documentation policy) completed on 2026-10-12. Its
+entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/documentation-foundation-2026-10-12.md).
