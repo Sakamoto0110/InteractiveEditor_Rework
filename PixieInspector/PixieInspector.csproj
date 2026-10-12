@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <!-- PixieLib from nuget.org. The adapters and the hosts get PixieLib through this reference. -->
-    <PackageReference Include="PixieLib" Version="0.1.0" />
+    <PackageReference Include="PixieLib" Version="0.2.0" />
   </ItemGroup>
 
   <!-- The views were part of the core until the adapters had projects of their own, and they still
