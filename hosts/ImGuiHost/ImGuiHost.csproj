@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\PixieInspector.ImGui\PixieInspector.ImGui.csproj" />
+    <ProjectReference Include="..\..\views\PixieInspector.ImGui\PixieInspector.ImGui.csproj" />
   </ItemGroup>
 
 </Project>

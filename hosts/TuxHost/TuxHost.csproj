@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,12 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Terminal.Gui" Version="2.5.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
-    <ProjectReference Include="..\PixieInspector\PixieInspector.csproj" />
+    <ProjectReference Include="..\..\PixieInspector\PixieInspector.csproj" />
   </ItemGroup>
 
 </Project>
