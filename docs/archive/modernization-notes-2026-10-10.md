@@ -1,3 +1,54 @@
+# Imported: Modernization Notes (pt-BR)
+
+**Document ID:** ARCHIVE-MODERNIZATION-NOTES-20261010
+
+**Schema version:** 1
+
+**Kind:** roadmap/status
+
+**Lifecycle:** historical
+
+**Subject:** the pre-policy modernization notes: the 0.7.1a analysis, every decision of the rework (P1.1 onward) with the commits that applied it, the designs, and the checklist
+
+**Surface:** archive-record
+
+**Boundary:** global
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Archive ID:** PXI-ARCHIVE-001
+
+**Type:** import
+
+**Origin:** owner decision: the documentation migration of 2026-10-12 (PXI-TODO-001)
+
+**Author:** claude
+
+**Reference date:** 2026-10-10
+
+**Commits:** with this record (parent `28a9bb30e8c97775ee61e509afaef59af41a767e`)
+
+**Reference commit:** `2f7e72aa74dc77fcf48112648555dc2630a6bf1d`, the last commit that changed the document
+
+**Original path:** `docs/notas-modernizacao.md`, in this repository (then `Sakamoto0110/InteractiveEditor_Rework`)
+
+**Current state:** [`ROADMAP.md`](../../ROADMAP.md), [`docs/modules/`](../README.md), [`DEPENDENCIES.md`](../../DEPENDENCIES.md)
+
+The body below is the document as it stood at the reference commit, unchanged and in Portuguese
+(pt-BR). It predates the [documentation policy](../governance/documentation-policy.md), which was
+adopted on 2026-10-12; current documents are in English. It holds the rework's decisions, numbered
+by question (`P5.6`), and its sections (`3.11`); the source cites both, and those citations resolve
+here. Section 0 lists the decisions with the commits that applied them, sections 1 and 2 analyze the
+0.7.1a original, section 3 holds the designs (some superseded), section 6 is the checklist, and
+section 7 the first options model. Current facts were extracted, in English, to their current
+owners; where this record and a current owner disagree, the current owner wins.
+
+---
+
 # Notas de modernização
 
 Base de leitura: `Sakamoto0110/InteractiveEditor`, branch `InspectorVariant0.7.1a`

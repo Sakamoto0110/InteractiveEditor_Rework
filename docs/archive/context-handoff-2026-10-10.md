@@ -1,3 +1,53 @@
+# Imported: Context Handoff (pt-BR)
+
+**Document ID:** ARCHIVE-CONTEXT-HANDOFF-20261010
+
+**Schema version:** 1
+
+**Kind:** roadmap/status
+
+**Lifecycle:** historical
+
+**Subject:** the pre-policy agent handoff: commit rules, working agreements, where things were, how to verify a change, the code at the time, and the next steps
+
+**Surface:** archive-record
+
+**Boundary:** global
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Archive ID:** PXI-ARCHIVE-002
+
+**Type:** import
+
+**Origin:** owner decision: the documentation migration of 2026-10-12 (PXI-TODO-001)
+
+**Author:** claude
+
+**Reference date:** 2026-10-10
+
+**Commits:** with this record (parent `28a9bb30e8c97775ee61e509afaef59af41a767e`)
+
+**Reference commit:** `2f7e72aa74dc77fcf48112648555dc2630a6bf1d`, the last commit that changed the document
+
+**Original path:** `docs/passagem-de-contexto.md`, in this repository (then `Sakamoto0110/InteractiveEditor_Rework`)
+
+**Current state:** [`docs/development.md`](../development.md), [`docs/governance/documentation-policy.md`](../governance/documentation-policy.md), [`ROADMAP.md`](../../ROADMAP.md)
+
+The body below is the document as it stood at the reference commit, unchanged and in Portuguese
+(pt-BR). It predates the [documentation policy](../governance/documentation-policy.md), which was
+adopted on 2026-10-12; current documents are in English. Its project rules moved to the development
+guide and the documentation policy, and its description of the code to the module references. Paths
+and project names in it predate the rename to PixieInspector and the `hosts/` and `views/` folders
+(PXI-ARCHIVE-005, PXI-ARCHIVE-006). Current facts were extracted, in English, to their current
+owners; where this record and a current owner disagree, the current owner wins.
+
+---
+
 # Passagem de contexto
 
 Para retomar o trabalho num contexto novo. Estado de 10 de outubro de 2026, na branch

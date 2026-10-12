@@ -1,3 +1,51 @@
+# Imported: PixieLib Session Handoff (pt-BR)
+
+**Document ID:** ARCHIVE-PIXIELIB-HANDOFF-20261009
+
+**Schema version:** 1
+
+**Kind:** roadmap/status
+
+**Lifecycle:** historical
+
+**Subject:** the handoff that opened the PixieLib C# session: its rules, decisions, open questions, and how to verify
+
+**Surface:** archive-record
+
+**Boundary:** global
+
+**Authority role:** evidence
+
+**Mutation:** snapshot
+
+**Indexing:** include
+
+**Archive ID:** PXI-ARCHIVE-003
+
+**Type:** import
+
+**Origin:** owner decision: the documentation migration of 2026-10-12 (PXI-TODO-001)
+
+**Author:** claude
+
+**Reference date:** 2026-10-09
+
+**Commits:** with this record (parent `28a9bb30e8c97775ee61e509afaef59af41a767e`)
+
+**Reference commit:** `0770e7d69f6b66ce1bf48619877e372024c5d3a6`, the last commit that changed the document
+
+**Original path:** `docs/passagem-pixielib.md`, in this repository (then `Sakamoto0110/InteractiveEditor_Rework`)
+
+**Current state:** [`DEPENDENCIES.md`](../../DEPENDENCIES.md); PixieLib itself lives in `Sakamoto0110/PixieLib`
+
+The body below is the document as it stood at the reference commit, unchanged and in Portuguese
+(pt-BR). It predates the [documentation policy](../governance/documentation-policy.md), which was
+adopted on 2026-10-12; current documents are in English. That session ran in the PixieLib
+repository; PixieInspector now consumes PixieLib from nuget.org. Current facts were extracted, in
+English, to their current owners; where this record and a current owner disagree, the current owner
+wins.
+---
+
 # Passagem de contexto: a PixieLib em C#
 
 Para começar a parte em C# da PixieLib num contexto novo. Escrita em 2 de outubro de 2026, no fim de
