@@ -8,3 +8,5 @@
 *.user
 imgui.ini
 /hosts/NoHost
+
+/.local/
