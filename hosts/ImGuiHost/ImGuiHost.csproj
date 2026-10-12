@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- GLFW and the backends take native handles. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The window (GLFW) and ImGui's own GLFW and OpenGL3 backends, the versions made with Hexa.NET.ImGui
+         2.2.9; the adapter itself only needs Hexa.NET.ImGui. -->
+    <PackageReference Include="Hexa.NET.GLFW" Version="1.0.5" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.18" />
+    <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.18" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DemoObjects\DemoObjects.csproj" />
+    <ProjectReference Include="..\..\views\PixieInspector.ImGui\PixieInspector.ImGui.csproj" />
+  </ItemGroup>
+
+</Project>

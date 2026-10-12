@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/hosts/">
+    <Project Path="hosts/AvaloniaHost/AvaloniaHost.csproj" />
+    <Project Path="hosts/DemoObjects/DemoObjects.csproj" />
+    <Project Path="hosts/ImGuiHost/ImGuiHost.csproj" />
+    <Project Path="hosts/NoHost/NoHost.csproj" Id="99a5cfd7-88f1-4cb1-a621-49e600cfce44" />
+    <Project Path="hosts/TerminalHost/TerminalHost.csproj" />
+    <Project Path="hosts/TuxHost/TuxHost.csproj" />
+    <Project Path="hosts/WindowsHost/WindowsHost.csproj" />
+    <Project Path="hosts/WpfHost/WpfHost.csproj" />
+  </Folder>
+  <Folder Name="/views/">
+    <Project Path="views/PixieInspector.Avalonia/PixieInspector.Avalonia.csproj" />
+    <Project Path="views/PixieInspector.ImGui/PixieInspector.ImGui.csproj" />
+    <Project Path="views/PixieInspector.WinForms/PixieInspector.WinForms.csproj" />
+    <Project Path="views/PixieInspector.Wpf/PixieInspector.Wpf.csproj" />
+  </Folder>
+  <Project Path="PixieInspector/PixieInspector.csproj" />
+</Solution>

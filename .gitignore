@@ -7,4 +7,6 @@
 [Oo]bj/
 *.user
 imgui.ini
-/NoHost
+/hosts/NoHost
+
+/.local/
