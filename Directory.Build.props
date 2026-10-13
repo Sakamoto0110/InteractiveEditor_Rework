@@ -5,7 +5,7 @@
        commit with v and the Version. A new release raises the Version here. Projects are not packages
        unless they say so (IsPackable), so the hosts and DemoObjects stay out. -->
   <PropertyGroup>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <IsPackable>false</IsPackable>
     <Authors>Rafael Sakamoto</Authors>
     <Copyright>Copyright (c) 2026 Rafael Sakamoto</Copyright>

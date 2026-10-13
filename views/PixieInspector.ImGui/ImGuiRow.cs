@@ -8,8 +8,8 @@ using Gui = Hexa.NET.ImGui.ImGui;
 namespace PixieInspector.ImGui;
 
 // One row of the view, drawn in a line of the table: the label of a node in the first column, as a tree
-// node (a group's opens and closes it, P7.10), and its editor in the second, with the failure under it in
-// light red (P7.11). A number's label can be dragged to scrub it (P7.18), and a node with Help has a (?) at
+// node (a group's opens and closes it, P7.10), tinted when the objects hold different values (P7.19), and
+// its editor in the second, with the failure under it in light red (P7.11). A number's label can be dragged to scrub it (P7.18), and a node with Help has a (?) at
 // the end of its label, whose tooltip is the long help (P7.15). What fails while the row shows its objects
 // stays in the row (3.11).
 internal sealed class ImGuiRow
@@ -130,8 +130,17 @@ internal sealed class ImGuiRow
         else
             flags |= ImGuiTreeNodeFlags.Leaf;
 
-        // The label goes in as the format of the tree node, so a '%' in it is doubled.
+        // The label goes in as the format of the tree node, so a '%' in it is doubled. Objects that hold
+        // different values tint it, as the other views make it italic (P7.19).
+        var mixed = Mixed;
+
+        if (mixed)
+            Gui.PushStyleColor(ImGuiCol.Text, ImGuiInspectorView.MixedColor);
+
         var open = Gui.TreeNodeEx("##label", flags, Node.Label.Replace("%", "%%"));
+
+        if (mixed)
+            Gui.PopStyleColor();
 
         if (IsGroup && open == Node.Collapsed)
             Node.Collapsed = !open;
@@ -139,6 +148,10 @@ internal sealed class ImGuiRow
         Scrub?.Update();
 
         var detail = Node.ValueType is { } type ? $"{TypeName(type)}  {Node.Path}" : Node.Path;
+
+        if (mixed)
+            detail += Scrubs ? "\nThe objects hold different values; this shows the first one's." : "\nThe objects hold different values.";
+
         ImGuiInspectorView.Tooltip(Node.Tooltip, detail);
 
         if (!string.IsNullOrEmpty(Node.Help) && Kind != EditorKind.Header)

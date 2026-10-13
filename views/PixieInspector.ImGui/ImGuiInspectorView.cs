@@ -22,6 +22,11 @@ public sealed class ImGuiInspectorView : IDisposable
     // The text of a failure, under the editor of its row (P7.11).
     internal static readonly Vector4 ErrorColor = new(1f, 0.4f, 0.4f, 1f);
 
+    // The label of a row whose objects hold different values (P7.19), where the other views use italic,
+    // which ImGui's default font does not have. A row that scrubs shows the first object's value (P2.4),
+    // and this is what tells it from a value they all hold.
+    internal static readonly Vector4 MixedColor = new(0.95f, 0.75f, 0.35f, 1f);
+
     // The rows drawn so far, kept for what ImGui does not keep between frames; a node that changes its
     // editor gets a new row.
     private readonly Dictionary<InspectorNode, ImGuiRow> RowsByNode = [];
