@@ -31,6 +31,17 @@ public class Gadget
     [InspectorEditor(EditorKind.Color)]
     public PxColorRgba Fill { get; set; } = new(0, 128, 255);
 
+    // An arc: the direction of a cone and its width, held in radians and shown in degrees. The views that
+    // draw no arc show the direction as a number.
+    [InspectorArc(nameof(Spread))]
+    [InspectorUnit("°", DisplayUnit.RadiansToDegrees)]
+    [InspectorScrub(1)]
+    public double Direction { get; set; } = Math.PI / 2;
+
+    [InspectorUnit("°", DisplayUnit.RadiansToDegrees)]
+    [InspectorRange(0, 360)]
+    public double Spread { get; set; } = Math.PI / 3;
+
     public Moo Inner { get; set; } = new();
 
     public List<Moo> Parts { get; set; } = [new(), new()];
