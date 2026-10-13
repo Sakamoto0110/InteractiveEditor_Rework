@@ -30,7 +30,7 @@ internal abstract class AvaloniaEditor
     public static AvaloniaEditor? For(AvaloniaRow row, EditorKind? kind) => kind switch
     {
         null or EditorKind.Header => null,
-        EditorKind.Number when NumberEditor.Fits(row.Node.ValueType) => new NumberEditor(row),
+        EditorKind.Number when NumberEditor.Fits(row.Node.ViewType) => new NumberEditor(row),
         EditorKind.Toggle => new ToggleEditor(row),
         EditorKind.Choice => new ChoiceEditor(row),
         EditorKind.Slider => new SliderEditor(row),

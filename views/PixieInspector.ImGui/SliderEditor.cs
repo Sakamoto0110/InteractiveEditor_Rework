@@ -6,7 +6,8 @@ using Gui = Hexa.NET.ImGui.ImGui;
 namespace PixieInspector.ImGui;
 
 // A slider over the node's range (P7.9), in double whatever the member's number type, which the core
-// converts to. It goes by the range's step, and writes while it is dragged (P2.12).
+// converts to. It goes by the range's step, and writes while it is dragged (P2.12). A number shown in a
+// Unit slides in that unit, with its suffix after the value.
 internal sealed class SliderEditor(ImGuiRow row) : ImGuiEditor(row)
 {
     // The most decimals a slider shows, for a step that small or no step.
@@ -36,7 +37,11 @@ internal sealed class SliderEditor(ImGuiRow row) : ImGuiEditor(row)
             Row.Write(() => Node.SetValue(written));
     }
 
-    // Whole numbers for a member that holds them, and otherwise as many decimals as the step has.
+    // The unit's suffix as ImGui prints it, a '%' doubled.
+    private string Suffix => Node.Unit?.Suffix.Replace("%", "%%") ?? string.Empty;
+
+    // Whole numbers for a member that holds them, unless a unit shows them, and otherwise as many decimals
+    // as the step has.
     private string FormatFor(NumericRange range)
     {
         var type = Node.ValueType is { } held ? Nullable.GetUnderlyingType(held) ?? held : null;
@@ -44,10 +49,10 @@ internal sealed class SliderEditor(ImGuiRow row) : ImGuiEditor(row)
         if (Type.GetTypeCode(type) is TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32
             or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64)
         {
-            return "%.0f";
+            return Node.Unit == null ? "%.0f" : $"%.{MaxDecimals}f{Suffix}";
         }
 
         var decimals = range.Step > 0 ? Math.Clamp((int)Math.Ceiling(-Math.Log10(range.Step)), 0, MaxDecimals) : MaxDecimals;
-        return $"%.{decimals}f";
+        return $"%.{decimals}f{Suffix}";
     }
 }
