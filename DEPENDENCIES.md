@@ -60,7 +60,7 @@ version change.
 
 | Dependency | Used for | In use | Latest | Status | Notes |
 |---|---|---|---|---|---|
-| PixieLib (.NET) | The primitives: points, sizes, rectangles, colors | 0.1.0 from nuget.org, in `PixieInspector/` only; the views and hosts get it through the core | 0.1.0 | `ok` | `Sakamoto0110/PixieLib`. A change to it is made there and returns as a new package version. |
+| PixieLib (.NET) | The primitives: points, sizes, rectangles, colors | 0.2.0 from nuget.org, in `PixieInspector/` only; the views and hosts get it through the core | 0.2.0 | `ok` | `Sakamoto0110/PixieLib`. Adopted 2026-10-12, replacing 0.1.0: point arithmetic became affine (point - point is a vector; a point or a rectangle moves by a vector), and segments arrived. A change to it is made there and returns as a new package version. |
 
 ## Candidates
 

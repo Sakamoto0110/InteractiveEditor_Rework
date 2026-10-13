@@ -182,6 +182,9 @@ The core:
   rounding rule applies to number editors, not to text.
 - PixieLib's `PxColorRgba` takes alpha last, `new(r, g, b, a = 255)`; four bytes
   in another order compile and give another color.
+- Since PixieLib 0.2.0, point arithmetic is affine: `point - point` is a vector,
+  and a point or a rectangle moves by a vector. `point + point`, `point * k`, and
+  `-point` do not compile; subtract a reference point first.
 - PixieLib comes from the nuget.org package. A change to it goes to
   `Sakamoto0110/PixieLib` and returns as a new package version.
 
