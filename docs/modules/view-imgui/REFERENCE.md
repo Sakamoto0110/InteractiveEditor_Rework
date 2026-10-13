@@ -42,6 +42,14 @@ brings its own native library and its own ImGui context; a view on one binding
 draws into a context the host on another never renders. The view needs nothing
 else from the host: no window, renderer, or backend of its own.
 
+A host on Hexa.NET's backends (`ImGuiImplGLFW`, `ImGuiImplOpenGL3`) gives each
+backend the context with its `SetCurrentContext`, because each backend DLL
+keeps a copy of its own. `DestroyContext` clears only cimgui's copy, so on
+shutdown the host sets each backend's context back to null, after the backend's
+`Shutdown` and before `DestroyContext`. Otherwise `ImGuiImplGLFW.dll` reads the
+destroyed context at process exit and the process faults with `0xC0000005` in
+about half the runs ([PXI-ARCHIVE-013](../../archive/imgui-host-exit-fault-2026-10-13.md)).
+
 ## Entry points
 
 | Member | Does |

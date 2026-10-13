@@ -227,6 +227,10 @@ The views:
 
 - Inside the namespace `PixieInspector.ImGui`, the bare name `ImGui` is the
   namespace, not Hexa.NET.ImGui's class; the files use the alias `Gui`.
+- Each Hexa.NET ImGui backend DLL keeps its own current context. A host sets
+  it to null on each backend after the backend's `Shutdown` and before
+  `ImGui.DestroyContext`; otherwise the process faults (`0xC0000005`) at exit,
+  after `Main` returns, in about half the runs.
 - In ImGui 1.92 (Hexa.NET.ImGui 2.2.9), a text field with `EnterReturnsTrue`
   hands its text back only when it is let go, and on Esc it hands back what was
   typed; the text editor treats Esc as a cancel. Headless, the font atlas is a

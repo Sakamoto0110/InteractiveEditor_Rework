@@ -125,6 +125,12 @@ internal sealed class Program : IImGuiHost
         Current?.Dispose();
         ImGuiImplOpenGL3.Shutdown();
         ImGuiImplGLFW.Shutdown();
+
+        // Each backend DLL keeps its own copy of the current context, which DestroyContext does not clear.
+        // Left pointing at the freed context, ImGuiImplGLFW.dll reads it at process exit, when a static
+        // vector of its own is freed, and the process faults (0xC0000005) in about half the runs.
+        ImGuiImplOpenGL3.SetCurrentContext(default);
+        ImGuiImplGLFW.SetCurrentContext(default);
         ImGui.DestroyContext(context);
         GLFW.DestroyWindow(window);
         GLFW.Terminate();
