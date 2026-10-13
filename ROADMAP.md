@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-12
+**Direction decision date:** 2026-10-13
 
 ## Purpose
 
@@ -102,6 +102,11 @@ numbered `P` and the sections cited by the source are in
   2026-10-12 ([PXI-ARCHIVE-007](docs/archive/documentation-foundation-2026-10-12.md)).
 - **The name is PixieInspector.** Accepted 2026-10-12
   ([PXI-ARCHIVE-005](docs/archive/rename-pixieinspector-2026-10-12.md)).
+- **Five packages on nuget.org, at one version:** the core and the four views,
+  released together, under the MIT license. Every view is published, used or
+  not, so a consumer can pick any of them. A view requires the core of its own
+  version exactly, because it sees `ViewRules`. Accepted 2026-10-13
+  ([PXI-ARCHIVE-011](docs/archive/nuget-packages-2026-10-13.md)).
 
 ## Freezes
 

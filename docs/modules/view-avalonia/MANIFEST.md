@@ -28,7 +28,7 @@ Platforms: windows, linux, macos
 Target frameworks: net10.0
 Module dependencies: core
 Third-party dependencies: Avalonia
-Distribution: unshipped
+Distribution: package
 Stability: preview
 Public API: views/PixieInspector.Avalonia/PixieInspector.Avalonia.csproj
 Profiles: none
