@@ -9,8 +9,8 @@ namespace PixieInspector.Views;
 internal static class ViewRules
 {
     // The editor a row makes for a node: none for a group, unless it is a collection (its selector or
-    // its list); a slider with no range is a number, and an editor still to be chosen (an inspector
-    // with no type, before the bind) is text.
+    // its list); a slider with no range is a number, as is an arc without a number sibling for its
+    // spread, and an editor still to be chosen (an inspector with no type, before the bind) is text.
     public static EditorKind? KindFor(InspectorNode node)
     {
         if (node.Editor == EditorKind.Header)
@@ -22,6 +22,8 @@ internal static class ViewRules
         return node.Editor switch
         {
             EditorKind.Slider when node.Range == null => EditorKind.Number,
+            EditorKind.Arc when !IsNumber(node.ValueType) || node.ArcSpreadNode is not { } spread || !IsNumber(spread.ValueType)
+                => EditorKind.Number,
             EditorKind.Auto => EditorKind.Text,
             var kind => kind,
         };
@@ -39,7 +41,7 @@ internal static class ViewRules
     public static bool ShowsMixed(EditorKind? kind, InspectorNode node)
     {
         return kind is EditorKind.Text or EditorKind.Number or EditorKind.Toggle or EditorKind.Choice
-            or EditorKind.Slider or EditorKind.Color or EditorKind.Display && node.IsMixed;
+            or EditorKind.Slider or EditorKind.Color or EditorKind.Arc or EditorKind.Display && node.IsMixed;
     }
 
     // A number as a double; a null (a nullable number with no value) counts as the fallback.

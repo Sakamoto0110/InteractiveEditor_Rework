@@ -81,6 +81,13 @@ internal static class AttributePolicy
             valued.ScrubMultiplier = scrub.Multiplier;
             valued.ScrubAxis = scrub.Axis;
         });
+        Use<InspectorUnitAttribute>(node, inspector, unit => valued.Unit = new DisplayUnit(unit.Suffix, unit.Factor, unit.Offset));
+        Use<InspectorArcAttribute>(node, inspector, arc =>
+        {
+            node.Editor = EditorKind.Arc;
+            node.ArcSpread = arc.Spread;
+            chosen = true;
+        });
         Use<InspectorOrderAttribute>(node, inspector, order => node.Order = order.Order);
 
         return chosen;

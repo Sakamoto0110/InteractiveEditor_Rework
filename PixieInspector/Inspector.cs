@@ -154,6 +154,12 @@ public sealed class Inspector : IEnumerable<InspectorNode>, IDisposable
 
     public DisplayNode AddDisplay(string name, Func<object?> read) => Root.AddDisplay(name, read);
 
+    public FieldNode AddField(string name, Type valueType, Func<object, object?> read, Action<object, object?>? write = null) =>
+        Root.AddField(name, valueType, read, write);
+
+    public FieldNode AddField<TOwner, TValue>(string name, Func<TOwner, TValue> read, Action<TOwner, TValue>? write = null)
+        where TOwner : class => Root.AddField(name, read, write);
+
     // Binding over a bound object throws: the swap is explicit (Rebind), and adding one is AddBind.
     public void Bind(object instance)
     {
