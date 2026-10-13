@@ -8,6 +8,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>The Dear ImGui view of PixieInspector, on Hexa.NET.ImGui: draws an inspector as a two-column table inside the host's ImGui frame. The host must use the same ImGui binding and version.</Description>
+    <PackageTags>inspector;property-grid;imgui;dear-imgui</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Hexa.NET.ImGui" Version="2.2.9" />
   </ItemGroup>
