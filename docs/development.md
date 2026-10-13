@@ -118,6 +118,40 @@ when the window opened, and `xdotool` clicks and types. Wine is not Windows:
 fonts are substitutes and there is no visual theme, so the owner checks the
 final look on Windows.
 
+## Packages
+
+The core and the four views are five packages on nuget.org, always released
+together at one version:
+
+- `Directory.Build.props` holds the `Version` and the metadata the packages
+  share. A project is a package only if it sets `IsPackable`; the hosts and
+  `DemoObjects` do not.
+- `Directory.Build.targets` makes each view require the core of its own
+  version exactly (`[0.1.0]`), because the views use the core's internal
+  `ViewRules`. A consumer that forces another core version gets `NU1608`.
+- To see what would be published:
+
+  ```bash
+  dotnet pack PixieInspector.slnx -c Release -p:EnableWindowsTargeting=true -o artifacts
+  ```
+
+  Restore the packages into a scratch `NUGET_PACKAGES` directory, not the
+  global one: a local build cached as `0.1.0` would shadow the published
+  package of the same version.
+
+CI (`.github/workflows/ci.yml`) builds on Linux and Windows with warnings as
+errors, runs the two checks above, and packs, on every pull request and push
+to `main`. To release:
+
+1. Raise the `Version` in `Directory.Build.props`, and merge it into `main`.
+2. On GitHub, run Actions, Publish, Run workflow, on `main`. It runs CI, stops
+   if the tag `v<Version>` already exists, pushes the five packages to
+   nuget.org by trusted publishing, and makes the release with that tag.
+
+A version on nuget.org cannot be deleted, only unlisted. A run that failed
+halfway through the pushes can be run again; it skips the packages already
+there.
+
 ## Git
 
 - Configure the identity before the first commit in a new clone:
@@ -130,12 +164,13 @@ final look on Windows.
 
 - Follow the [commit rules](governance/documentation-policy.md#commits): no
   co-author or tool lines, English messages with a prefix, code and
-  documentation in separate commits, and pushes to `rework-claude`.
+  documentation in separate commits, and a branch per task that reaches `main`
+  through a pull request.
 - After a push, check that GitHub shows the commits under the login
   `Sakamoto0110`, two lines (author and committer) per commit:
 
   ```bash
-  curl -s "https://api.github.com/repos/Sakamoto0110/PixieInspector/commits?sha=rework-claude&per_page=N" |
+  curl -s "https://api.github.com/repos/Sakamoto0110/PixieInspector/commits?sha=<branch>&per_page=N" |
     grep '"login"'
   ```
 

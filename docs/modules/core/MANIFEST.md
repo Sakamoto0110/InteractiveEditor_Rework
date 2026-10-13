@@ -28,7 +28,7 @@ Platforms: windows, linux, macos
 Target frameworks: net10.0
 Module dependencies: none
 Third-party dependencies: PixieLib
-Distribution: unshipped
+Distribution: package
 Stability: preview
 Public API: PixieInspector/PixieInspector.csproj
 Profiles: none

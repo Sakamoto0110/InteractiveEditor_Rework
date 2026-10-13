@@ -8,6 +8,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>The Avalonia view of PixieInspector: a property grid for an inspector, and the conversions of the PixieLib primitives with Avalonia types.</Description>
+    <PackageTags>inspector;property-grid;avalonia</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />
   </ItemGroup>

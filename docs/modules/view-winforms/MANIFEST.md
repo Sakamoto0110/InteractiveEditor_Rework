@@ -28,7 +28,7 @@ Platforms: windows
 Target frameworks: net10.0-windows
 Module dependencies: core
 Third-party dependencies: none
-Distribution: unshipped
+Distribution: package
 Stability: preview
 Public API: views/PixieInspector.WinForms/PixieInspector.WinForms.csproj
 Profiles: none

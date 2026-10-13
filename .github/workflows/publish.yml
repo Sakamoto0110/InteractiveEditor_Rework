@@ -1,0 +1,70 @@
+# Publishes the five packages to nuget.org, started by hand on GitHub (Actions, Publish, Run workflow),
+# from main only. It runs ci.yml first, then packs the core and the four views at the Version of
+# Directory.Build.props, pushes them to nuget.org, and makes a release with the tag v and the Version.
+# nuget.org lets this file in by trusted publishing (the policy of the account Nekovih names it), so
+# there is no API key in the repository. A version on nuget.org cannot be deleted, only unlisted, and
+# a tag that already exists stops the run before anything is pushed. If a push fails halfway, running
+# the workflow again skips the packages already there and pushes the rest.
+name: Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # the tag and the release
+      id-token: write  # trusted publishing on nuget.org
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          version=$(dotnet msbuild PixieInspector/PixieInspector.csproj -getProperty:Version)
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::$tag already exists; raise the Version in Directory.Build.props."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Pack
+        run: dotnet pack PixieInspector.slnx -c Release -p:EnableWindowsTargeting=true -o artifacts
+
+      - name: Log in to nuget.org
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: Nekovih
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ steps.version.outputs.tag }}" artifacts/*.nupkg artifacts/*.snupkg
+          --target "${{ github.sha }}"
+          --title "PixieInspector ${{ steps.version.outputs.version }}"
+          --generate-notes

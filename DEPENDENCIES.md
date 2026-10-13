@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last checked:** 2026-10-12
+**Last checked:** 2026-10-13
 
 This is the master list of what PixieInspector depends on: toolchain, packages,
 and the owner's own projects. It owns which dependency is used, why, and its
@@ -45,6 +45,7 @@ version change.
 |---|---|---|---|---|---|
 | .NET SDK 10 | Everything; C# 14 | 10.0.401 | — | `ok` | Builds the Windows targets on any system with `EnableWindowsTargeting`. |
 | .NET desktop runtime (WinForms, WPF) | The WinForms and WPF views and hosts | From the SDK (`UseWindowsForms`, `UseWPF`) | — | `ok` | Windows only; on Linux the hosts run under Wine (see the [development guide](docs/development.md#windowed-hosts-on-linux)). The WPF view also uses WinForms, for its color dialog. |
+| GitHub Actions | CI and publishing, in `.github/workflows/` | `actions/checkout` v5, `actions/setup-dotnet` v5, `NuGet/login` v1 | v7, v6, v1 | `ok` | Adopted 2026-10-13, the same versions as PixieLib's workflows, deliberately; moving to the newer majors is a change for both repositories together. Publishing uses nuget.org trusted publishing, with the policy on the account Nekovih, so there is no API key in the repository. |
 
 ## Packages
 

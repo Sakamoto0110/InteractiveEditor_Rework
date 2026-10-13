@@ -8,6 +8,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- The package; Directory.Build.props holds the Version and what the five packages share. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>A reflection-based object inspector for .NET: point it at a type, bind one or more objects, and it builds a tree of the members, reads and writes them, and reports what it could not do. The core knows no UI framework; a view package shows the tree and edits it.</Description>
+    <PackageTags>inspector;property-grid;reflection;editor</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- PixieLib from nuget.org. The adapters and the hosts get PixieLib through this reference. -->
     <PackageReference Include="PixieLib" Version="0.2.0" />

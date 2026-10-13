@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- A view's package requires the core of its own Version exactly ([0.1.0]), not that version or any
+       later one, which is what pack makes of a ProjectReference. The views use the core's internals
+       (ViewRules, through InternalsVisibleTo, P7.21), which may change in any release; a view next to a
+       core of another version would fail at run time, not at build time. -->
+  <Target Name="PackExactProjectReferenceVersions" AfterTargets="_GetProjectReferenceVersions">
+    <ItemGroup>
+      <_ExactProjectReferenceVersions Include="@(_ProjectReferencesWithVersions)"
+                                      ProjectVersion="[%(_ProjectReferencesWithVersions.ProjectVersion)]" />
+      <_ProjectReferencesWithVersions Remove="@(_ProjectReferencesWithVersions)" />
+      <_ProjectReferencesWithVersions Include="@(_ExactProjectReferenceVersions)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

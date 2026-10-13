@@ -41,6 +41,8 @@ to its owner; they must not maintain a competing mutable copy.
 |---|---|
 | Implemented behavior | Current source code |
 | Targets, references, package references, and build properties | Each project file (`*.csproj`) |
+| Package version and the metadata the packages share | `Directory.Build.props` |
+| CI and publishing | `.github/workflows/` |
 | Solution membership | `PixieInspector.slnx` |
 | Dependencies (toolchain, packages, own projects), versions, status, and candidates | Root `DEPENDENCIES.md` |
 | Public API | The compiled assemblies of the core and the views; no accepted API baseline exists yet |
@@ -217,8 +219,9 @@ is evidence; it never defines behavior.
 - Commits carry the owner's identity only, as author and committer:
   `Rafael Sakamoto <rafael.sakamoto1@hotmail.com>`, with no co-author or tool
   attribution lines.
-- Work is pushed to the `rework-claude` branch. `main` changes only by an owner
-  decision, through a merge.
+- Work is pushed to a branch of its own, one per task, and reaches `main`
+  through a pull request merged by owner decision. A branch is deleted once it
+  is merged; no long-lived work branch is kept.
 - History may be rewritten only before it is pushed; afterwards, a correction
   is a new commit.
 

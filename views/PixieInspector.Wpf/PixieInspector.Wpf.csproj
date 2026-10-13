@@ -12,6 +12,12 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>The WPF view of PixieInspector: a property grid for an inspector, and the conversions of the PixieLib primitives with WPF types. Windows only.</Description>
+    <PackageTags>inspector;property-grid;wpf</PackageTags>
+  </PropertyGroup>
+
   <!-- WinForms adds System.Drawing and System.Windows.Forms to the implicit usings; taken out, each
        file says what it uses, as in the core. -->
   <ItemGroup>

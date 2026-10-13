@@ -28,7 +28,7 @@ Platforms: windows, linux, macos
 Target frameworks: net10.0
 Module dependencies: core
 Third-party dependencies: Hexa.NET.ImGui
-Distribution: unshipped
+Distribution: package
 Stability: preview
 Public API: views/PixieInspector.ImGui/PixieInspector.ImGui.csproj
 Profiles: none

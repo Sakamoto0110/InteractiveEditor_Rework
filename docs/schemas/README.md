@@ -49,7 +49,7 @@ or on its validation freeze.
 | Working agreements | Commit rules inside the policy | The policy keeps the commit rules; `docs/development.md` holds build and verification | NekoLib's `docs/development.md`; this repository's day-to-day practice |
 | Samples | `<sample directory>/README.md` | `hosts/<host>/README.md` | The hosts are the samples |
 | Commit prefixes | `(feat)`, `(fix)`, `(refactor)`, `(docs)` | Adds `(testing)` and `(chore)` | Already in use in this repository's history |
-| Commit identity and branch | Owner identity; nothing pushed without an owner decision | Owner identity named; pushes to `rework-claude`, `main` by owner decision | This repository's practice since 2026-09 |
+| Commit identity and branch | Owner identity; nothing pushed without an owner decision | Owner identity named; a branch per task, merged into `main` through a pull request by owner decision | This repository's practice since 2026-09; a branch per task since 2026-10-13 ([PXI-ARCHIVE-012](../archive/branch-per-task-2026-10-13.md)) |
 | Vendored code | Its own commit | Not covered | No vendored code; dependencies come from NuGet |
 | Imported records | Archived the same way | The body keeps its language under an English header | The pre-policy documents are in Portuguese and cited from source; owner decision, 2026-10-12 |
 | Validation boundaries | Includes `ipc` | Without `ipc` | No inter-process code |
