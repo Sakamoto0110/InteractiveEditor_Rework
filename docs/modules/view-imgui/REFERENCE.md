@@ -127,14 +127,17 @@ The editor comes from `ViewRules.KindFor(node)`, shared with the other views.
   (ImGui's default font has no em dash): the text field shows none with a grey
   dash, the check box is indeterminate, the combo has nothing chosen, the
   color shows a dash and opens on the first object's color. A value set then
-  goes to all of them (P7.19).
+  goes to all of them (P7.19). The row's label is tinted amber, where the
+  other views make it italic (ImGui's default font has none), and its tooltip
+  says the objects differ.
 - A number with a `ScrubMultiplier` scrubs from its label (P7.18): dragging
   past a few pixels moves the value by the distance times the multiplier,
   across or up and down (`ScrubAxis`), and writes while it drags. Each object
   moves by the same delta from where it started (`SetValues`, P7.16); Shift
   makes the step ten times larger, Ctrl ten times smaller, and Esc puts every
   object back. A row that scrubs shows the first object's value instead of the
-  dash.
+  dash (P2.4), and the tinted label is what tells it from a value they all
+  hold; so does an arc.
 
 ## Lifecycle, errors, and threading
 
