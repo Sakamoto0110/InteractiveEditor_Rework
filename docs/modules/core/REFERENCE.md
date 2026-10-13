@@ -110,9 +110,9 @@ inspector lives; `Dispose` releases the lock.
 - **Groups.** A node is a group when it has members and is `Expandable`.
   `Collapsed` closes it in the view; `Visible` and `ReadOnly` are read through
   the parents, so hiding or locking a node takes its branch along.
-- **Adding by hand.** `Add(name)`, `AddButton(name, text, press)`, and
-  `AddDisplay(name, read)` work on the inspector (the root) and on member
-  nodes. A name already used under the same node throws `ArgumentException`.
+- **Adding by hand.** `Add(name)`, `AddButton(name, text, press)`,
+  `AddDisplay(name, read)`, and `AddField(...)` (below) work on the inspector
+  (the root) and on member nodes. A name already used under the same node throws `ArgumentException`.
   In a typed inspector, `Add` finds the member at once (an unknown name throws
   `ArgumentException`; a node that holds a simple type or a collection throws
   `InvalidOperationException`), applies the reflection and attribute layers,
@@ -122,6 +122,19 @@ inspector lives; `Dispose` releases the lock.
   only the name until a bind finds the member; the bind then chooses the
   node's editor from the member's type, unless one was set, and no reflection
   or attribute layer applies.
+- **Fields with their own reader and writer.** `AddField(name, valueType,
+  read, write)`, or `AddField<TOwner, TValue>(name, read, write)` with
+  `TOwner` a class, adds a `FieldNode`: a `MemberNode` with no member behind
+  it, whose reader and writer get the object the node sits in, in each bound
+  object (the bound object itself under the root). It is read and written as a
+  member is, with the options, the rules, the events, several bound objects,
+  and mixed values; its editor follows `valueType` as reflection would choose
+  it, and no attribute layer applies. With no writer it is read-only. What the
+  reader or the writer throws is reported on the node, as a getter's or a
+  setter's is. The object it sits in must be a class: writing into a struct
+  throws `InvalidOperationException`. It is how a host shows fields that
+  reflection cannot see, such as those a native component descriptor lists,
+  with each bound object a handle to one native instance.
 
 ## Discovery
 
@@ -148,8 +161,8 @@ inspector lives; `Dispose` releases the lock.
 
 Every node carries its options: `Label`, `Tooltip`, `Help`, `Order`,
 `Ignored`, `Visible`, `VisibleWhen`, `ReadOnly`, `Editor`, `Range`, `Choices`,
-`ScrubMultiplier`, `ScrubAxis`, `Expandable`, `Collapsed`, and the lists
-`TextRules` and `ValueRules`. They are set in three layers; each overwrites
+`ScrubMultiplier`, `ScrubAxis`, `Unit`, `ArcSpread`, `Expandable`,
+`Collapsed`, and the lists `TextRules` and `ValueRules`. They are set in three layers; each overwrites
 what the one before set.
 
 1. **Reflection** (`ReflectionPolicy`). The label is the member's name. The
@@ -174,6 +187,8 @@ what the one before set.
    | `[InspectorEditor(kind)]` | `Editor` |
    | `[InspectorRange(min, max)]`, `Step` | `Range`; on a collection, its item's |
    | `[InspectorScrub(multiplier)]`, `Axis` | `ScrubMultiplier` and `ScrubAxis`; on a collection, its item's |
+   | `[InspectorUnit(suffix, factor)]`, `Offset` | `Unit`; on a collection, its item's |
+   | `[InspectorArc(spread)]` | `Editor` (`Arc`) and `ArcSpread` |
    | `[InspectorOrder(order)]` | `Order` |
    | `[InspectorExpandable]`, `Collapsed` | `Expandable` and `Collapsed`, on the member or on its type, when there is something to open |
 
@@ -253,6 +268,24 @@ rule at once.
   `WorkedAround`. A write into a struct is written back into its owner, up the
   chain. Writing into a group, a button, a display, the root, a read-only node,
   or a node whose owner is null throws `InvalidOperationException`.
+- **A display unit.** `Unit` (`DisplayUnit`: `Suffix`, `Factor`, `Offset`)
+  shows and takes a number in another unit than the member holds:
+  shown = held × `Factor` + `Offset`, rounded to 12 significant digits so a
+  value that went in and back shows as typed. `DisplayUnit.Degrees` is an
+  angle held in radians and shown in degrees (`DisplayUnit.RadiansToDegrees`
+  is its factor, for the attribute). With a unit, `ViewValue`, `ViewValues`,
+  and `IsMixed` are in it, as a `double` (`ViewType` is `double`, or
+  `double?` for a nullable member), and so are the values `SetValue` and
+  `SetValues` take, text included, and the `Range`; the value goes back to
+  the member's unit before the `ValueRules`. Scrubbing moves each object by
+  the same delta in the unit shown. `GetValue` and `GetValues` read the member
+  as it is. A unit on anything but a number does nothing.
+- **An arc.** `Editor = Arc` with `ArcSpread` naming a sibling edits the node
+  as the center of an arc and the sibling as its width, both held in radians,
+  whatever unit shows them; `ArcSpreadNode` finds the sibling, or null.
+  `[InspectorArc(nameof(Spread))]` sets both. The sibling keeps its own row
+  unless the caller hides it (`Ignored`); ignored, it is still read. A view
+  that draws no arc shows the center as a number.
 - **The binder control.** `InspectorOptions.BinderControl` is a flags enum:
   `ViewToInstance` sends a write to the objects at once; without it, the value
   waits in the node (`HasPendingValue`) until `Apply()`. `InstanceToView` lets
@@ -391,7 +424,12 @@ units in WPF); a negative length or a non-number throws.
 
 - `ViewRules.KindFor(node)` gives the editor a row makes: none for a group,
   except a collection's selector or list; a `Slider` with no range is a
-  `Number`; `Auto` (an inspector with no type, before the bind) is `Text`.
+  `Number`, and so is an `Arc` that is not a number or whose `ArcSpread`
+  names no number sibling; `Auto` (an inspector with no type, before the
+  bind) is `Text`.
+- `ViewType` is the type of what the view holds and writes: a `double` for a
+  number shown in a `Unit`, the `ValueType` otherwise. A view picks its number
+  widget by it, and shows the unit's `Suffix` if it chooses to.
 - `ViewRules.CanScrub(node)`: a number with a non-zero `ScrubMultiplier`,
   writable and not in a disabled branch (P7.17).
 - `ViewRules.ShowsMixed(kind, node)`: only a row with a value of its own shows

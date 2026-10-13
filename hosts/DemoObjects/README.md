@@ -9,6 +9,6 @@ attributes, and gets PixieLib through it.
 | `Boo`, `Coo` | `DemoObjects.StructObjects` | Structs with a nested struct: an edit two levels down is written back through both copies |
 | `Boo` | `DemoObjects.AttributedObjects` | Each of the ten `[Inspector*]` attributes |
 | `Hoo` | `DemoObjects.HybridObjects` | Properties of every simple kind (text, toggle, enum, nullable) and a struct member |
-| `Gadget`, `GadgetMode` | `DemoObjects.ViewObjects` | A member for each editor of the views, long help, and scrubbing in both directions |
+| `Gadget`, `GadgetMode` | `DemoObjects.ViewObjects` | A member for each editor of the views, long help, scrubbing in both directions, and an arc held in radians and shown in degrees (`Direction`, `Spread`) |
 
 Two types are called `Boo`; the hosts alias one of them.

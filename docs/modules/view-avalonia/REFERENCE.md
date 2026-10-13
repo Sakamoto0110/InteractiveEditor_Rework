@@ -73,6 +73,10 @@ The editor comes from `ViewRules.KindFor(node)`, shared with the other views.
 Avalonia has no color dialog of its own (its color picker is a separate
 package), hence the flyout.
 
+- An `Arc` shows its center as a number (no dial); its width keeps its own
+  row. A number in a `Unit` is shown and typed in that unit, which the core
+  converts, without the unit's suffix.
+
 ## Rows
 
 - A node with `Help` has a `(?)` mark in the theme's color for secondary text,

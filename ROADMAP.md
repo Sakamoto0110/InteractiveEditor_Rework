@@ -95,6 +95,12 @@ numbered `P` and the sections cited by the source are in
   hosts, and PixieEngine is unaffected (2026-10-12).
 - **Manual mode serves types without attributes,** such as PixieEngine's
   proxies, where the host creates the members itself. Accepted 2026-10-12.
+- **A single source of metadata.** A host whose fields and their metadata
+  come from elsewhere, such as PixieEngine's native component descriptors,
+  builds the inspector from them with `AddField` and the node options, with no
+  hand-written proxy per type; the options are the vocabulary those
+  descriptors mirror (`docs/modules/core/REFERENCE.md`). Accepted 2026-10-13
+  ([PXI-ARCHIVE-014](docs/archive/ssom-fields-units-arc-2026-10-13.md)).
 - **The TuxHost is the versioned verification console;** `hosts/NoHost` is the
   owner's local console and stays in the solution.
 - **Documentation in English** under the

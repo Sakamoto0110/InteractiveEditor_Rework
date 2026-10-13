@@ -68,6 +68,9 @@ holds here, with these differences:
   `Name` cannot hold the dots of a path; `Tag` stays free for the application.
 - **UI thread.** What comes from another thread is marshalled through the
   view's `Dispatcher` (P7.12).
+- **Arcs and units.** As in the WinForms view: an `Arc` shows its center as
+  a number, and a number in a `Unit` is shown and typed in it, without the
+  suffix.
 
 ## Conversions
 
