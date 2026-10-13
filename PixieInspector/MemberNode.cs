@@ -283,17 +283,19 @@ public class MemberNode : InspectorNode
     }
 
     // Turns what came in into what the member takes: text through the text rules and the parser, a
-    // number into the member's number type, then the value rules and the range. A value of an
-    // unrelated type is a mistake of the caller, and throws; anything else that fails here (text that
-    // does not convert, a number too big, a rule that throws) is reported on the node, and nothing is
-    // written.
+    // number into the member's number type, then the value rules and the range. A number shown in a Unit
+    // comes in that unit, is parsed as a double, and goes back to the member's unit before the rules;
+    // the range is in the unit shown. A value of an unrelated type is a mistake of the caller, and
+    // throws; anything else that fails here (text that does not convert, a number too big, a rule that
+    // throws) is reported on the node, and nothing is written.
     private bool TryPrepare(object? value, out object? prepared)
     {
         var culture = Inspector.Options.CultureInUse;
+        var incoming = ViewType!;
         prepared = null;
 
         if (value is not string)
-            ValueConverter.CheckFits(value, ValueType, Path);
+            ValueConverter.CheckFits(value, incoming, Path);
 
         try
         {
@@ -302,24 +304,28 @@ public class MemberNode : InspectorNode
                 foreach (var rule in TextRules)
                     text = rule.Apply(text);
 
-                if (!ValueConverter.TryParse(text, ValueType, culture, out value))
+                if (!ValueConverter.TryParse(text, incoming, culture, out value))
                 {
-                    OnBindFailed(FailureSeverity.Recovered, new FormatException($"'{text}' is not a {ValueType.Name}."),
+                    var name = (Nullable.GetUnderlyingType(incoming) ?? incoming).Name;
+                    OnBindFailed(FailureSeverity.Recovered, new FormatException($"'{text}' is not a {name}."),
                         $"'{Path}' could not take the text '{text}'.",
-                        $"Type a {ValueType.Name} in the format of the culture {culture.Name}.", onWrite: true);
+                        $"Type a {name} in the format of the culture {culture.Name}.", onWrite: true);
                     return false;
                 }
             }
-            else
-            {
-                value = ValueConverter.Convert(value, ValueType, culture);
-            }
+
+            if (Shown && value != null)
+                value = Unit!.ToHeld(System.Convert.ToDouble(value, culture));
+
+            value = ValueConverter.Convert(value, ValueType, culture);
 
             foreach (var rule in ValueRules)
                 value = rule.Apply(value);
 
             if (Range is { } range)
-                value = ValueConverter.Clamp(value, range.Min, range.Max);
+                value = Shown && value != null
+                    ? Unit!.ToHeld((double)ValueConverter.Clamp(Unit.ToShown(System.Convert.ToDouble(value, culture)), range.Min, range.Max)!)
+                    : ValueConverter.Clamp(value, range.Min, range.Max);
 
             prepared = ValueConverter.Convert(value, ValueType, culture);
             return true;

@@ -35,6 +35,13 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     public string Path { get; }
     public virtual Type? ValueType => null;
 
+    // The type of what the view holds: a number shown in a Unit is a double (or a double?), whatever the
+    // member's number type; anything else is the ValueType.
+    public Type? ViewType => !Shown ? ValueType : Nullable.GetUnderlyingType(ValueType!) != null ? typeof(double?) : typeof(double);
+
+    // Whether the node shows its number in a unit.
+    private protected bool Shown => Unit != null && ValueType is { } type && ValueConverter.IsNumber(Nullable.GetUnderlyingType(type) ?? type);
+
     // The inspector this node belongs to.
     public Inspector Inspector => Root.Owner;
 
@@ -147,6 +154,44 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     {
         get;
         set => Change(ref field, value);
+    }
+
+    // How a number is shown and typed, against how the member holds it, as degrees for an angle held in
+    // radians. With one, what the view holds (ViewValue, ViewValues) and what SetValue and SetValues take
+    // are in it, and so are the range and the scrubbing; GetValue and GetValues read the member as it is.
+    // It counts only on a number.
+    public DisplayUnit? Unit
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    // The name of the sibling that holds the width of the arc this node is the center of (Arc editor), as
+    // in node.ArcSpread = "Spread": both angles held in radians, whatever unit shows them. A view that draws
+    // no arc shows the center as a number.
+    public string? ArcSpread
+    {
+        get;
+        set => Change(ref field, value);
+    }
+
+    // The sibling named by ArcSpread, or null when there is none by that name.
+    public InspectorNode? ArcSpreadNode
+    {
+        get
+        {
+            if (ArcSpread is not { } name || Parent == null)
+                return null;
+
+            try
+            {
+                return Parent[name];
+            }
+            catch (KeyNotFoundException)
+            {
+                return null;
+            }
+        }
     }
 
     // The way the label is dragged to scrub (P7.18): across by default, or up and down.
@@ -397,6 +442,31 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
         return Adopt(new DisplayNode(this, name, read));
     }
 
+    // A value added by hand with its own reader and writer, read and written as a member is, in each bound
+    // object (FieldNode): what a host adds for fields reflection cannot see, such as those of a native
+    // descriptor. Both get the object this node holds in each bound object; with no writer, it is
+    // read-only. The reader returns a valueType, and the writer takes one.
+    public FieldNode AddField(string name, Type valueType, Func<object, object?> read, Action<object, object?>? write = null)
+    {
+        ArgumentNullException.ThrowIfNull(valueType);
+        ArgumentNullException.ThrowIfNull(read);
+
+        if (this is not (RootNode or MemberNode))
+            throw new InvalidOperationException($"'{Name}' holds nothing to add '{name}' to.");
+
+        return Adopt(new FieldNode(this, name, valueType, read, write));
+    }
+
+    // The same with the owner's type and the value's type checked by the compiler.
+    public FieldNode AddField<TOwner, TValue>(string name, Func<TOwner, TValue> read, Action<TOwner, TValue>? write = null)
+        where TOwner : class
+    {
+        ArgumentNullException.ThrowIfNull(read);
+
+        return AddField(name, typeof(TValue), owner => read((TOwner)owner),
+            write == null ? null : (owner, value) => write((TOwner)owner, (TValue)value!));
+    }
+
     // What a view shows: ignored and hidden nodes left out, siblings by Order, and only groups opened.
     public IEnumerable<InspectorNode> Rows
     {
@@ -604,7 +674,11 @@ public abstract class InspectorNode : IEnumerable<InspectorNode>, IDisposable
     private object? ViewValueAt(int index)
     {
         var held = HasPendingValue ? Pending : Known;
-        return index < held.Length ? held[index] : null;
+        var value = index < held.Length ? held[index] : null;
+
+        return Shown && value is IConvertible number
+            ? Unit!.ToShown(number.ToDouble(System.Globalization.CultureInfo.InvariantCulture))
+            : value;
     }
 
     // Groups remember the object they hold in every bound object, or in one of them; the others have

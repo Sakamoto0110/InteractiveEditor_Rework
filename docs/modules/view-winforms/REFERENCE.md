@@ -86,6 +86,10 @@ A text the core refuses stays as it was typed, with the failure, until the
 value changes; the object keeps its value. The color button takes a
 `System.Drawing.Color`, a `PxColorRgba`, or a `PxColorHsl`.
 
+- An `Arc` shows its center as a number (no dial); its width keeps its own
+  row. A number in a `Unit` is shown and typed in that unit, which the core
+  converts, without the unit's suffix.
+
 ## Mixed values and scrubbing
 
 - Objects that hold different values (`ViewRules.ShowsMixed`) turn the row's

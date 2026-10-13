@@ -98,8 +98,9 @@ The editor comes from `ViewRules.KindFor(node)`, shared with the other views.
 | Kind | Widget | Writes |
 |---|---|---|
 | `Text` | A text field; a null shows as a grey `null` hint, told from an empty text | On Enter and when the field is let go; Esc goes back to what the view holds (P2.12) |
-| `Number` | ImGui's number field for the integer and floating types, with step buttons for the integers | As it is typed, through the node's rules |
-| `Slider` | A slider over `Range`, in double, rounded to `Range.Step` when there is one | While it is dragged |
+| `Number` | ImGui's number field for the integer and floating types, with step buttons for the integers; a number in a `Unit` is a double in that unit, with the unit's suffix after the field | As it is typed, through the node's rules |
+| `Slider` | A slider over `Range`, in double, rounded to `Range.Step` when there is one; in a `Unit`, the value shows in it, with its suffix | While it is dragged |
+| `Arc` | A dial with the sector of the center (the node) and the width (its `ArcSpread` sibling), and a number field for each beside it, in each node's `Unit` with its suffix. Dragging on the dial turns the center to the mouse; with Shift, it opens or closes the width around the center. Angles go counterclockwise from the right, with y up. With objects that hold different values, the dial and the fields show the first object's | While it is dragged, and as the fields are typed; a change sets the same value in every object |
 | `Toggle` | A check box | At once |
 | `Choice` | A combo box filled from `GetChoices()` when it opens (P6.3) | At once |
 | `Color` | ImGui's color field: a swatch that opens a picker, and the RGBA inputs | While it is dragged; channels from 0 to 1, rounded to bytes |

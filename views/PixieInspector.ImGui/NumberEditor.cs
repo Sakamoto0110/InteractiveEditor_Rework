@@ -5,9 +5,10 @@ namespace PixieInspector.ImGui;
 
 // ImGui's own number field for the number types it knows, with step buttons for the integers (P7.9). ImGui
 // edits the number in place and reports every change, so it is written as it is typed, as a number of the
-// member's type, through the node's rules (range, value rules). What the field cannot show goes through
-// the text of TextEditor: a nullable number (an empty text is null), a decimal, a value that is not there,
-// and objects that hold different values, unless the row scrubs (P7.19).
+// member's type, through the node's rules (range, value rules). A number shown in a Unit is a double in
+// that unit, with the unit's suffix after the field. What the field cannot show goes through the text of
+// TextEditor: a nullable number (an empty text is null), a decimal, a value that is not there, and objects
+// that hold different values, unless the row scrubs (P7.19).
 internal sealed class NumberEditor(ImGuiRow row) : TextEditor(row)
 {
     private static readonly Dictionary<Type, ImGuiDataType> Numbers = new()
@@ -28,14 +29,27 @@ internal sealed class NumberEditor(ImGuiRow row) : TextEditor(row)
     {
         var value = Node.ViewValue;
 
-        if (Row.Mixed && !Row.Scrubs || value == null || value.GetType() != Node.ValueType
+        if (Row.Mixed && !Row.Scrubs || value == null || value.GetType() != Node.ViewType
             || !Numbers.TryGetValue(value.GetType(), out var dataType))
         {
             base.Draw();
             return;
         }
 
-        if (DrawNumber(dataType, value) is { } edited)
+        var suffix = Node.Unit?.Suffix;
+
+        if (!string.IsNullOrEmpty(suffix))
+            Gui.SetNextItemWidth(Gui.GetContentRegionAvail().X - Gui.CalcTextSize(suffix).X - Gui.GetStyle().ItemInnerSpacing.X);
+
+        var edited = DrawNumber(dataType, value);
+
+        if (!string.IsNullOrEmpty(suffix))
+        {
+            Gui.SameLine(0, Gui.GetStyle().ItemInnerSpacing.X);
+            Gui.TextUnformatted(suffix);
+        }
+
+        if (edited != null)
             Row.Write(() => Node.SetValue(edited));
     }
 
